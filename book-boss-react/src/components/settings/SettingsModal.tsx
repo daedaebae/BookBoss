@@ -605,14 +605,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                                 onClick={() => startEditingUser(user)}
                                                 title="Edit User"
                                             >
-                                                ✏️
+                                                ✏️ Edit
                                             </button>
                                             <button
-                                                className="delete-btn"
+                                                className="secondary-btn small"
                                                 onClick={() => deleteUser(user.id)}
                                                 title="Delete User"
+                                                style={{ color: 'var(--danger-color)', borderColor: 'var(--danger-color)' }}
                                             >
-                                                🗑️
+                                                🗑️ Delete
                                             </button>
                                         </div>
                                     </div>
