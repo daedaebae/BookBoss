@@ -591,7 +591,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                     }}>
                                         <div>
                                             <span style={{ fontWeight: 500 }}>{user.username}</span>
-                                            {user.is_admin && <span style={{
+                                            {!!user.is_admin && <span style={{
                                                 marginLeft: '10px',
                                                 padding: '2px 8px',
                                                 background: 'var(--accent-color)',
