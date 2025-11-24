@@ -44,7 +44,6 @@ export const Library: React.FC = () => {
 
     // Apply filters whenever books or filters change
     useEffect(() => {
-        loadBooks();
         applyFilters();
     }, [books, filters, sidebarFilter]);
 
@@ -231,31 +230,20 @@ export const Library: React.FC = () => {
 
     return (
         <>
-            {isSidebarVisible && (
-                <Sidebar
-                    activeFilter={sidebarFilter}
-                    onFilterChange={setSidebarFilter}
-                    shelves={shelves}
-                    bookCounts={bookCounts}
-                    isMobileOpen={isMobileSidebarOpen}
-                    onMobileClose={() => setIsMobileSidebarOpen(false)}
-                    onToggleSidebar={() => setIsSidebarVisible(false)}
-                />
-            )}
+            <Sidebar
+                activeFilter={sidebarFilter}
+                onFilterChange={setSidebarFilter}
+                shelves={shelves}
+                bookCounts={bookCounts}
+                isMobileOpen={isMobileSidebarOpen}
+                onMobileClose={() => setIsMobileSidebarOpen(false)}
+                onToggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)}
+                isVisible={isSidebarVisible}
+            />
 
             <div style={{ marginLeft: isSidebarVisible ? 'var(--sidebar-width)' : '0', minHeight: '100vh', transition: 'margin-left 0.3s ease' }}>
-                <div className="top-bar">
-                    {!isSidebarVisible && (
-                        <button
-                            className="secondary-btn small"
-                            onClick={() => setIsSidebarVisible(true)}
-                            style={{ marginRight: '10px' }}
-                            title="Show Sidebar"
-                        >
-                            ▶
-                        </button>
-                    )}
-                    <div className="search-container">
+                <div className="top-bar" style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
+                    <div className="search-container" style={{ flex: 1, maxWidth: '400px' }}>
                         <input
                             type="text"
                             placeholder="Search books by title, author, or ISBN..."
@@ -263,36 +251,34 @@ export const Library: React.FC = () => {
                             onChange={(e) => handleSearch(e.target.value)}
                         />
                     </div>
-                    <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        <select
-                            value={filters.sortBy}
-                            onChange={(e) => setFilters((prev) => ({ ...prev, sortBy: e.target.value as BookFilters['sortBy'] }))}
-                            style={{
-                                padding: '8px 12px',
-                                borderRadius: '8px',
-                                border: '1px solid var(--glass-border)',
-                                background: 'var(--glass-bg)',
-                                color: 'var(--text-primary)',
-                            }}
-                        >
-                            <option value="added_desc">Recently Added</option>
-                            <option value="added_asc">Oldest First</option>
-                            <option value="title_asc">Title (A-Z)</option>
-                            <option value="author_asc">Author (A-Z)</option>
-                            <option value="rating_desc">Highest Rated</option>
-                            <option value="page_count_desc">Longest</option>
-                            <option value="pub_date_desc">Newest Published</option>
-                        </select>
-                        <button
-                            className="secondary-btn small"
-                            onClick={() => {
-                                setBulkMode(!bulkMode);
-                                setSelectedBooks(new Set());
-                            }}
-                        >
-                            {bulkMode ? 'Cancel' : 'Select Multiple'}
-                        </button>
-                    </div>
+                    <button
+                        className="secondary-btn small"
+                        onClick={() => {
+                            setBulkMode(!bulkMode);
+                            setSelectedBooks(new Set());
+                        }}
+                    >
+                        {bulkMode ? 'Cancel' : 'Select Multiple'}
+                    </button>
+                    <select
+                        value={filters.sortBy}
+                        onChange={(e) => setFilters((prev) => ({ ...prev, sortBy: e.target.value as BookFilters['sortBy'] }))}
+                        style={{
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--glass-border)',
+                            background: 'var(--glass-bg)',
+                            color: 'var(--text-primary)',
+                        }}
+                    >
+                        <option value="added_desc">Recently Added</option>
+                        <option value="added_asc">Oldest First</option>
+                        <option value="title_asc">Title (A-Z)</option>
+                        <option value="author_asc">Author (A-Z)</option>
+                        <option value="rating_desc">Highest Rated</option>
+                        <option value="page_count_desc">Longest</option>
+                        <option value="pub_date_desc">Newest Published</option>
+                    </select>
 
                     {/* Theme Toggle and Add Book - Fixed Position */}
                     <div style={{

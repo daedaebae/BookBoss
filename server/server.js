@@ -76,7 +76,8 @@ const requireAdmin = (req, res, next) => {
 };
 
 // Serve static files (public)
-app.use(express.static(path.join(__dirname, '../book-boss-web')));
+// Serve static files (public) - REMOVED: React app is served via Vite dev server (port 5173)
+// app.use(express.static(path.join(__dirname, '../book-boss-react/dist')));
 
 // Serve uploaded files with proper headers
 app.use('/uploads', (req, res, next) => {
@@ -100,7 +101,11 @@ app.use('/uploads', (req, res, next) => {
     res.setHeader('Accept-Ranges', 'bytes');
 
     next();
-}, express.static('uploads'));
+}, express.static('uploads'), (req, res) => {
+    // Prevent fallthrough to SPA handler or default HTML 404
+    // This ensures missing images return 404 immediately, avoiding CORB
+    res.status(404).send('Not Found');
+});
 
 // Multer Configuration
 const storage = multer.diskStorage({
@@ -827,4 +832,8 @@ app.get('/api/audiobookshelf/servers/:id/status', authenticateToken, (req, res) 
             res.status(500).json({ status: 'error', error: error.message });
         }
     });
+});
+// Catch-all handler for 404s (prevents CORB)
+app.use((req, res) => {
+    res.type('txt').status(404).send('Not Found');
 });

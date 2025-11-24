@@ -22,6 +22,7 @@ interface SidebarProps {
     isMobileOpen?: boolean;
     onMobileClose?: () => void;
     onToggleSidebar?: () => void;
+    isVisible?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -31,7 +32,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     bookCounts,
     isMobileOpen = false,
     onMobileClose,
-    onToggleSidebar
+    onToggleSidebar,
+    isVisible = true
 }) => {
     const isActive = (type: string, value?: string) => {
         return activeFilter.type === type && activeFilter.value === value;
@@ -52,8 +54,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 />
             )}
 
-            <aside className={`sidebar ${isMobileOpen ? 'mobile-open' : ''}`}>
-                {/* Sidebar Header with Hide Button */}
+            <aside className={`sidebar ${isMobileOpen ? 'mobile-open' : ''}`} style={{ display: isVisible ? 'block' : 'none' }}>
+                {/* Sidebar Header with Show/Hide Button */}
                 <div style={{
                     padding: '15px 20px',
                     borderBottom: '1px solid var(--glass-border)',
@@ -66,10 +68,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <button
                             className="secondary-btn small"
                             onClick={onToggleSidebar}
-                            title="Hide Sidebar"
+                            title={isVisible ? "Hide Sidebar" : "Show Sidebar"}
                             style={{ padding: '4px 8px' }}
                         >
-                            ◀
+                            {isVisible ? '◀' : '▶'}
                         </button>
                     )}
                 </div>

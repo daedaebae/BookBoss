@@ -650,7 +650,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                         <label>Server URL</label>
                                         <input
                                             type="url"
-                                            placeholder="https://abs.example.com"
+                                            placeholder=""
                                             value={newServerUrl}
                                             onChange={(e) => setNewServerUrl(e.target.value)}
                                         />

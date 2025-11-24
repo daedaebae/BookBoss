@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getSafeCoverUrl } from '../../utils/coverUrlGuard';
 import { type Book } from '../../types/book';
 
 interface BookCardProps {
@@ -15,13 +16,7 @@ interface BookCardProps {
 export const BookCard: React.FC<BookCardProps> = ({ book, onEdit, onDelete, onRead, bulkMode = false, isSelected = false, onToggleSelection }) => {
     const [showMenu, setShowMenu] = useState(false);
 
-    const coverUrl = book.cover_image_path
-        ? `http://localhost:3000/${book.cover_image_path}`
-        : book.cover_url
-            ? book.cover_url.startsWith('http')
-                ? book.cover_url
-                : `http://localhost:3000${book.cover_url}`
-            : '/no_cover.png';
+    const coverUrl = getSafeCoverUrl(book);
 
     return (
         <div
