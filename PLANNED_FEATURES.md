@@ -28,7 +28,7 @@
   - Allow users to create custom shelves (e.g., "Favorites", "To Read", "History").
   - Ability to move books between shelves or add to multiple collections.
 
-- [ ] **Reading Status & Progress**
+- [x] **Reading Status & Progress**
   - Track status: Not Started, In Progress, Completed, DNF (Did Not Finish).
   - Progress bars for current reads (page number or percentage).
 
