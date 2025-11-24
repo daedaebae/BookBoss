@@ -51,7 +51,7 @@
 ## Missing Features (Legacy → React Migration)
 
 ### Critical Missing Features
-- [ ] **Barcode Scanner Integration**
+- [x] **Barcode Scanner Integration**
   - Scan tab in Add Book modal with Html5-QRCode library
   - Camera-based barcode scanning for ISBN lookup
   - Auto-populate book details from scanned ISBN
@@ -95,7 +95,7 @@
   - Reading progress statistics
 
 ### Backend Features
-- [ ] **Metadata Refresh**
+- [x] **Metadata Refresh**
   - Bulk refresh metadata for all books
   - Download/update cover images from OpenLibrary
   - Progress indicator during refresh

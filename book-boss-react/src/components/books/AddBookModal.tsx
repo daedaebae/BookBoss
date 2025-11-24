@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { BarcodeScanner } from './BarcodeScanner';
+import { BookSearch } from './BookSearch';
 import { type Book } from '../../types/book';
 import { bookService } from '../../services/bookService';
 
@@ -9,6 +10,8 @@ interface AddBookModalProps {
     onClose: () => void;
     onBookAdded: () => void;
 }
+
+type Tab = 'manual' | 'api' | 'scan' | 'search';
 
 interface GoogleBook {
     id: string;
@@ -21,7 +24,11 @@ interface GoogleBook {
 }
 
 export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onBookAdded }) => {
-    const [activeTab, setActiveTab] = useState<'api' | 'manual' | 'scan'>('scan');
+    const [activeTab, setActiveTab] = useState<Tab>('search'); // Default to search for better UX? Or keep manual. Let's stick to manual default for now, or maybe 'search' as requested in features.
+    // Actually, let's make 'search' the default if that's the new primary way.
+    // But for now, let's just add the tab.
+
+    // Form state
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<GoogleBook[]>([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -36,6 +43,11 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
         series: '',
         shelf: '',
         status: undefined,
+        cover_url: '', // Added for consistency with Book type and handleBookSelect
+        categories: '', // Added for consistency with Book type and handleBookSelect
+        publication_date: '', // Added for consistency with Book type and handleBookSelect
+        rating: undefined, // Added for consistency with Book type and handleBookSelect
+        page_count: undefined, // Added for consistency with Book type and handleBookSelect
     });
 
 
@@ -70,6 +82,12 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
             if (!sanitizedData.series) delete sanitizedData.series;
             if (!sanitizedData.shelf) delete sanitizedData.shelf;
             if (!sanitizedData.status) delete sanitizedData.status;
+            if (!sanitizedData.cover_url) delete sanitizedData.cover_url;
+            if (!sanitizedData.categories) delete sanitizedData.categories;
+            if (!sanitizedData.publication_date) delete sanitizedData.publication_date;
+            if (sanitizedData.rating === undefined || isNaN(sanitizedData.rating)) delete sanitizedData.rating;
+            if (sanitizedData.page_count === undefined || isNaN(sanitizedData.page_count)) delete sanitizedData.page_count;
+
             await bookService.addBook(sanitizedData);
             onBookAdded();
             handleClose();
@@ -81,8 +99,11 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
     const handleClose = () => {
         setSearchQuery('');
         setSearchResults([]);
-        setFormData({ title: '', author: '', isbn: '', library: '', format: '', series: '', shelf: '', status: undefined });
-        setActiveTab('scan');
+        setFormData({
+            title: '', author: '', isbn: '', library: '', format: '', series: '', shelf: '', status: undefined,
+            cover_url: '', categories: '', publication_date: '', rating: undefined, page_count: undefined
+        });
+        setActiveTab('search'); // Reset to 'search' tab on close
         onClose();
     };
 
@@ -115,9 +136,39 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
         }
     };
 
+    const handleBookSelect = (book: Partial<Book>) => {
+        // Populate form with selected book
+        setFormData(prevData => ({
+            ...prevData,
+            title: book.title || '',
+            author: book.author || '',
+            isbn: book.isbn || '',
+            cover_url: book.cover_url || '',
+            categories: Array.isArray(book.categories) ? book.categories.join(', ') : (book.categories || ''),
+            publication_date: book.publication_date || '',
+            rating: book.rating,
+            page_count: book.page_count,
+        }));
+
+        // Switch to manual tab to review/edit before saving
+        setActiveTab('manual');
+    };
+
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} title="Add Book">
-            <div className="modal-tabs">
+        <Modal isOpen={isOpen} onClose={handleClose} title="Add New Book">
+            <div className="tabs" style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--glass-border)', paddingBottom: '10px' }}>
+                <button
+                    className={`tab-btn ${activeTab === 'manual' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('manual')}
+                >
+                    Manual Entry
+                </button>
+                <button
+                    className={`tab-btn ${activeTab === 'search' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('search')}
+                >
+                    Online Search
+                </button>
                 <button
                     className={`tab-btn ${activeTab === 'scan' ? 'active' : ''}`}
                     onClick={() => setActiveTab('scan')}
@@ -128,15 +179,13 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
                     className={`tab-btn ${activeTab === 'api' ? 'active' : ''}`}
                     onClick={() => setActiveTab('api')}
                 >
-                    API Search
-                </button>
-                <button
-                    className={`tab-btn ${activeTab === 'manual' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('manual')}
-                >
-                    Manual Entry
+                    Google API (Legacy)
                 </button>
             </div>
+
+            {activeTab === 'search' && (
+                <BookSearch onBookSelect={handleBookSelect} />
+            )}
 
             {activeTab === 'api' ? (
                 <div className="tab-content active">

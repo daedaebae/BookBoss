@@ -13,6 +13,8 @@ export interface Book {
     rating?: number;
     page_count?: number;
     publication_date?: string;
+    categories?: string | string[];
+    binding_type?: string;
     descriptors?: string;
     added_at: string;
     is_loaned?: boolean;
