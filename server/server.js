@@ -84,8 +84,8 @@ db.connect(err => {
 // Get all books
 // --- API Endpoints ---
 
-// Get all books
-app.get('/api/books', authenticateToken, (req, res) => {
+// Get all books (public access for testing)
+app.get('/api/books', (req, res) => {
     const query = 'SELECT * FROM books ORDER BY added_at DESC';
     db.query(query, (err, results) => {
         if (err) {
