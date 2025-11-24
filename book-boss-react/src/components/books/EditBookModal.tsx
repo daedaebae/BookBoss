@@ -44,6 +44,9 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
                 borrower_name: book.borrower_name || '',
                 loan_date: book.loan_date || '',
                 due_date: book.due_date || '',
+                current_page: book.current_page || 0,
+                progress_percentage: book.progress_percentage || 0,
+                last_read_at: book.last_read_at,
             });
         }
     }, [book]);
@@ -166,6 +169,39 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
                         onChange={(e) => setFormData({ ...formData, page_count: parseInt(e.target.value) })}
                     />
                 </div>
+
+                {/* Current Page - Only show for books in progress */}
+                {formData.status === 'In Progress' && (
+                    <div className="form-group">
+                        <label>
+                            Current Page
+                            {formData.current_page && formData.page_count && (
+                                <span style={{ marginLeft: '8px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                    ({Math.round((formData.current_page / formData.page_count) * 100)}%)
+                                </span>
+                            )}
+                        </label>
+                        <input
+                            type="number"
+                            min="0"
+                            max={formData.page_count || undefined}
+                            value={formData.current_page || ''}
+                            onChange={(e) => {
+                                const currentPage = parseInt(e.target.value) || 0;
+                                const progressPercentage = formData.page_count
+                                    ? (currentPage / formData.page_count) * 100
+                                    : 0;
+                                setFormData({
+                                    ...formData,
+                                    current_page: currentPage,
+                                    progress_percentage: progressPercentage,
+                                    last_read_at: new Date().toISOString()
+                                });
+                            }}
+                        />
+                    </div>
+                )}
+
                 <div className="form-group">
                     <label>Publication Date</label>
                     <input
