@@ -22,9 +22,30 @@ const port = process.env.PORT || 3000;
 const sessions = {}; // token -> { userId, username, isAdmin, expiresAt }
 const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
-// Middleware
-app.use(cors());
+// Middleware - Enhanced CORS Configuration
+app.use(cors({
+    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Range'],
+    exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length']
+}));
 app.use(bodyParser.json());
+
+// Additional headers for static files
+app.use((req, res, next) => {
+    // Set proper MIME types and CORS headers for all responses
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Range');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
+});
 
 // Authentication Middleware
 // Verifies the Bearer token against the in-memory session store
@@ -49,15 +70,37 @@ const authenticateToken = (req, res, next) => {
 // Admin Middleware
 const requireAdmin = (req, res, next) => {
     if (!req.user || !req.user.isAdmin) {
-        return res.sendStatus(403); // Forbidden
+        return res.status(403).json({ error: 'Admin access required' });
     }
     next();
 };
 
 // Serve static files (public)
 app.use(express.static(path.join(__dirname, '../book-boss-web')));
-// Serve uploaded files (covers and book files)
-app.use('/uploads', express.static('uploads'));
+
+// Serve uploaded files with proper headers
+app.use('/uploads', (req, res, next) => {
+    // Set proper MIME type based on file extension
+    const ext = path.extname(req.path).toLowerCase();
+    const mimeTypes = {
+        '.epub': 'application/epub+zip',
+        '.pdf': 'application/pdf',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp'
+    };
+
+    if (mimeTypes[ext]) {
+        res.setHeader('Content-Type', mimeTypes[ext]);
+    }
+
+    // Enable range requests for large files
+    res.setHeader('Accept-Ranges', 'bytes');
+
+    next();
+}, express.static('uploads'));
 
 // Multer Configuration
 const storage = multer.diskStorage({
