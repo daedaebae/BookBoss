@@ -32,6 +32,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     // Users (admin only)
     const [users, setUsers] = useState<any[]>([]);
     const [showAddUser, setShowAddUser] = useState(false);
+    const [editingUser, setEditingUser] = useState<any>(null); // New state for editing
     const [newUsername, setNewUsername] = useState('');
     const [newUserPassword, setNewUserPassword] = useState('');
     const [newUserIsAdmin, setNewUserIsAdmin] = useState(false);
@@ -153,6 +154,60 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             console.error('Failed to create user:', error);
             alert('Failed to create user');
         }
+    };
+
+    const startEditingUser = (userToEdit: any) => {
+        setEditingUser(userToEdit);
+        setNewUsername(userToEdit.username);
+        setNewUserPassword(''); // Don't show existing password
+        setNewUserIsAdmin(userToEdit.is_admin);
+        setShowAddUser(true); // Reuse the add user form
+    };
+
+    const updateUser = async () => {
+        if (!newUsername) {
+            alert('Username is required');
+            return;
+        }
+        try {
+            const body: any = {
+                username: newUsername,
+                isAdmin: newUserIsAdmin
+            };
+            if (newUserPassword) {
+                body.password = newUserPassword;
+            }
+
+            const response = await fetch(`http://localhost:3000/api/users/${editingUser.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (response.ok) {
+                alert('User updated successfully!');
+                setEditingUser(null);
+                setShowAddUser(false);
+                setNewUsername('');
+                setNewUserPassword('');
+                setNewUserIsAdmin(false);
+                fetchUsers();
+            }
+        } catch (error) {
+            console.error('Failed to update user:', error);
+            alert('Failed to update user');
+        }
+    };
+
+    const cancelEdit = () => {
+        setEditingUser(null);
+        setShowAddUser(false);
+        setNewUsername('');
+        setNewUserPassword('');
+        setNewUserIsAdmin(false);
     };
 
     const deleteUser = async (id: number) => {
@@ -470,14 +525,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                         <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                                 <h3>User Management</h3>
-                                <button className="secondary-btn small" onClick={() => setShowAddUser(!showAddUser)}>
-                                    + Add User
-                                </button>
+                                {!showAddUser && (
+                                    <button className="secondary-btn small" onClick={() => {
+                                        setEditingUser(null);
+                                        setNewUsername('');
+                                        setNewUserPassword('');
+                                        setNewUserIsAdmin(false);
+                                        setShowAddUser(true);
+                                    }}>
+                                        + Add User
+                                    </button>
+                                )}
                             </div>
 
                             {showAddUser && (
                                 <div style={{ marginBottom: '20px', padding: '15px', background: 'var(--glass-bg)', borderRadius: '8px' }}>
-                                    <h4>New User</h4>
+                                    <h4>{editingUser ? 'Edit User' : 'New User'}</h4>
                                     <div className="form-group">
                                         <input
                                             type="text"
@@ -505,8 +568,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                         </label>
                                     </div>
                                     <div style={{ display: 'flex', gap: '10px' }}>
-                                        <button className="primary-btn small" onClick={createUser}>Save</button>
-                                        <button className="secondary-btn small" onClick={() => setShowAddUser(false)}>Cancel</button>
+                                        <button className="primary-btn small" onClick={editingUser ? updateUser : createUser}>
+                                            {editingUser ? 'Update User' : 'Create User'}
+                                        </button>
+                                        <button className="secondary-btn small" onClick={cancelEdit}>Cancel</button>
                                     </div>
                                 </div>
                             )}
@@ -532,13 +597,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                                 fontSize: '0.8rem'
                                             }}>Admin</span>}
                                         </div>
-                                        <button
-                                            className="delete-btn"
-                                            onClick={() => deleteUser(user.id)}
-                                            title="Delete User"
-                                        >
-                                            🗑️
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                            <button
+                                                className="secondary-btn small"
+                                                onClick={() => startEditingUser(user)}
+                                                title="Edit User"
+                                            >
+                                                ✏️
+                                            </button>
+                                            <button
+                                                className="delete-btn"
+                                                onClick={() => deleteUser(user.id)}
+                                                title="Delete User"
+                                            >
+                                                🗑️
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
