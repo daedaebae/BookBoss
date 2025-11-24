@@ -5,6 +5,7 @@
   - Force the user to successfully log in before accessing anything on the server (protect all routes/views).
 
 - [x] **Settings Menu Popup**
+  - ✅ **MIGRATED TO REACT** - Full settings modal with tabs for General, Profile, Filters, Export, Users, and Audiobookshelf
   - Create a pop-up menu when the settings button is clicked.
   - Style it consistently with the user creation menu.
   - Show common server options that the user can change.
@@ -46,3 +47,55 @@
 - [ ] **Advanced Filtering & Sorting**
   - Multi-select filters (e.g., "Fantasy" AND "Hardcover").
   - Sort by Rating, Page Count, Publication Date, or Date Added.
+
+## Missing Features (Legacy → React Migration)
+
+### Critical Missing Features
+- [ ] **Barcode Scanner Integration**
+  - Scan tab in Add Book modal with Html5-QRCode library
+  - Camera-based barcode scanning for ISBN lookup
+  - Auto-populate book details from scanned ISBN
+
+- [ ] **Online Search (OpenLibrary API)**
+  - Search tab in Add Book modal
+  - Search by ISBN, title, or author
+  - Display search results with book details
+  - One-click add from search results
+
+- [ ] **EPUB Reader**
+  - Reader modal with ePub.js integration
+  - Open/read EPUB files directly in browser
+  - Navigation controls (prev/next page)
+  - Reading progress tracking
+
+- [x] **Context Menu on Book Cards** ✅
+  - Right-click or click menu on each book card
+  - Quick actions: Edit, Delete, Open Reader (for ebooks)
+  - Show/hide menu on card interaction
+
+### Navigation & Filtering
+- [ ] **Sidebar Navigation Filters**
+  - Hot Books filter
+  - Downloaded Books filter
+  - Read Books filter
+  - Create a Shelf option
+
+- [x] **Library Search** ✅
+  - Real-time search across title, author, ISBN
+  - Search bar in top navigation
+
+### UI/UX Enhancements
+- [ ] **Mobile Menu Toggle**
+  - Hamburger menu for mobile devices
+  - Sidebar overlay for small screens
+
+- [x] **Library Stats Display** ✅
+  - Total books count
+  - Books by format breakdown
+  - Reading progress statistics
+
+### Backend Features
+- [ ] **Metadata Refresh**
+  - Bulk refresh metadata for all books
+  - Download/update cover images from OpenLibrary
+  - Progress indicator during refresh

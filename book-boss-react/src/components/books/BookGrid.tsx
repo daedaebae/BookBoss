@@ -8,9 +8,21 @@ interface BookGridProps {
     onBookClick?: (book: Book) => void;
     onEdit?: (book: Book) => void;
     onDelete?: (book: Book) => void;
+    bulkMode?: boolean;
+    selectedBooks?: Set<number>;
+    onToggleSelection?: (bookId: number) => void;
 }
 
-export const BookGrid: React.FC<BookGridProps> = ({ books, isLoading, onBookClick, onEdit, onDelete }) => {
+export const BookGrid: React.FC<BookGridProps> = ({
+    books,
+    isLoading,
+    onBookClick,
+    onEdit,
+    onDelete,
+    bulkMode = false,
+    selectedBooks = new Set(),
+    onToggleSelection
+}) => {
     if (isLoading) {
         return (
             <div className="book-grid">
@@ -50,6 +62,9 @@ export const BookGrid: React.FC<BookGridProps> = ({ books, isLoading, onBookClic
                     onClick={() => onBookClick?.(book)}
                     onEdit={onEdit}
                     onDelete={onDelete}
+                    bulkMode={bulkMode}
+                    isSelected={selectedBooks.has(book.id)}
+                    onToggleSelection={onToggleSelection}
                 />
             ))}
         </div>

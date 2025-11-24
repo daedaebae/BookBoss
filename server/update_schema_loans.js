@@ -16,9 +16,10 @@ db.connect(err => {
     console.log('Connected to database.');
 
     const columnsToAdd = [
-        "ADD COLUMN series VARCHAR(255) DEFAULT NULL",
-        "ADD COLUMN shelf VARCHAR(255) DEFAULT NULL",
-        "ADD COLUMN status VARCHAR(50) DEFAULT 'Not Started'"
+        "ADD COLUMN is_loaned BOOLEAN DEFAULT FALSE",
+        "ADD COLUMN borrower_name VARCHAR(255) DEFAULT NULL",
+        "ADD COLUMN loan_date DATE DEFAULT NULL",
+        "ADD COLUMN due_date DATE DEFAULT NULL"
     ];
 
     let completed = 0;
@@ -37,7 +38,7 @@ db.connect(err => {
             }
             completed++;
             if (completed === columnsToAdd.length) {
-                console.log('Schema update complete.');
+                console.log('Loan tracking schema update complete.');
                 db.end();
             }
         });

@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { SettingsModal } from '../settings/SettingsModal';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { theme, setTheme } = useTheme();
     const { user, logout } = useAuth();
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     return (
         <div className="app-container">
@@ -26,7 +28,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                         </div>
                     </div>
                     <div className="nav-section">
-                        <h3>Settings</h3>
+                        <h3>System</h3>
+                        <div className="nav-item" onClick={() => setIsSettingsOpen(true)}>
+                            <span className="icon">⚙️</span>
+                            <span>Settings</span>
+                        </div>
                         <div className="nav-item" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
                             <span className="icon">{theme === 'dark' ? '☀️' : '🌙'}</span>
                             <span>Toggle Theme</span>
@@ -41,6 +47,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             <div className="content-area">
                 {children}
             </div>
+
+            <SettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+            />
         </div>
     );
 };

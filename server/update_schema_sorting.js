@@ -16,9 +16,9 @@ db.connect(err => {
     console.log('Connected to database.');
 
     const columnsToAdd = [
-        "ADD COLUMN series VARCHAR(255) DEFAULT NULL",
-        "ADD COLUMN shelf VARCHAR(255) DEFAULT NULL",
-        "ADD COLUMN status VARCHAR(50) DEFAULT 'Not Started'"
+        "ADD COLUMN rating INT DEFAULT 0",
+        "ADD COLUMN page_count INT DEFAULT 0",
+        "ADD COLUMN publication_date DATE DEFAULT NULL"
     ];
 
     let completed = 0;

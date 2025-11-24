@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
+import { BarcodeScanner } from './BarcodeScanner';
 import { type Book } from '../../types/book';
 import { bookService } from '../../services/bookService';
 
@@ -20,35 +21,24 @@ interface GoogleBook {
 }
 
 export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onBookAdded }) => {
-    const [activeTab, setActiveTab] = useState<'api' | 'manual'>('api');
+    const [activeTab, setActiveTab] = useState<'api' | 'manual' | 'scan'>('scan');
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<GoogleBook[]>([]);
     const [isSearching, setIsSearching] = useState(false);
 
     // Manual entry form
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<Partial<Book>>({
         title: '',
         author: '',
         isbn: '',
         library: '',
+        format: '',
+        series: '',
+        shelf: '',
+        status: undefined,
     });
 
-    const searchGoogleBooks = async () => {
-        if (!searchQuery.trim()) return;
 
-        setIsSearching(true);
-        try {
-            const response = await fetch(
-                `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchQuery)}&maxResults=10`
-            );
-            const data = await response.json();
-            setSearchResults(data.items || []);
-        } catch (error) {
-            console.error('Search error:', error);
-        } finally {
-            setIsSearching(false);
-        }
-    };
 
     const addBookFromAPI = async (googleBook: GoogleBook) => {
         const isbn = googleBook.volumeInfo.industryIdentifiers?.find(
@@ -74,7 +64,13 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
     const addBookManually = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await bookService.addBook(formData);
+            // Remove empty string fields to match Book type expectations
+            const sanitizedData: Partial<Book> = { ...formData };
+            if (!sanitizedData.format) delete sanitizedData.format;
+            if (!sanitizedData.series) delete sanitizedData.series;
+            if (!sanitizedData.shelf) delete sanitizedData.shelf;
+            if (!sanitizedData.status) delete sanitizedData.status;
+            await bookService.addBook(sanitizedData);
             onBookAdded();
             handleClose();
         } catch (error) {
@@ -85,14 +81,49 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
     const handleClose = () => {
         setSearchQuery('');
         setSearchResults([]);
-        setFormData({ title: '', author: '', isbn: '', library: '' });
-        setActiveTab('api');
+        setFormData({ title: '', author: '', isbn: '', library: '', format: '', series: '', shelf: '', status: undefined });
+        setActiveTab('scan');
         onClose();
+    };
+
+    const handleScanSuccess = (decodedText: string) => {
+        // Clean ISBN (remove dashes)
+        const cleanIsbn = decodedText.replace(/-/g, '').trim();
+        setSearchQuery(`isbn:${cleanIsbn}`);
+        setActiveTab('api');
+        // Trigger search immediately
+        // We need to use the cleanIsbn directly because setState is async
+        searchGoogleBooks(`isbn:${cleanIsbn}`);
+    };
+
+    // Overload searchGoogleBooks to accept a query argument
+    const searchGoogleBooks = async (queryOverride?: string) => {
+        const query = queryOverride || searchQuery;
+        if (!query.trim()) return;
+
+        setIsSearching(true);
+        try {
+            const response = await fetch(
+                `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=10`
+            );
+            const data = await response.json();
+            setSearchResults(data.items || []);
+        } catch (error) {
+            console.error('Search error:', error);
+        } finally {
+            setIsSearching(false);
+        }
     };
 
     return (
         <Modal isOpen={isOpen} onClose={handleClose} title="Add Book">
             <div className="modal-tabs">
+                <button
+                    className={`tab-btn ${activeTab === 'scan' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('scan')}
+                >
+                    Scan Barcode
+                </button>
                 <button
                     className={`tab-btn ${activeTab === 'api' ? 'active' : ''}`}
                     onClick={() => setActiveTab('api')}
@@ -117,7 +148,7 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && searchGoogleBooks()}
                         />
-                        <button className="primary-btn" onClick={searchGoogleBooks} disabled={isSearching}>
+                        <button className="primary-btn" onClick={() => searchGoogleBooks()} disabled={isSearching}>
                             {isSearching ? 'Searching...' : 'Search'}
                         </button>
                     </div>
@@ -145,6 +176,13 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
                             </div>
                         ))}
                     </div>
+                </div>
+            ) : activeTab === 'scan' ? (
+                <div className="tab-content active">
+                    <BarcodeScanner
+                        onScanSuccess={handleScanSuccess}
+                        onScanFailure={(err) => console.log(err)}
+                    />
                 </div>
             ) : (
                 <div className="tab-content active">
@@ -183,9 +221,83 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
                                 onChange={(e) => setFormData({ ...formData, library: e.target.value })}
                             />
                         </div>
-                        <button type="submit" className="primary-btn full-width">
-                            Add Book
-                        </button>
+                        <div className="form-group">
+                            <label>Format</label>
+                            <select
+                                value={formData.format || ''}
+                                onChange={(e) => setFormData({ ...formData, format: e.target.value })}
+                            >
+                                <option value="">Select format</option>
+                                <option value="Physical">Physical</option>
+                                <option value="Ebook">Ebook</option>
+                                <option value="Audiobook">Audiobook</option>
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Series</label>
+                            <input
+                                type="text"
+                                value={formData.series || ''}
+                                onChange={(e) => setFormData({ ...formData, series: e.target.value })}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Shelf</label>
+                            <input
+                                type="text"
+                                value={formData.shelf || ''}
+                                onChange={(e) => setFormData({ ...formData, shelf: e.target.value })}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Status</label>
+                            <select
+                                value={formData.status || ''}
+                                onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                            >
+                                <option value="">Select status</option>
+                                <option value="Not Started">Not Started</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Completed">Completed</option>
+                                <option value="DNF">DNF</option>
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Rating (0-5)</label>
+                            <input
+                                type="number"
+                                min="0"
+                                max="5"
+                                step="0.5"
+                                value={formData.rating || ''}
+                                onChange={(e) => setFormData({ ...formData, rating: parseFloat(e.target.value) })}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Page Count</label>
+                            <input
+                                type="number"
+                                min="0"
+                                value={formData.page_count || ''}
+                                onChange={(e) => setFormData({ ...formData, page_count: parseInt(e.target.value) })}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Publication Date</label>
+                            <input
+                                type="date"
+                                value={formData.publication_date || ''}
+                                onChange={(e) => setFormData({ ...formData, publication_date: e.target.value })}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button type="button" className="secondary-btn" onClick={handleClose}>
+                                Cancel
+                            </button>
+                            <button type="submit" className="primary-btn" style={{ flex: 1 }}>
+                                Add Book
+                            </button>
+                        </div>
                     </form>
                 </div>
             )}

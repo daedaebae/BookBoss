@@ -190,7 +190,7 @@ app.post('/api/books', authenticateToken, upload.fields([{ name: 'file', maxCoun
     }
     const mysqlDatetime = addedAtValue.toISOString().slice(0, 19).replace('T', ' ');
 
-    const query = 'INSERT INTO books (title, author, isbn, cover_url, cover_image_path, `library`, categories, file_path, format, binding_type, descriptors, added_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const query = 'INSERT INTO books (title, author, isbn, cover_url, cover_image_path, `library`, categories, file_path, format, binding_type, descriptors, series, shelf, status, rating, page_count, publication_date, is_loaned, borrower_name, loan_date, due_date, added_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 
     db.query(query, [
         title,
@@ -204,6 +204,16 @@ app.post('/api/books', authenticateToken, upload.fields([{ name: 'file', maxCoun
         req.body.format || 'Physical',
         req.body.binding_type || 'Paperback',
         descriptorsJson,
+        req.body.series || null,
+        req.body.shelf || null,
+        req.body.status || 'Not Started',
+        req.body.rating || 0,
+        req.body.page_count || 0,
+        req.body.publication_date || null,
+        req.body.is_loaned || false,
+        req.body.borrower_name || null,
+        req.body.loan_date || null,
+        req.body.due_date || null,
         mysqlDatetime
     ], (err, result) => {
         if (err) {
@@ -220,7 +230,7 @@ app.post('/api/books', authenticateToken, upload.fields([{ name: 'file', maxCoun
 // Allows updating book details including cover image
 app.put('/api/books/:id', authenticateToken, upload.fields([{ name: 'coverFile', maxCount: 1 }]), (req, res) => {
     const { id } = req.params;
-    const { title, author, isbn, library, categories, cover, format, binding_type, descriptors } = req.body;
+    const { title, author, isbn, library, categories, cover, format, binding_type, descriptors, series, shelf, status, rating, page_count, publication_date, is_loaned, borrower_name, loan_date, due_date } = req.body;
     const coverFile = req.files['coverFile'] ? req.files['coverFile'][0] : null;
 
     // Handle categories parsing safely
@@ -238,8 +248,8 @@ app.put('/api/books/:id', authenticateToken, upload.fields([{ name: 'coverFile',
     // For simplicity, let's assume finalCover goes to cover_url for now as legacy, 
     // but we should also update cover_image_path if it's a local file.
 
-    let query = 'UPDATE books SET title = ?, author = ?, isbn = ?, `library` = ?, categories = ?, format = ?, binding_type = ?, descriptors = ?';
-    let values = [title, author, isbn, library, JSON.stringify(parsedCategories), format || 'Physical', binding_type, descriptorsJson];
+    let query = 'UPDATE books SET title = ?, author = ?, isbn = ?, `library` = ?, categories = ?, format = ?, binding_type = ?, descriptors = ?, series = ?, shelf = ?, status = ?, rating = ?, page_count = ?, publication_date = ?, is_loaned = ?, borrower_name = ?, loan_date = ?, due_date = ?';
+    let values = [title, author, isbn, library, JSON.stringify(parsedCategories), format || 'Physical', binding_type, descriptorsJson, series || null, shelf || null, status || 'Not Started', rating || 0, page_count || 0, publication_date || null, is_loaned || false, borrower_name || null, loan_date || null, due_date || null];
 
     if (finalCover) {
         query += ', cover_url = ?, cover_image_path = ?';

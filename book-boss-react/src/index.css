@@ -216,8 +216,8 @@ body {
 }
 
 .top-bar {
-  height: 60px;
-  padding: 0 30px;
+  height: 90px;
+  padding: 20px 30px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -237,9 +237,9 @@ body {
 
 .header-actions {
   position: absolute;
-  right: 30px;
-  top: 50%;
-  transform: translateY(-50%);
+  right: 20px;
+  top: 70%;
+  transform: translateY(-70%);
 }
 
 .search-container input {
@@ -259,8 +259,8 @@ body {
   background: var(--accent-color);
   color: white;
   border: none;
-  width: 48px;
-  height: 48px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -305,6 +305,31 @@ body {
   z-index: 10;
 }
 
+.book-card.selected {
+  outline: 3px solid var(--accent-color);
+  outline-offset: -3px;
+}
+
+.book-checkbox {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.book-checkbox input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  margin: 0;
+}
+
 .book-cover {
   width: 100%;
   height: 100%;
@@ -331,6 +356,64 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 8px;
+}
+
+.book-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.badge-format {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.badge-status {
+  background: rgba(139, 92, 246, 0.15);
+  color: #c4b5fd;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.badge-status.not-started {
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+.badge-status.in-progress {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.badge-status.completed {
+  background: rgba(34, 197, 94, 0.15);
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.badge-status.dnf {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.badge-loaned {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fcd34d;
+  border: 1px solid rgba(251, 191, 36, 0.3);
 }
 
 .delete-btn {
@@ -428,7 +511,7 @@ body {
 .modal-content {
   background: #1e293b;
   width: 90%;
-  max-width: 500px;
+  max-width: 800px;
   border-radius: 16px;
   border: var(--glass-border);
   overflow: hidden;

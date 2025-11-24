@@ -24,6 +24,10 @@ export const Library: React.FC = () => {
     // Toast state
     const [toast, setToast] = useState({ message: '', type: 'info' as 'success' | 'error' | 'info', isVisible: false });
 
+    // Bulk selection state
+    const [selectedBooks, setSelectedBooks] = useState<Set<number>>(new Set());
+    const [bulkMode, setBulkMode] = useState(false);
+
     // Fetch books on mount
     useEffect(() => {
         loadBooks();
@@ -81,6 +85,15 @@ export const Library: React.FC = () => {
             case 'author_asc':
                 result.sort((a, b) => a.author.localeCompare(b.author));
                 break;
+            case 'rating_desc':
+                result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+                break;
+            case 'page_count_desc':
+                result.sort((a, b) => (b.page_count || 0) - (a.page_count || 0));
+                break;
+            case 'pub_date_desc':
+                result.sort((a, b) => new Date(b.publication_date || 0).getTime() - new Date(a.publication_date || 0).getTime());
+                break;
         }
 
         setFilteredBooks(result);
@@ -115,6 +128,48 @@ export const Library: React.FC = () => {
                 console.error('Error deleting book:', error);
                 showToast('Failed to delete book', 'error');
             }
+        }
+    };
+
+    const toggleBookSelection = (bookId: number) => {
+        const newSelection = new Set(selectedBooks);
+        if (newSelection.has(bookId)) {
+            newSelection.delete(bookId);
+        } else {
+            newSelection.add(bookId);
+        }
+        setSelectedBooks(newSelection);
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedBooks.size === 0) return;
+        if (window.confirm(`Delete ${selectedBooks.size} selected books?`)) {
+            try {
+                await Promise.all(Array.from(selectedBooks).map(id => bookService.deleteBook(id)));
+                loadBooks();
+                setSelectedBooks(new Set());
+                setBulkMode(false);
+                showToast(`${selectedBooks.size} books deleted successfully!`, 'success');
+            } catch (error) {
+                console.error('Error deleting books:', error);
+                showToast('Failed to delete some books', 'error');
+            }
+        }
+    };
+
+    const handleBulkUpdateShelf = async (shelf: string) => {
+        if (selectedBooks.size === 0) return;
+        try {
+            await Promise.all(Array.from(selectedBooks).map(id =>
+                bookService.updateBook(id, { shelf })
+            ));
+            loadBooks();
+            setSelectedBooks(new Set());
+            setBulkMode(false);
+            showToast(`Updated ${selectedBooks.size} books!`, 'success');
+        } catch (error) {
+            console.error('Error updating books:', error);
+            showToast('Failed to update some books', 'error');
         }
     };
 
@@ -158,17 +213,137 @@ export const Library: React.FC = () => {
                         <option value="added_asc">Oldest First</option>
                         <option value="title_asc">Title (A-Z)</option>
                         <option value="author_asc">Author (A-Z)</option>
+                        <option value="rating_desc">Highest Rated</option>
+                        <option value="page_count_desc">Longest</option>
+                        <option value="pub_date_desc">Newest Published</option>
                     </select>
+                    <button
+                        className="secondary-btn small"
+                        onClick={() => {
+                            setBulkMode(!bulkMode);
+                            setSelectedBooks(new Set());
+                        }}
+                        style={{ marginRight: '10px' }}
+                    >
+                        {bulkMode ? 'Cancel' : 'Select Multiple'}
+                    </button>
                     <button className="fab" onClick={() => setIsAddModalOpen(true)}>
                         +
                     </button>
                 </div>
             </div>
+
+            {/* Library Stats */}
+            <div style={{
+                padding: '15px 30px',
+                background: 'var(--glass-bg)',
+                borderBottom: '1px solid var(--glass-border)',
+                display: 'flex',
+                gap: '30px',
+                flexWrap: 'wrap'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '1.5rem' }}>📚</span>
+                    <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Total Books</div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>{books.length}</div>
+                    </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '1.5rem' }}>📖</span>
+                    <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Physical</div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                            {books.filter(b => b.format === 'Physical').length}
+                        </div>
+                    </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '1.5rem' }}>💻</span>
+                    <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Ebooks</div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                            {books.filter(b => b.format === 'Ebook').length}
+                        </div>
+                    </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '1.5rem' }}>🎧</span>
+                    <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Audiobooks</div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                            {books.filter(b => b.format === 'Audiobook').length}
+                        </div>
+                    </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '1.5rem' }}>✅</span>
+                    <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Completed</div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                            {books.filter(b => b.status === 'Completed').length}
+                        </div>
+                    </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '1.5rem' }}>📗</span>
+                    <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>In Progress</div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                            {books.filter(b => b.status === 'In Progress').length}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Bulk Actions Toolbar */}
+            {bulkMode && selectedBooks.size > 0 && (
+                <div style={{
+                    padding: '12px 30px',
+                    background: 'var(--glass-bg)',
+                    borderBottom: '1px solid var(--glass-border)',
+                    display: 'flex',
+                    gap: '10px',
+                    alignItems: 'center'
+                }}>
+                    <span style={{ marginRight: 'auto', color: 'var(--text-primary)' }}>
+                        {selectedBooks.size} book(s) selected
+                    </span>
+                    <button className="secondary-btn small" onClick={handleBulkDelete}>
+                        Delete Selected
+                    </button>
+                    <select
+                        onChange={(e) => {
+                            if (e.target.value) {
+                                handleBulkUpdateShelf(e.target.value);
+                                e.target.value = '';
+                            }
+                        }}
+                        style={{
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--glass-border)',
+                            background: 'var(--glass-bg)',
+                            color: 'var(--text-primary)',
+                        }}
+                    >
+                        <option value="">Move to Shelf...</option>
+                        <option value="To Read">To Read</option>
+                        <option value="Currently Reading">Currently Reading</option>
+                        <option value="Favorites">Favorites</option>
+                        <option value="Archive">Archive</option>
+                    </select>
+                </div>
+            )}
+
             <BookGrid
                 books={filteredBooks}
                 isLoading={isLoading}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                bulkMode={bulkMode}
+                selectedBooks={selectedBooks}
+                onToggleSelection={toggleBookSelection}
             />
 
             <AddBookModal
