@@ -80,6 +80,8 @@ export const Library: React.FC = () => {
             result = result.filter(book => book.series === sidebarFilter.value);
             // Auto-sort by series_order when filtering by series
             result.sort((a, b) => (a.series_order || 0) - (b.series_order || 0));
+        } else if (sidebarFilter.type === 'loaned') {
+            result = result.filter(book => book.is_loaned);
         }
 
         // Search filter
@@ -227,6 +229,8 @@ export const Library: React.FC = () => {
         physical: books.filter(b => b.format === 'Physical').length,
         ebook: books.filter(b => b.format === 'Ebook').length,
         audiobook: books.filter(b => b.format === 'Audiobook').length,
+        loaned: books.filter(b => b.is_loaned).length,
+        overdue: books.filter(b => b.is_loaned && b.due_date && new Date(b.due_date) < new Date()).length,
     };
 
     // Get unique shelves

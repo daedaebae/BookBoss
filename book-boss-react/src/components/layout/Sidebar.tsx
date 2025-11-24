@@ -1,7 +1,7 @@
 import React from 'react';
 
 export interface SidebarFilter {
-    type: 'all' | 'status' | 'format' | 'shelf' | 'series';
+    type: 'all' | 'status' | 'format' | 'shelf' | 'series' | 'loaned';
     value?: string;
 }
 
@@ -19,6 +19,8 @@ interface SidebarProps {
         physical: number;
         ebook: number;
         audiobook: number;
+        loaned: number;
+        overdue: number;
     };
     isMobileOpen?: boolean;
     onMobileClose?: () => void;
@@ -145,6 +147,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             <span className="sidebar-count">{bookCounts.dnf}</span>
                         </button>
                     </div>
+
+                    {/* Loaned Books */}
+                    {bookCounts.loaned > 0 && (
+                        <div className="sidebar-section">
+                            <div className="sidebar-section-title">Loaned Books</div>
+                            <button
+                                className={`sidebar-item ${isActive('loaned') ? 'active' : ''}`}
+                                onClick={() => handleFilterClick({ type: 'loaned' })}
+                            >
+                                <span className="sidebar-icon">📤</span>
+                                <span className="sidebar-label">
+                                    Loaned Out
+                                    {bookCounts.overdue > 0 && (
+                                        <span style={{
+                                            marginLeft: '4px',
+                                            color: 'var(--danger-color)',
+                                            fontSize: '0.85em',
+                                            fontWeight: 600
+                                        }}>
+                                            ({bookCounts.overdue} overdue)
+                                        </span>
+                                    )}
+                                </span>
+                                <span className="sidebar-count">{bookCounts.loaned}</span>
+                            </button>
+                        </div>
+                    )}
 
                     {/* Format */}
                     <div className="sidebar-section">
