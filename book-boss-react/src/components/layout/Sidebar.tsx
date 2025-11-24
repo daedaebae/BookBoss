@@ -54,8 +54,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 />
             )}
 
+            {/* Show Sidebar Button - Visible when sidebar is hidden */}
+            {!isVisible && onToggleSidebar && (
+                <button
+                    className="secondary-btn small"
+                    onClick={onToggleSidebar}
+                    title="Show Sidebar"
+                    style={{
+                        position: 'fixed',
+                        top: '20px',
+                        left: '20px',
+                        zIndex: 100,
+                        padding: '8px 12px'
+                    }}
+                >
+                    ▶ Filters
+                </button>
+            )}
+
             <aside className={`sidebar ${isMobileOpen ? 'mobile-open' : ''}`} style={{ display: isVisible ? 'block' : 'none' }}>
-                {/* Sidebar Header with Show/Hide Button */}
+                {/* Sidebar Header with Hide Button */}
                 <div style={{
                     padding: '15px 20px',
                     borderBottom: '1px solid var(--glass-border)',
@@ -68,10 +86,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <button
                             className="secondary-btn small"
                             onClick={onToggleSidebar}
-                            title={isVisible ? "Hide Sidebar" : "Show Sidebar"}
+                            title="Hide Sidebar"
                             style={{ padding: '4px 8px' }}
                         >
-                            {isVisible ? '◀' : '▶'}
+                            ◀
                         </button>
                     )}
                 </div>
