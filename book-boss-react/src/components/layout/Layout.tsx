@@ -11,21 +11,28 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     <h2>BookBoss</h2>
                 </div>
                 <div className="sidebar-nav">
-                    <div className="nav-item active">
-                        <span>Library</span>
+                    <div className="nav-section">
+                        <h3>Library</h3>
+                        <div className="nav-item active">
+                            <span className="icon">📚</span>
+                            <span>All Books</span>
+                        </div>
+                    </div>
+                    <div className="nav-section">
+                        <h3>Settings</h3>
+                        <div className="nav-item">
+                            <span className="icon">⚙️</span>
+                            <span>Preferences</span>
+                        </div>
+                        <div className="nav-item" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+                            <span className="icon">{theme === 'dark' ? '☀️' : '🌙'}</span>
+                            <span>Toggle Theme</span>
+                        </div>
                     </div>
                 </div>
             </div>
             <div className="content-area">
-                <div className="top-bar">
-                    <h1>BookBoss React</h1>
-                    <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                        Toggle Theme
-                    </button>
-                </div>
-                <div style={{ padding: '20px' }}>
-                    {children}
-                </div>
+                {children}
             </div>
         </div>
     );
