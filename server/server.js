@@ -287,51 +287,100 @@ app.post('/api/books/refresh-metadata', authenticateToken, async (req, res) => {
 
         for (const book of books) {
             try {
-                // Skip if no cover URL or already has local cover
-                if (!book.cover_url || !book.cover_url.startsWith('http')) {
-                    skipped++;
-                    processed++;
-                    console.log(`Skipped: ${book.title} (no URL or already local)`);
-                    continue;
-                }
+                let updated = false;
+                let coverUrl = book.cover_url;
 
-                // Download cover image
-                console.log(`Downloading cover for: ${book.title}`);
-                const imageResponse = await axios.get(book.cover_url, {
-                    responseType: 'arraybuffer',
-                    timeout: 10000
-                });
-                const imageBuffer = Buffer.from(imageResponse.data, 'binary');
+                // 1. Fetch Metadata if ISBN exists
+                if (book.isbn) {
+                    console.log(`Fetching metadata for: ${book.title} (ISBN: ${book.isbn})`);
+                    try {
+                        const googleBooksResponse = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=isbn:${book.isbn}`);
+                        if (googleBooksResponse.data.items && googleBooksResponse.data.items.length > 0) {
+                            const volumeInfo = googleBooksResponse.data.items[0].volumeInfo;
 
-                // Generate unique filename
-                const hash = crypto.createHash('md5').update(book.cover_url).digest('hex');
-                const ext = book.cover_url.match(/\.(jpg|jpeg|png|gif|webp)$/i)?.[1] || 'jpg';
-                const filename = `cover_${hash}.${ext}`;
-                const filepath = path.join('uploads', filename);
+                            // Prepare updates
+                            const newTitle = volumeInfo.title || book.title;
+                            const newAuthor = volumeInfo.authors ? volumeInfo.authors.join(', ') : book.author;
+                            const newPageCount = volumeInfo.pageCount || book.page_count;
+                            const newPubDate = volumeInfo.publishedDate || book.publication_date;
+                            const newCategories = volumeInfo.categories ? JSON.stringify(volumeInfo.categories) : book.categories;
+                            const newCoverUrl = volumeInfo.imageLinks ? (volumeInfo.imageLinks.thumbnail || volumeInfo.imageLinks.smallThumbnail) : book.cover_url;
 
-                // Ensure uploads directory exists
-                if (!fs.existsSync('uploads')) {
-                    fs.mkdirSync('uploads', { recursive: true });
-                }
+                            // Update DB
+                            await new Promise((resolve, reject) => {
+                                db.query(
+                                    'UPDATE books SET title = ?, author = ?, page_count = ?, publication_date = ?, categories = ?, cover_url = ? WHERE id = ?',
+                                    [newTitle, newAuthor, newPageCount, newPubDate, newCategories, newCoverUrl, book.id],
+                                    (err) => {
+                                        if (err) reject(err);
+                                        else resolve();
+                                    }
+                                );
+                            });
 
-                // Save image
-                fs.writeFileSync(filepath, imageBuffer);
-
-                // Update database
-                await new Promise((resolve, reject) => {
-                    db.query(
-                        'UPDATE books SET cover_image_path = ? WHERE id = ?',
-                        [filepath, book.id],
-                        (err) => {
-                            if (err) reject(err);
-                            else resolve();
+                            coverUrl = newCoverUrl; // Update local var for next step
+                            updated = true;
+                            console.log(`Updated metadata for: ${book.title}`);
+                        } else {
+                            console.log(`No metadata found for ISBN: ${book.isbn}`);
                         }
-                    );
-                });
+                    } catch (apiError) {
+                        console.error(`API Error for ${book.title}:`, apiError.message);
+                    }
+                }
 
-                downloaded++;
-                processed++;
-                console.log(`Downloaded: ${book.title}`);
+                // 2. Download cover image (using potentially updated URL)
+                // Skip if no cover URL or already has local cover (unless we just updated it, then we might want to re-download? 
+                // For now, let's only download if it's a remote URL and we don't have a local path OR if we just updated the URL)
+
+                // Logic: If we have a coverUrl that starts with http, we should try to download it.
+                // If we already have a local path, we might skip, BUT if we just updated the metadata, we might have a BETTER cover now.
+                // So let's download if it's http.
+
+                if (coverUrl && coverUrl.startsWith('http')) {
+                    // Download cover image
+                    console.log(`Downloading cover for: ${book.title}`);
+                    const imageResponse = await axios.get(coverUrl, {
+                        responseType: 'arraybuffer',
+                        timeout: 10000
+                    });
+                    const imageBuffer = Buffer.from(imageResponse.data, 'binary');
+
+                    // Generate unique filename
+                    const hash = crypto.createHash('md5').update(coverUrl).digest('hex');
+                    const ext = coverUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)?.[1] || 'jpg';
+                    const filename = `cover_${hash}.${ext}`;
+                    const filepath = path.join('uploads', filename);
+
+                    // Ensure uploads directory exists
+                    if (!fs.existsSync('uploads')) {
+                        fs.mkdirSync('uploads', { recursive: true });
+                    }
+
+                    // Save image
+                    fs.writeFileSync(filepath, imageBuffer);
+
+                    // Update database with local path
+                    await new Promise((resolve, reject) => {
+                        db.query(
+                            'UPDATE books SET cover_image_path = ? WHERE id = ?',
+                            [filepath, book.id],
+                            (err) => {
+                                if (err) reject(err);
+                                else resolve();
+                            }
+                        );
+                    });
+
+                    downloaded++;
+                    if (!updated) processed++; // Only increment if not already counted as updated
+                    console.log(`Downloaded cover: ${book.title}`);
+                } else {
+                    skipped++;
+                    if (!updated) processed++;
+                }
+
+                if (updated) processed++;
 
             } catch (error) {
                 console.error(`Error processing ${book.title}:`, error.message);
