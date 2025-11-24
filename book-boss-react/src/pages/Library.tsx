@@ -76,6 +76,10 @@ export const Library: React.FC = () => {
             result = result.filter(book => book.format === sidebarFilter.value);
         } else if (sidebarFilter.type === 'shelf' && sidebarFilter.value) {
             result = result.filter(book => book.shelf === sidebarFilter.value);
+        } else if (sidebarFilter.type === 'series' && sidebarFilter.value) {
+            result = result.filter(book => book.series === sidebarFilter.value);
+            // Auto-sort by series_order when filtering by series
+            result.sort((a, b) => (a.series_order || 0) - (b.series_order || 0));
         }
 
         // Search filter
@@ -228,12 +232,16 @@ export const Library: React.FC = () => {
     // Get unique shelves
     const shelves = Array.from(new Set(books.map(b => b.shelf).filter(Boolean))) as string[];
 
+    // Get unique series
+    const seriesList = Array.from(new Set(books.map(b => b.series).filter(Boolean))) as string[];
+
     return (
         <>
             <Sidebar
                 activeFilter={sidebarFilter}
                 onFilterChange={setSidebarFilter}
                 shelves={shelves}
+                seriesList={seriesList}
                 bookCounts={bookCounts}
                 isMobileOpen={isMobileSidebarOpen}
                 onMobileClose={() => setIsMobileSidebarOpen(false)}

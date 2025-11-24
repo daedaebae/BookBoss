@@ -1,7 +1,7 @@
 import React from 'react';
 
 export interface SidebarFilter {
-    type: 'all' | 'status' | 'format' | 'shelf';
+    type: 'all' | 'status' | 'format' | 'shelf' | 'series';
     value?: string;
 }
 
@@ -9,6 +9,7 @@ interface SidebarProps {
     activeFilter: SidebarFilter;
     onFilterChange: (filter: SidebarFilter) => void;
     shelves: string[];
+    seriesList: string[];
     bookCounts: {
         total: number;
         notStarted: number;
@@ -29,6 +30,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     activeFilter,
     onFilterChange,
     shelves,
+    seriesList,
     bookCounts,
     isMobileOpen = false,
     onMobileClose,
@@ -185,6 +187,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 >
                                     <span className="sidebar-icon">📚</span>
                                     <span className="sidebar-label">{shelf}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Series */}
+                    {seriesList.length > 0 && (
+                        <div className="sidebar-section">
+                            <div className="sidebar-section-title">Series</div>
+                            {seriesList.map(series => (
+                                <button
+                                    key={series}
+                                    className={`sidebar-item ${isActive('series', series) ? 'active' : ''}`}
+                                    onClick={() => handleFilterClick({ type: 'series', value: series })}
+                                >
+                                    <span className="sidebar-icon">📖</span>
+                                    <span className="sidebar-label">{series}</span>
                                 </button>
                             ))}
                         </div>
