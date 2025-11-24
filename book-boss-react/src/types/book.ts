@@ -11,6 +11,7 @@ export interface Book {
     status?: 'Not Started' | 'In Progress' | 'Completed' | 'DNF';
     format?: string;
     series?: string;
+    series_order?: number;
     rating?: number;
     page_count?: number;
     publication_date?: string;

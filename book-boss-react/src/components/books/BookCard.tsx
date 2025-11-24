@@ -84,6 +84,11 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onEdit, onDelete, onRe
                     {book.author}
                 </div>
                 <div className="book-badges">
+                    {book.series && (
+                        <span className="badge badge-series" title={book.series}>
+                            {book.series_order ? `Book ${book.series_order}` : book.series}
+                        </span>
+                    )}
                     {book.format && <span className="badge badge-format">{book.format}</span>}
                     {book.status && <span className={`badge badge-status ${book.status.toLowerCase().replace(' ', '-')}`}>{book.status}</span>}
                     {book.is_loaned && <span className="badge badge-loaned">Loaned to {book.borrower_name}</span>}

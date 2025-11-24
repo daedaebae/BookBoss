@@ -35,6 +35,7 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
                 library: book.library || '',
                 format: book.format || '',
                 series: book.series || '',
+                series_order: book.series_order,
                 shelf: book.shelf || '',
                 status: book.status,
                 rating: book.rating,
@@ -126,8 +127,23 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
                         type="text"
                         value={formData.series || ''}
                         onChange={(e) => setFormData({ ...formData, series: e.target.value })}
+                        placeholder="e.g., Harry Potter"
                     />
                 </div>
+
+                {/* Series Order - Only show when series is filled */}
+                {formData.series && (
+                    <div className="form-group">
+                        <label>Series Order (Book #)</label>
+                        <input
+                            type="number"
+                            min="1"
+                            value={formData.series_order || ''}
+                            onChange={(e) => setFormData({ ...formData, series_order: parseInt(e.target.value) || undefined })}
+                            placeholder="e.g., 3"
+                        />
+                    </div>
+                )}
                 <div className="form-group">
                     <label>Shelf</label>
                     <input
