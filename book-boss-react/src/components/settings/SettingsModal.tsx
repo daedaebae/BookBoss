@@ -36,6 +36,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const [newUsername, setNewUsername] = useState('');
     const [newUserPassword, setNewUserPassword] = useState('');
     const [newUserIsAdmin, setNewUserIsAdmin] = useState(false);
+    const [userToDelete, setUserToDelete] = useState<any>(null);
 
     // ABS servers (admin only)
     const [absServers, setAbsServers] = useState<any[]>([]);
@@ -210,10 +211,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         setNewUserIsAdmin(false);
     };
 
-    const deleteUser = async (id: number) => {
-        if (!confirm('Are you sure you want to delete this user?')) return;
+    const deleteUser = async () => {
+        if (!userToDelete) return;
         try {
-            const response = await fetch(`http://localhost:3000/api/users/${id}`, {
+            const response = await fetch(`http://localhost:3000/api/users/${userToDelete.id}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
@@ -221,11 +222,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             });
             if (response.ok) {
                 alert('User deleted successfully');
+                setUserToDelete(null);
                 fetchUsers();
             }
         } catch (error) {
             console.error('Failed to delete user:', error);
             alert('Failed to delete user');
+            setUserToDelete(null);
         }
     };
 
@@ -579,8 +582,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                             )}
 
                             <div>
-                                {users.map(user => (
-                                    <div key={user.id} style={{
+                                {users.filter(u => u.id !== user?.id).map(userItem => (
+                                    <div key={userItem.id} style={{
                                         display: 'flex',
                                         justifyContent: 'space-between',
                                         alignItems: 'center',
@@ -590,8 +593,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                         borderRadius: '8px'
                                     }}>
                                         <div>
-                                            <span style={{ fontWeight: 500 }}>{user.username}</span>
-                                            {!!user.is_admin && <span style={{
+                                            <span style={{ fontWeight: 500 }}>{userItem.username}</span>
+                                            {!!userItem.is_admin && <span style={{
                                                 marginLeft: '10px',
                                                 padding: '2px 8px',
                                                 background: 'var(--accent-color)',
@@ -602,14 +605,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                         <div style={{ display: 'flex', gap: '10px' }}>
                                             <button
                                                 className="secondary-btn small"
-                                                onClick={() => startEditingUser(user)}
+                                                onClick={() => startEditingUser(userItem)}
                                                 title="Edit User"
                                             >
                                                 ✏️ Edit
                                             </button>
                                             <button
                                                 className="secondary-btn small"
-                                                onClick={() => deleteUser(user.id)}
+                                                onClick={() => setUserToDelete(userItem)}
                                                 title="Delete User"
                                                 style={{ color: 'var(--danger-color)', borderColor: 'var(--danger-color)' }}
                                             >
@@ -721,6 +724,51 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                     )}
                 </main>
             </div>
+
+            {/* Delete Confirmation Modal */}
+            {userToDelete && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0, 0, 0, 0.7)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 10000
+                }}>
+                    <div style={{
+                        background: 'var(--glass-bg)',
+                        padding: '30px',
+                        borderRadius: '12px',
+                        border: '1px solid var(--glass-border)',
+                        maxWidth: '400px',
+                        width: '90%'
+                    }}>
+                        <h3 style={{ marginTop: 0 }}>Delete User</h3>
+                        <p>Are you sure you want to delete user <strong>{userToDelete.username}</strong>?</p>
+                        <p style={{ color: 'var(--danger-color)', fontSize: '0.9rem' }}>This action cannot be undone.</p>
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                            <button
+                                className="secondary-btn"
+                                onClick={() => setUserToDelete(null)}
+                                style={{ flex: 1 }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="primary-btn"
+                                onClick={deleteUser}
+                                style={{ flex: 1, background: 'var(--danger-color)', borderColor: 'var(--danger-color)' }}
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </Modal>
     );
 };
