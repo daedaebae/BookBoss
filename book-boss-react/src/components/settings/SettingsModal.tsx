@@ -550,21 +550,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                         />
                                     </div>
                                     <div className="form-group">
+                                        <label>Password</label>
                                         <input
                                             type="password"
-                                            placeholder="Password"
+                                            placeholder={editingUser ? "New Password (leave blank to keep current)" : "Password"}
                                             value={newUserPassword}
                                             onChange={(e) => setNewUserPassword(e.target.value)}
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label>
+                                        <label>Permissions</label>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'normal' }}>
                                             <input
                                                 type="checkbox"
                                                 checked={newUserIsAdmin}
                                                 onChange={(e) => setNewUserIsAdmin(e.target.checked)}
                                             />
-                                            {' '}Administrator
+                                            Administrator (Full Access)
                                         </label>
                                     </div>
                                     <div style={{ display: 'flex', gap: '10px' }}>
