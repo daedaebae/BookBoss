@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookBoss</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Html5-QRCode Library -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <div class="sidebar-overlay"></div>
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>BookBoss</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section">BROWSE</div>
+                <a href="#" class="nav-item active" data-filter="all">
+                    <span class="icon">📚</span> Books
+                </a>
+                <a href="#" class="nav-item" data-filter="hot">
+                    <span class="icon">🔥</span> Hot Books
+                </a>
+                <a href="#" class="nav-item" data-filter="downloaded">
+                    <span class="icon">⬇️</span> Downloaded Books
+                </a>
+                <a href="#" class="nav-item" data-filter="read">
+                    <span class="icon">👁️</span> Read Books
+                </a>
+
+                <div class="nav-section">SHELVES</div>
+                <a href="#" class="nav-item">
+                    <span class="icon">📂</span> Create a Shelf
+                </a>
+
+                <div class="nav-section">SYSTEM</div>
+                <a href="#" class="nav-item" id="settings-btn">
+                    <span class="icon">⚙️</span> Settings
+                </a>
+                <a href="#" class="nav-item" id="login-logout-btn">
+                    <span class="icon">👤</span> Login
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="content-area">
+            <header class="top-bar">
+                <button id="mobile-menu-toggle" class="icon-btn mobile-only"
+                    style="display: none; margin-right: 15px; background: none; border: none; font-size: 1.5rem; color: var(--text-primary); cursor: pointer;">☰</button>
+                <div class="search-container">
+                    <input type="text" id="api-search-input" placeholder="Search Library...">
+                </div>
+                <div class="header-actions">
+                    <button id="add-book-btn" class="primary-btn">+ Add Book</button>
+                </div>
+            </header>
+
+            <div class="library-stats">
+                <!-- Stats can go here later -->
+            </div>
+
+            <div id="book-grid" class="book-grid">
+                <!-- Books will be injected here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Login Overlay -->
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-container">
+            <div class="login-greeting">
+                <h1>Welcome to BookBoss</h1>
+                <p>Your personal library manager.</p>
+            </div>
+            <div class="login-box">
+                <h2>Login</h2>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="login-username" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="login-password" required>
+                    </div>
+                    <button type="submit" class="primary-btn full-width">Login</button>
+                    <div id="register-link-container" class="hidden" style="margin-top: 15px; text-align: center;">
+                        <a href="#" id="show-register-btn" class="text-btn" style="font-size: 0.9rem;">Create an
+                            Account</a>
+                    </div>
+                </form>
+
+                <form id="register-form" class="hidden">
+                    <div class="form-group">
+                        <label>Choose Username</label>
+                        <input type="text" id="reg-username" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Choose Password</label>
+                        <input type="password" id="reg-password" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm Password</label>
+                        <input type="password" id="reg-confirm-password" required>
+                    </div>
+                    <button type="submit" class="primary-btn full-width">Register</button>
+                    <div style="margin-top: 15px; text-align: center;">
+                        <a href="#" id="show-login-btn" class="text-btn" style="font-size: 0.9rem;">Back to Login</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Book Modal -->
+    <div id="add-book-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add New Book</h2>
+                <span class="close-modal-btn">&times;</span>
+            </div>
+            <div class="modal-tabs">
+                <button class="tab-btn active" data-tab="scan">Scan Barcode</button>
+                <button class="tab-btn" data-tab="search">Search Online</button>
+                <button class="tab-btn" data-tab="manual">Manual Entry</button>
+            </div>
+            <div class="modal-body">
+                <!-- Scan Tab -->
+                <div id="scan-tab" class="tab-content active">
+                    <div id="reader"></div>
+                    <p class="scan-instruction">Point your camera at a book barcode</p>
+                </div>
+
+                <!-- Search Tab -->
+                <div id="search-tab" class="tab-content">
+                    <div class="search-box">
+                        <input type="text" id="online-search-input" placeholder="Enter ISBN, Title, or Author">
+                        <button id="online-search-btn" class="primary-btn">Search</button>
+                    </div>
+                    <div id="search-results"></div>
+                </div>
+
+                <!-- Manual Tab -->
+                <div id="manual-tab" class="tab-content">
+                    <form id="manual-entry-form">
+                        <!-- Basic Information -->
+                        <div class="form-group">
+                            <label>Title *</label>
+                            <input type="text" name="title" required placeholder="Enter book title">
+                        </div>
+                        <div class="form-group">
+                            <label>Author *</label>
+                            <input type="text" name="author" required placeholder="Enter author name">
+                        </div>
+                        <div class="form-group">
+                            <label>ISBN</label>
+                            <input type="text" name="isbn" placeholder="978-0-123456-78-9">
+                        </div>
+
+                        <!-- Categories & Classification -->
+                        <div class="form-group">
+                            <label>Categories / Tags</label>
+                            <input type="text" name="categories" placeholder="Fiction, Sci-Fi, Adventure...">
+                            <small style="color: var(--text-secondary); font-size: 0.85rem;">Separate multiple
+                                categories with commas</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Library / Location</label>
+                            <select name="library">
+                                <option value="Main Library">Main Library</option>
+                                <option value="Favorites">Favorites</option>
+                                <option value="Wishlist">Wishlist</option>
+                                <option value="Bedroom">Bedroom</option>
+                                <option value="Office">Office</option>
+                            </select>
+                        </div>
+
+                        <!-- Format & Physical Details -->
+                        <div class="form-group">
+                            <label>Format</label>
+                            <select name="format" id="manual-format-select">
+                                <option value="Physical">Physical</option>
+                                <option value="Ebook">Ebook</option>
+                                <option value="Audiobook">Audiobook</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Binding Type</label>
+                            <select name="binding_type">
+                                <option value="Paperback">Paperback</option>
+                                <option value="Hardcover">Hardcover</option>
+                                <option value="Digital">Digital</option>
+                                <option value="Audio">Audio</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Special Descriptors</label>
+                            <input type="text" name="descriptors" placeholder="First Edition, Signed, Limited...">
+                            <small style="color: var(--text-secondary); font-size: 0.85rem;">Separate with
+                                commas</small>
+                        </div>
+
+                        <!-- Cover & Files -->
+                        <div class="form-group">
+                            <label>Cover Image URL</label>
+                            <input type="url" name="cover" placeholder="https://example.com/cover.jpg">
+                        </div>
+                        <div class="form-group">
+                            <label>Or Upload Cover Image</label>
+                            <input type="file" name="coverFile" accept="image/*">
+                        </div>
+                        <div class="form-group">
+                            <label>Book File (Optional)</label>
+                            <input type="file" name="file" accept=".epub,.pdf,.mobi,.mp3,.m4b,.m4a">
+                            <small style="color: var(--text-secondary); font-size: 0.85rem;">EPUB, PDF, MOBI, MP3,
+                                M4B</small>
+                        </div>
+
+                        <button type="submit" class="primary-btn full-width">💾 Save Book</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Book Modal -->
+    <div id="edit-book-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Book</h2>
+                <span class="close-modal-btn close-edit-modal">&times;</span>
+            </div>
+            <form id="edit-book-form">
+                <input type="hidden" id="edit-book-id">
+
+                <!-- Basic Information -->
+                <div class="form-group">
+                    <label>Title *</label>
+                    <input type="text" id="edit-title" name="title" required>
+                </div>
+                <div class="form-group">
+                    <label>Author *</label>
+                    <input type="text" id="edit-author" name="author" required>
+                </div>
+                <div class="form-group">
+                    <label>ISBN</label>
+                    <input type="text" id="edit-isbn" name="isbn">
+                </div>
+
+                <!-- Categories & Classification -->
+                <div class="form-group">
+                    <label>Categories / Tags</label>
+                    <input type="text" id="edit-categories" placeholder="Fiction, Sci-Fi, Adventure...">
+                    <small style="color: var(--text-secondary); font-size: 0.85rem;">Separate multiple categories with
+                        commas</small>
+                </div>
+                <div class="form-group">
+                    <label>Library / Location</label>
+                    <select id="edit-library" name="library">
+                        <option value="Main Library">Main Library</option>
+                        <option value="Favorites">Favorites</option>
+                        <option value="Wishlist">Wishlist</option>
+                        <option value="Bedroom">Bedroom</option>
+                        <option value="Office">Office</option>
+                        <option value="Lent Out">Lent Out</option>
+                    </select>
+                </div>
+
+                <!-- Format & Physical Details -->
+                <div class="form-group">
+                    <label>Format</label>
+                    <select id="edit-format">
+                        <option value="Physical">Physical</option>
+                        <option value="Ebook">Ebook</option>
+                        <option value="Audiobook">Audiobook</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Binding Type</label>
+                    <select id="edit-book-binding">
+                        <option value="Paperback">Paperback</option>
+                        <option value="Hardcover">Hardcover</option>
+                        <option value="Digital">Digital</option>
+                        <option value="Audio">Audio</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Special Descriptors</label>
+                    <input type="text" id="edit-book-descriptors" placeholder="First Edition, Signed, Limited...">
+                    <small style="color: var(--text-secondary); font-size: 0.85rem;">Separate with commas</small>
+                </div>
+
+                <!-- Cover & Files -->
+                <div class="form-group">
+                    <label>Cover Image URL</label>
+                    <input type="text" id="edit-book-cover-url" placeholder="https://example.com/cover.jpg">
+                </div>
+                <div class="form-group">
+                    <label>Or Upload Cover Image</label>
+                    <input type="file" id="edit-book-cover-file" accept="image/*">
+                </div>
+
+                <button type="submit" class="primary-btn full-width">💾 Update Book</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Reader Modal -->
+    <div id="reader-modal" class="modal hidden" style="z-index: 2000;">
+        <div class="reader-container">
+            <div class="reader-header">
+                <button id="reader-close" class="icon-btn">&times;</button>
+                <span id="reader-title">Book Title</span>
+                <div class="reader-controls">
+                    <button id="prev-page" class="icon-btn">←</button>
+                    <button id="next-page" class="icon-btn">→</button>
+                </div>
+            </div>
+            <div id="epub-viewer"></div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="close-modal-btn" id="settings-close-btn">&times;</button>
+            </div>
+            <div class="modal-body settings-layout">
+                <aside class="settings-sidebar">
+                    <button class="settings-tab-btn admin-only active" data-tab="general">General</button>
+                    <button class="settings-tab-btn" data-tab="profile">Profile</button>
+                    <button class="settings-tab-btn" data-tab="filters">Filters</button>
+                    <button class="settings-tab-btn" data-tab="export">Export</button>
+                    <button class="settings-tab-btn admin-only" data-tab="users">Users</button>
+                    <button class="settings-tab-btn admin-only" data-tab="audiobookshelf">Audiobookshelf</button>
+                </aside>
+                <main class="settings-content">
+                    <!-- General Settings -->
+                    <div id="general-tab" class="tab-content active">
+                        <div class="form-group"
+                            style="display: flex; justify-content: space-between; align-items: center;">
+                            <label for="setting-dark-mode" style="margin-bottom: 0;">Dark Mode</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="setting-dark-mode" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="setting-accent-color">Accent Color</label>
+                            <select id="setting-accent-color">
+                                <option value="theme-purple">Purple</option>
+                                <option value="theme-blue">Blue</option>
+                                <option value="theme-green">Green</option>
+                                <option value="theme-orange">Orange</option>
+                                <option value="theme-pink">Pink</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="setting-allow-registration"> Allow Public Registration
+                            </label>
+                        </div>
+                        <button id="save-settings-btn" class="primary-btn">Save Changes</button>
+
+                        <hr style="margin: 2rem 0; border: none; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+
+                        <h4 style="margin-bottom: 1rem; color: #f1f5f9;">Library Maintenance</h4>
+                        <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
+                            Refresh metadata and download cover images for all books in your library.
+                        </p>
+                        <button id="refresh-all-metadata-btn" class="secondary-btn">
+                            <span id="refresh-btn-text">🔄 Refresh All Metadata</span>
+                        </button>
+                        <div id="refresh-progress" class="hidden"
+                            style="margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                            <div style="margin-bottom: 0.5rem; color: #cbd5e1;">
+                                <span id="refresh-status">Processing...</span>
+                            </div>
+                            <div
+                                style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden;">
+                                <div id="refresh-progress-bar"
+                                    style="background: var(--accent-color); height: 100%; width: 0%; transition: width 0.3s;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Profile Settings -->
+                    <div id="profile-tab" class="tab-content">
+                        <h3>My Profile</h3>
+                        <form id="change-password-form">
+                            <div class="form-group">
+                                <label>New Password</label>
+                                <input type="password" id="profile-new-password" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Confirm Password</label>
+                                <input type="password" id="profile-confirm-password" required>
+                            </div>
+                            <button type="submit" class="primary-btn">Update Password</button>
+                        </form>
+                    </div>
+
+                    <!-- Filters Settings -->
+                    <div id="filters-tab" class="tab-content">
+                        <h3>Library Defaults</h3>
+                        <div class="form-group">
+                            <label>Default Sort Order</label>
+                            <select id="setting-default-sort">
+                                <option value="added_desc">Date Added (Newest First)</option>
+                                <option value="added_asc">Date Added (Oldest First)</option>
+                                <option value="title_asc">Title (A-Z)</option>
+                                <option value="author_asc">Author (A-Z)</option>
+                            </select>
+                        </div>
+                        <button id="save-filters-btn" class="primary-btn">Save Preferences</button>
+                    </div>
+
+                    <!-- Export Settings -->
+                    <div id="export-tab" class="tab-content">
+                        <h3>Export Library</h3>
+                        <p style="color:var(--text-secondary); margin-bottom:20px;">Download your library metadata.</p>
+                        <div class="form-group">
+                            <label for="export-format-select">Export Format</label>
+                            <select id="export-format-select">
+                                <option value="json">JSON</option>
+                                <option value="csv">CSV</option>
+                            </select>
+                        </div>
+                        <button id="export-library-btn" class="primary-btn">Export Library</button>
+                    </div>
+
+                    <!-- Users Settings -->
+                    <div id="users-tab" class="tab-content">
+                        <div class="users-header">
+                            <h3>User Management</h3>
+                            <button id="add-user-btn" class="secondary-btn small">+ Add User</button>
+                        </div>
+                        <ul id="user-list" class="user-list">
+                            <!-- User items injected here -->
+                        </ul>
+
+                        <!-- Add User Form (Hidden by default) -->
+                        <div id="add-user-form-container" class="hidden">
+                            <h4>New User</h4>
+                            <div class="form-group">
+                                <input type="text" id="new-username" placeholder="Username">
+                            </div>
+                            <div class="form-group">
+                                <input type="password" id="new-password" placeholder="Password">
+                            </div>
+                            <div class="form-group">
+                                <label><input type="checkbox" id="new-is-admin"> Administrator</label>
+                            </div>
+                            <div class="form-actions">
+                                <button id="save-user-btn" class="primary-btn small">Save</button>
+                                <button id="cancel-user-btn" class="text-btn small">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Audiobookshelf Settings -->
+                    <div id="audiobookshelf-tab" class="tab-content">
+                        <div class="users-header">
+                            <h3>Audiobookshelf Servers</h3>
+                            <button id="add-abs-server-btn" class="secondary-btn small">+ Add Server</button>
+                        </div>
+                        <div id="abs-servers-list" class="user-list">
+                            <!-- Server items injected here -->
+                            <p style="color:var(--text-secondary); padding:10px; text-align:center;">No servers
+                                connected.</p>
+                        </div>
+
+                        <!-- Add Server Form (Hidden by default) -->
+                        <div id="add-abs-server-form-container" class="hidden"
+                            style="margin-top:20px; border-top:1px solid var(--border-color); padding-top:20px;">
+                            <h4>Connect New Server</h4>
+                            <div class="form-group">
+                                <label>Server Name</label>
+                                <input type="text" id="new-abs-name" placeholder="My Audiobooks">
+                            </div>
+                            <div class="form-group">
+                                <label>Server URL</label>
+                                <input type="url" id="new-abs-url" placeholder="https://abs.example.com">
+                            </div>
+                            <div class="form-group">
+                                <label>Username</label>
+                                <input type="text" id="new-abs-username" placeholder="Username">
+                            </div>
+                            <div class="form-group">
+                                <label>Password</label>
+                                <input type="password" id="new-abs-password" placeholder="Password">
+                            </div>
+                            <div class="form-actions">
+                                <button id="save-abs-server-btn" class="primary-btn small">Connect</button>
+                                <button id="cancel-abs-server-btn" class="text-btn small">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="app.js?v=2"></script>
+</body>
+
+</html>

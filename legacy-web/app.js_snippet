@@ -1,0 +1,21 @@
+
+// Auth UI Update
+function updateAuthUI() {
+    if (currentUser) {
+        // Logged In
+        loginLogoutBtn.innerHTML = `<span class="icon">👤</span> Logout (${currentUser.username})`;
+        
+        // Show Admin Elements
+        if (currentUser.isAdmin) {
+            if (addBookBtn) addBookBtn.classList.remove('hidden');
+            // Settings button is always visible but maybe restricted?
+            // For now, let's keep it simple.
+        }
+    } else {
+        // Logged Out
+        loginLogoutBtn.innerHTML = `<span class="icon">👤</span> Login`;
+        
+        // Hide Admin Elements
+        if (addBookBtn) addBookBtn.classList.add('hidden');
+    }
+}
