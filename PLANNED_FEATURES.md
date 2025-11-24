@@ -56,7 +56,7 @@
   - Camera-based barcode scanning for ISBN lookup
   - Auto-populate book details from scanned ISBN
 
-- [ ] **Online Search (OpenLibrary API)**
+- [x] **Online Search (OpenLibrary API)**
   - Search tab in Add Book modal
   - Search by ISBN, title, or author
   - Display search results with book details

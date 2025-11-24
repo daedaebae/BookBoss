@@ -6,6 +6,7 @@ export interface Book {
     library?: string;
     cover_url?: string;
     cover_image_path?: string;
+    epub_file_path?: string;
     shelf?: string;
     status?: 'Not Started' | 'In Progress' | 'Completed' | 'DNF';
     format?: string;

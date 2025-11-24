@@ -6,12 +6,13 @@ interface BookCardProps {
     onClick?: () => void;
     onEdit?: (book: Book) => void;
     onDelete?: (book: Book) => void;
+    onRead?: (book: Book) => void;
     bulkMode?: boolean;
     isSelected?: boolean;
     onToggleSelection?: (bookId: number) => void;
 }
 
-export const BookCard: React.FC<BookCardProps> = ({ book, onEdit, onDelete, bulkMode = false, isSelected = false, onToggleSelection }) => {
+export const BookCard: React.FC<BookCardProps> = ({ book, onEdit, onDelete, onRead, bulkMode = false, isSelected = false, onToggleSelection }) => {
     const [showMenu, setShowMenu] = useState(false);
 
     const coverUrl = book.cover_image_path
@@ -74,6 +75,17 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onEdit, onDelete, bulk
 
             {showMenu && (
                 <div className="context-menu" onClick={(e) => e.stopPropagation()}>
+                    {book.format === 'Ebook' && book.epub_file_path && onRead && (
+                        <button
+                            className="context-btn"
+                            onClick={() => {
+                                onRead(book);
+                                setShowMenu(false);
+                            }}
+                        >
+                            📖 Read
+                        </button>
+                    )}
                     <button
                         className="context-btn"
                         onClick={() => {

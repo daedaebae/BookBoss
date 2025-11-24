@@ -4,6 +4,7 @@ import { bookService } from '../services/bookService';
 import { BookGrid } from '../components/books/BookGrid';
 import { AddBookModal } from '../components/books/AddBookModal';
 import { EditBookModal } from '../components/books/EditBookModal';
+import { EpubReaderModal } from '../components/books/EpubReaderModal';
 import { Toast } from '../components/common/Toast';
 
 export const Library: React.FC = () => {
@@ -19,6 +20,7 @@ export const Library: React.FC = () => {
     // Modal states
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isReaderModalOpen, setIsReaderModalOpen] = useState(false);
     const [selectedBook, setSelectedBook] = useState<Book | null>(null);
 
     // Toast state
@@ -129,6 +131,11 @@ export const Library: React.FC = () => {
                 showToast('Failed to delete book', 'error');
             }
         }
+    };
+
+    const handleRead = (book: Book) => {
+        setSelectedBook(book);
+        setIsReaderModalOpen(true);
     };
 
     const toggleBookSelection = (bookId: number) => {
@@ -341,6 +348,7 @@ export const Library: React.FC = () => {
                 isLoading={isLoading}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                onRead={handleRead}
                 bulkMode={bulkMode}
                 selectedBooks={selectedBooks}
                 onToggleSelection={toggleBookSelection}
@@ -357,6 +365,14 @@ export const Library: React.FC = () => {
                 onClose={() => setIsEditModalOpen(false)}
                 book={selectedBook}
                 onBookUpdated={handleBookUpdated}
+            />
+
+            <EpubReaderModal
+                isOpen={isReaderModalOpen}
+                onClose={() => setIsReaderModalOpen(false)}
+                epubUrl={selectedBook?.epub_file_path ? `http://localhost:3000/${selectedBook.epub_file_path}` : ''}
+                bookTitle={selectedBook?.title || ''}
+                bookId={selectedBook?.id}
             />
 
             <Toast
