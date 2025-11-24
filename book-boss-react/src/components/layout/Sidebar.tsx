@@ -21,6 +21,7 @@ interface SidebarProps {
     };
     isMobileOpen?: boolean;
     onMobileClose?: () => void;
+    onToggleSidebar?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -29,7 +30,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     shelves,
     bookCounts,
     isMobileOpen = false,
-    onMobileClose
+    onMobileClose,
+    onToggleSidebar
 }) => {
     const isActive = (type: string, value?: string) => {
         return activeFilter.type === type && activeFilter.value === value;
@@ -51,6 +53,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
 
             <aside className={`sidebar ${isMobileOpen ? 'mobile-open' : ''}`}>
+                {/* Sidebar Header with Hide Button */}
+                <div style={{
+                    padding: '15px 20px',
+                    borderBottom: '1px solid var(--glass-border)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                }}>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Filters</h3>
+                    {onToggleSidebar && (
+                        <button
+                            className="secondary-btn small"
+                            onClick={onToggleSidebar}
+                            title="Hide Sidebar"
+                            style={{ padding: '4px 8px' }}
+                        >
+                            ◀
+                        </button>
+                    )}
+                </div>
+
                 <div className="sidebar-content">
                     {/* All Books */}
                     <div className="sidebar-section">

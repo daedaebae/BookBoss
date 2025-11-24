@@ -28,6 +28,7 @@ export const Library: React.FC = () => {
     const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>({ type: 'all' });
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+    const [isDarkMode, setIsDarkMode] = useState(true);
 
     // Toast state
     const [toast, setToast] = useState({ message: '', type: 'info' as 'success' | 'error' | 'info', isVisible: false });
@@ -43,8 +44,14 @@ export const Library: React.FC = () => {
 
     // Apply filters whenever books or filters change
     useEffect(() => {
+        loadBooks();
         applyFilters();
-    }, [books, filters]);
+    }, [books, filters, sidebarFilter]);
+
+    useEffect(() => {
+        // Apply theme
+        document.body.className = isDarkMode ? '' : 'light-theme';
+    }, [isDarkMode]);
 
     const loadBooks = async () => {
         try {
@@ -232,19 +239,22 @@ export const Library: React.FC = () => {
                     bookCounts={bookCounts}
                     isMobileOpen={isMobileSidebarOpen}
                     onMobileClose={() => setIsMobileSidebarOpen(false)}
+                    onToggleSidebar={() => setIsSidebarVisible(false)}
                 />
             )}
 
             <div style={{ marginLeft: isSidebarVisible ? 'var(--sidebar-width)' : '0', minHeight: '100vh', transition: 'margin-left 0.3s ease' }}>
                 <div className="top-bar">
-                    <button
-                        className="secondary-btn small"
-                        onClick={() => setIsSidebarVisible(!isSidebarVisible)}
-                        style={{ marginRight: '10px' }}
-                        title={isSidebarVisible ? 'Hide Sidebar' : 'Show Sidebar'}
-                    >
-                        {isSidebarVisible ? '◀' : '▶'}
-                    </button>
+                    {!isSidebarVisible && (
+                        <button
+                            className="secondary-btn small"
+                            onClick={() => setIsSidebarVisible(true)}
+                            style={{ marginRight: '10px' }}
+                            title="Show Sidebar"
+                        >
+                            ▶
+                        </button>
+                    )}
                     <div className="search-container">
                         <input
                             type="text"
@@ -253,7 +263,7 @@ export const Library: React.FC = () => {
                             onChange={(e) => handleSearch(e.target.value)}
                         />
                     </div>
-                    <div className="header-actions">
+                    <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                         <select
                             value={filters.sortBy}
                             onChange={(e) => setFilters((prev) => ({ ...prev, sortBy: e.target.value as BookFilters['sortBy'] }))}
@@ -263,7 +273,6 @@ export const Library: React.FC = () => {
                                 border: '1px solid var(--glass-border)',
                                 background: 'var(--glass-bg)',
                                 color: 'var(--text-primary)',
-                                marginRight: '10px',
                             }}
                         >
                             <option value="added_desc">Recently Added</option>
@@ -280,12 +289,75 @@ export const Library: React.FC = () => {
                                 setBulkMode(!bulkMode);
                                 setSelectedBooks(new Set());
                             }}
-                            style={{ marginRight: '10px' }}
                         >
                             {bulkMode ? 'Cancel' : 'Select Multiple'}
                         </button>
-                        <button className="fab" onClick={() => setIsAddModalOpen(true)}>
-                            +
+                    </div>
+
+                    {/* Theme Toggle and Add Book - Fixed Position */}
+                    <div style={{
+                        position: 'fixed',
+                        top: '20px',
+                        right: '20px',
+                        zIndex: 100,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '15px'
+                    }}>
+                        {/* Dark/Light Mode Toggle */}
+                        <label style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            cursor: 'pointer',
+                            background: 'var(--glass-bg)',
+                            padding: '8px 12px',
+                            borderRadius: '20px',
+                            border: '1px solid var(--glass-border)'
+                        }}>
+                            <span style={{ fontSize: '1.2rem' }}>{isDarkMode ? '🌙' : '☀️'}</span>
+                            <input
+                                type="checkbox"
+                                checked={!isDarkMode}
+                                onChange={() => setIsDarkMode(!isDarkMode)}
+                                style={{ display: 'none' }}
+                            />
+                            <div style={{
+                                width: '40px',
+                                height: '20px',
+                                background: isDarkMode ? 'var(--text-secondary)' : 'var(--accent-color)',
+                                borderRadius: '10px',
+                                position: 'relative',
+                                transition: 'background 0.3s'
+                            }}>
+                                <div style={{
+                                    width: '16px',
+                                    height: '16px',
+                                    background: 'white',
+                                    borderRadius: '50%',
+                                    position: 'absolute',
+                                    top: '2px',
+                                    left: isDarkMode ? '2px' : '22px',
+                                    transition: 'left 0.3s'
+                                }} />
+                            </div>
+                        </label>
+
+                        {/* Add Book Button */}
+                        <button
+                            className="primary-btn"
+                            onClick={() => setIsAddModalOpen(true)}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '10px 20px',
+                                fontSize: '1rem',
+                                whiteSpace: 'nowrap'
+                            }}
+                        >
+                            <span style={{ fontSize: '1.2rem' }}>+</span>
+                            <span>Add Book</span>
                         </button>
                     </div>
                 </div>
