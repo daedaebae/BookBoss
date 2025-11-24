@@ -9,14 +9,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const storedUser = localStorage.getItem('bookboss_user');
-        const storedToken = localStorage.getItem('bookboss_token');
+        try {
+            const storedUser = localStorage.getItem('bookboss_user');
+            const storedToken = localStorage.getItem('bookboss_token');
 
-        if (storedUser && storedToken) {
-            setUser(JSON.parse(storedUser));
-            setToken(storedToken);
+            if (storedUser && storedToken) {
+                setUser(JSON.parse(storedUser));
+                setToken(storedToken);
+            } else if (storedToken && !storedUser) {
+                // Clear orphaned token
+                localStorage.removeItem('bookboss_token');
+            }
+        } catch (error) {
+            console.error('Error loading auth data from localStorage:', error);
+            // Clear corrupted data
+            localStorage.removeItem('bookboss_user');
+            localStorage.removeItem('bookboss_token');
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
     }, []);
 
     const login = (newToken: string, newUser: User) => {
