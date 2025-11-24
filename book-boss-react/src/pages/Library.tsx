@@ -27,6 +27,7 @@ export const Library: React.FC = () => {
     // Sidebar state
     const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>({ type: 'all' });
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+    const [isSidebarVisible, setIsSidebarVisible] = useState(true);
 
     // Toast state
     const [toast, setToast] = useState({ message: '', type: 'info' as 'success' | 'error' | 'info', isVisible: false });
@@ -223,17 +224,27 @@ export const Library: React.FC = () => {
 
     return (
         <>
-            <Sidebar
-                activeFilter={sidebarFilter}
-                onFilterChange={setSidebarFilter}
-                shelves={shelves}
-                bookCounts={bookCounts}
-                isMobileOpen={isMobileSidebarOpen}
-                onMobileClose={() => setIsMobileSidebarOpen(false)}
-            />
+            {isSidebarVisible && (
+                <Sidebar
+                    activeFilter={sidebarFilter}
+                    onFilterChange={setSidebarFilter}
+                    shelves={shelves}
+                    bookCounts={bookCounts}
+                    isMobileOpen={isMobileSidebarOpen}
+                    onMobileClose={() => setIsMobileSidebarOpen(false)}
+                />
+            )}
 
-            <div style={{ marginLeft: 'var(--sidebar-width)', minHeight: '100vh' }}>
+            <div style={{ marginLeft: isSidebarVisible ? 'var(--sidebar-width)' : '0', minHeight: '100vh', transition: 'margin-left 0.3s ease' }}>
                 <div className="top-bar">
+                    <button
+                        className="secondary-btn small"
+                        onClick={() => setIsSidebarVisible(!isSidebarVisible)}
+                        style={{ marginRight: '10px' }}
+                        title={isSidebarVisible ? 'Hide Sidebar' : 'Show Sidebar'}
+                    >
+                        {isSidebarVisible ? '◀' : '▶'}
+                    </button>
                     <div className="search-container">
                         <input
                             type="text"
@@ -279,68 +290,6 @@ export const Library: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Library Stats */}
-                <div style={{
-                    padding: '15px 30px',
-                    background: 'var(--glass-bg)',
-                    borderBottom: '1px solid var(--glass-border)',
-                    display: 'flex',
-                    gap: '30px',
-                    flexWrap: 'wrap'
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '1.5rem' }}>📚</span>
-                        <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Total Books</div>
-                            <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>{books.length}</div>
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '1.5rem' }}>📖</span>
-                        <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Physical</div>
-                            <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                                {books.filter(b => b.format === 'Physical').length}
-                            </div>
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '1.5rem' }}>💻</span>
-                        <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Ebooks</div>
-                            <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                                {books.filter(b => b.format === 'Ebook').length}
-                            </div>
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '1.5rem' }}>🎧</span>
-                        <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Audiobooks</div>
-                            <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                                {books.filter(b => b.format === 'Audiobook').length}
-                            </div>
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '1.5rem' }}>✅</span>
-                        <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Completed</div>
-                            <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                                {books.filter(b => b.status === 'Completed').length}
-                            </div>
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '1.5rem' }}>📗</span>
-                        <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>In Progress</div>
-                            <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                                {books.filter(b => b.status === 'In Progress').length}
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 {/* Bulk Actions Toolbar */}
                 {bulkMode && selectedBooks.size > 0 && (

@@ -74,7 +74,7 @@
   - Show/hide menu on card interaction
 
 ### Navigation & Filtering
-- [ ] **Sidebar Navigation Filters**
+- [x] **Sidebar Navigation Filters**
   - Hot Books filter
   - Downloaded Books filter
   - Read Books filter
