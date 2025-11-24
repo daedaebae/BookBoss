@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { type Book, type BookFilters } from '../types/book';
 import { bookService } from '../services/bookService';
 import { BookGrid } from '../components/books/BookGrid';
+import { AddBookModal } from '../components/books/AddBookModal';
+import { EditBookModal } from '../components/books/EditBookModal';
+import { Toast } from '../components/common/Toast';
 
 export const Library: React.FC = () => {
     const [books, setBooks] = useState<Book[]>([]);
@@ -12,6 +15,14 @@ export const Library: React.FC = () => {
         search: '',
         sortBy: 'added_desc',
     });
+
+    // Modal states
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+
+    // Toast state
+    const [toast, setToast] = useState({ message: '', type: 'info' as 'success' | 'error' | 'info', isVisible: false });
 
     // Fetch books on mount
     useEffect(() => {
@@ -79,9 +90,36 @@ export const Library: React.FC = () => {
         setFilters((prev) => ({ ...prev, search: searchTerm }));
     };
 
-    const handleBookClick = (book: Book) => {
-        console.log('Book clicked:', book);
-        // TODO: Open book details modal
+    const handleBookAdded = () => {
+        loadBooks();
+        showToast('Book added successfully!', 'success');
+    };
+
+    const handleBookUpdated = () => {
+        loadBooks();
+        showToast('Book updated successfully!', 'success');
+    };
+
+    const handleEdit = (book: Book) => {
+        setSelectedBook(book);
+        setIsEditModalOpen(true);
+    };
+
+    const handleDelete = async (book: Book) => {
+        if (window.confirm(`Are you sure you want to delete "${book.title}"?`)) {
+            try {
+                await bookService.deleteBook(book.id);
+                loadBooks();
+                showToast('Book deleted successfully!', 'success');
+            } catch (error) {
+                console.error('Error deleting book:', error);
+                showToast('Failed to delete book', 'error');
+            }
+        }
+    };
+
+    const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+        setToast({ message, type, isVisible: true });
     };
 
     if (error) {
@@ -113,6 +151,7 @@ export const Library: React.FC = () => {
                             border: '1px solid var(--glass-border)',
                             background: 'var(--glass-bg)',
                             color: 'var(--text-primary)',
+                            marginRight: '10px',
                         }}
                     >
                         <option value="added_desc">Recently Added</option>
@@ -120,12 +159,36 @@ export const Library: React.FC = () => {
                         <option value="title_asc">Title (A-Z)</option>
                         <option value="author_asc">Author (A-Z)</option>
                     </select>
+                    <button className="fab" onClick={() => setIsAddModalOpen(true)}>
+                        +
+                    </button>
                 </div>
             </div>
             <BookGrid
                 books={filteredBooks}
                 isLoading={isLoading}
-                onBookClick={handleBookClick}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+            />
+
+            <AddBookModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                onBookAdded={handleBookAdded}
+            />
+
+            <EditBookModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                book={selectedBook}
+                onBookUpdated={handleBookUpdated}
+            />
+
+            <Toast
+                message={toast.message}
+                type={toast.type}
+                isVisible={toast.isVisible}
+                onClose={() => setToast({ ...toast, isVisible: false })}
             />
         </>
     );

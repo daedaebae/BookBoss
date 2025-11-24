@@ -6,9 +6,11 @@ interface BookGridProps {
     books: Book[];
     isLoading?: boolean;
     onBookClick?: (book: Book) => void;
+    onEdit?: (book: Book) => void;
+    onDelete?: (book: Book) => void;
 }
 
-export const BookGrid: React.FC<BookGridProps> = ({ books, isLoading, onBookClick }) => {
+export const BookGrid: React.FC<BookGridProps> = ({ books, isLoading, onBookClick, onEdit, onDelete }) => {
     if (isLoading) {
         return (
             <div className="book-grid">
@@ -46,6 +48,8 @@ export const BookGrid: React.FC<BookGridProps> = ({ books, isLoading, onBookClic
                     key={book.id}
                     book={book}
                     onClick={() => onBookClick?.(book)}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
                 />
             ))}
         </div>
