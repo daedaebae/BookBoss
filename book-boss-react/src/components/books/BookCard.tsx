@@ -91,7 +91,40 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onEdit, onDelete, onRe
                     )}
                     {book.format && <span className="badge badge-format">{book.format}</span>}
                     {book.status && <span className={`badge badge-status ${book.status.toLowerCase().replace(' ', '-')}`}>{book.status}</span>}
-                    {book.is_loaned && <span className="badge badge-loaned">Loaned to {book.borrower_name}</span>}
+                    {book.is_loaned && (() => {
+                        const now = new Date();
+                        const dueDate = book.due_date ? new Date(book.due_date) : null;
+                        const daysUntilDue = dueDate ? Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
+
+                        let badgeColor = 'var(--accent-color)'; // default blue
+                        let badgeText = `Loaned to ${book.borrower_name}`;
+
+                        if (daysUntilDue !== null) {
+                            if (daysUntilDue < 0) {
+                                badgeColor = 'var(--danger-color)'; // red for overdue
+                                badgeText = `OVERDUE (${Math.abs(daysUntilDue)}d) - ${book.borrower_name}`;
+                            } else if (daysUntilDue <= 2) {
+                                badgeColor = '#f97316'; // orange
+                                badgeText = `Due in ${daysUntilDue}d - ${book.borrower_name}`;
+                            } else if (daysUntilDue <= 7) {
+                                badgeColor = '#fbbf24'; // yellow
+                                badgeText = `Due in ${daysUntilDue}d - ${book.borrower_name}`;
+                            } else {
+                                badgeColor = '#10b981'; // green
+                                badgeText = `Loaned to ${book.borrower_name}`;
+                            }
+                        }
+
+                        return (
+                            <span
+                                className="badge badge-loaned"
+                                style={{ backgroundColor: badgeColor, color: 'white' }}
+                                title={dueDate ? `Due: ${dueDate.toLocaleDateString()}` : 'No due date set'}
+                            >
+                                {badgeText}
+                            </span>
+                        );
+                    })()}
                 </div>
             </div>
 
