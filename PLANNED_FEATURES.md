@@ -62,7 +62,7 @@
   - Display search results with book details
   - One-click add from search results
 
-- [ ] **EPUB Reader**
+- [x] **EPUB Reader**
   - Reader modal with ePub.js integration
   - Open/read EPUB files directly in browser
   - Navigation controls (prev/next page)
@@ -99,3 +99,116 @@
   - Bulk refresh metadata for all books
   - Download/update cover images from OpenLibrary
   - Progress indicator during refresh
+
+## Calibre-Web Inspired Features
+
+### eBook Distribution & Sharing
+- [ ] **Send to E-Reader**
+  - One-click send to Kindle via email
+  - Support for multiple e-reader email addresses
+  - Email configuration in settings
+
+- [ ] **OPDS Feed**
+  - Generate OPDS catalog feed
+  - Allow e-reader apps to browse library
+  - Download books directly from compatible apps
+  - Authentication support for OPDS
+
+- [ ] **Public Sharing**
+  - Optional public library view (no login required)
+  - Share specific books or collections via link
+  - Download permissions control
+
+### Advanced Metadata Management
+- [ ] **Metadata Download from Multiple Sources**
+  - Support for multiple metadata providers
+  - Plugin system for custom metadata sources
+  - Batch metadata download
+  - Conflict resolution UI
+
+- [ ] **Publisher & Language Tracking**
+  - Add publisher field
+  - Language/locale tracking
+  - Filter by publisher or language
+
+- [ ] **Book Ratings & Reviews**
+  - Star ratings (1-5)
+  - Personal review/notes field
+  - Average rating display
+
+### Format Conversion & Processing
+- [ ] **eBook Format Conversion**
+  - Convert between formats (EPUB, MOBI, PDF, etc.)
+  - Integration with Calibre CLI tools
+  - Batch conversion support
+  - Quality/size settings
+
+- [ ] **Automated Book Ingestion**
+  - Watch folder for new books
+  - Auto-import and process
+  - Intelligent metadata extraction
+  - Handle subfolder structures
+
+### Multi-User Features
+- [ ] **Per-User Permissions**
+  - Granular permission system
+  - View/download/edit/admin roles
+  - Per-collection access control
+  - User activity logging
+
+- [ ] **User Reading Lists**
+  - Personal "To Read" lists
+  - Reading history tracking
+  - Recommendations based on history
+  - Share lists between users
+
+### Integration Features
+- [ ] **Kobo Integration**
+  - Sync with Kobo e-readers
+  - Custom cover thumbnails
+  - Reading progress sync
+  - Metadata sync
+
+- [ ] **Cloud Storage Integration**
+  - Google Drive support
+  - Dropbox support
+  - OneDrive support
+  - S3-compatible storage
+
+### Advanced Library Features
+- [ ] **Multi-Language Support**
+  - UI translation system
+  - Support for 20+ languages
+  - User language preference
+
+- [ ] **Advanced Search**
+  - Full-text search in metadata
+  - Boolean operators (AND, OR, NOT)
+  - Saved search queries
+  - Search within specific fields
+
+- [ ] **Book Statistics & Analytics**
+  - Reading time tracking
+  - Books read per month/year
+  - Genre distribution charts
+  - Author statistics
+
+- [ ] **Duplicate Detection**
+  - Find duplicate books by ISBN
+  - Find duplicates by title/author
+  - Merge duplicate entries
+  - Keep preferred version
+
+### Backup & Export
+- [ ] **Automated Backups**
+  - Scheduled database backups
+  - Export library to ZIP
+  - Backup to cloud storage
+  - Restore from backup
+
+- [ ] **Library Export Formats**
+  - Export as CSV
+  - Export as JSON
+  - Export as Calibre database
+  - Custom export templates
+
