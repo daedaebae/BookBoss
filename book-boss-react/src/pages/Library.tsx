@@ -5,6 +5,7 @@ import { BookGrid } from '../components/books/BookGrid';
 import { AddBookModal } from '../components/books/AddBookModal';
 import { EditBookModal } from '../components/books/EditBookModal';
 import { EpubReaderModal } from '../components/books/EpubReaderModal';
+import { Sidebar, type SidebarFilter } from '../components/layout/Sidebar';
 import { Toast } from '../components/common/Toast';
 
 export const Library: React.FC = () => {
@@ -22,6 +23,10 @@ export const Library: React.FC = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isReaderModalOpen, setIsReaderModalOpen] = useState(false);
     const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+
+    // Sidebar state
+    const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>({ type: 'all' });
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
     // Toast state
     const [toast, setToast] = useState({ message: '', type: 'info' as 'success' | 'error' | 'info', isVisible: false });
@@ -56,6 +61,15 @@ export const Library: React.FC = () => {
 
     const applyFilters = () => {
         let result = [...books];
+
+        // Apply sidebar filter first
+        if (sidebarFilter.type === 'status' && sidebarFilter.value) {
+            result = result.filter(book => book.status === sidebarFilter.value);
+        } else if (sidebarFilter.type === 'format' && sidebarFilter.value) {
+            result = result.filter(book => book.format === sidebarFilter.value);
+        } else if (sidebarFilter.type === 'shelf' && sidebarFilter.value) {
+            result = result.filter(book => book.shelf === sidebarFilter.value);
+        }
 
         // Search filter
         if (filters.search) {
@@ -192,195 +206,221 @@ export const Library: React.FC = () => {
         );
     }
 
+    // Calculate book counts for sidebar
+    const bookCounts = {
+        total: books.length,
+        notStarted: books.filter(b => b.status === 'Not Started').length,
+        inProgress: books.filter(b => b.status === 'In Progress').length,
+        completed: books.filter(b => b.status === 'Completed').length,
+        dnf: books.filter(b => b.status === 'DNF').length,
+        physical: books.filter(b => b.format === 'Physical').length,
+        ebook: books.filter(b => b.format === 'Ebook').length,
+        audiobook: books.filter(b => b.format === 'Audiobook').length,
+    };
+
+    // Get unique shelves
+    const shelves = Array.from(new Set(books.map(b => b.shelf).filter(Boolean))) as string[];
+
     return (
         <>
-            <div className="top-bar">
-                <div className="search-container">
-                    <input
-                        type="text"
-                        placeholder="Search books by title, author, or ISBN..."
-                        value={filters.search}
-                        onChange={(e) => handleSearch(e.target.value)}
-                    />
-                </div>
-                <div className="header-actions">
-                    <select
-                        value={filters.sortBy}
-                        onChange={(e) => setFilters((prev) => ({ ...prev, sortBy: e.target.value as BookFilters['sortBy'] }))}
-                        style={{
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            border: '1px solid var(--glass-border)',
-                            background: 'var(--glass-bg)',
-                            color: 'var(--text-primary)',
-                            marginRight: '10px',
-                        }}
-                    >
-                        <option value="added_desc">Recently Added</option>
-                        <option value="added_asc">Oldest First</option>
-                        <option value="title_asc">Title (A-Z)</option>
-                        <option value="author_asc">Author (A-Z)</option>
-                        <option value="rating_desc">Highest Rated</option>
-                        <option value="page_count_desc">Longest</option>
-                        <option value="pub_date_desc">Newest Published</option>
-                    </select>
-                    <button
-                        className="secondary-btn small"
-                        onClick={() => {
-                            setBulkMode(!bulkMode);
-                            setSelectedBooks(new Set());
-                        }}
-                        style={{ marginRight: '10px' }}
-                    >
-                        {bulkMode ? 'Cancel' : 'Select Multiple'}
-                    </button>
-                    <button className="fab" onClick={() => setIsAddModalOpen(true)}>
-                        +
-                    </button>
-                </div>
-            </div>
+            <Sidebar
+                activeFilter={sidebarFilter}
+                onFilterChange={setSidebarFilter}
+                shelves={shelves}
+                bookCounts={bookCounts}
+                isMobileOpen={isMobileSidebarOpen}
+                onMobileClose={() => setIsMobileSidebarOpen(false)}
+            />
 
-            {/* Library Stats */}
-            <div style={{
-                padding: '15px 30px',
-                background: 'var(--glass-bg)',
-                borderBottom: '1px solid var(--glass-border)',
-                display: 'flex',
-                gap: '30px',
-                flexWrap: 'wrap'
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '1.5rem' }}>📚</span>
-                    <div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Total Books</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>{books.length}</div>
+            <div style={{ marginLeft: 'var(--sidebar-width)', minHeight: '100vh' }}>
+                <div className="top-bar">
+                    <div className="search-container">
+                        <input
+                            type="text"
+                            placeholder="Search books by title, author, or ISBN..."
+                            value={filters.search}
+                            onChange={(e) => handleSearch(e.target.value)}
+                        />
+                    </div>
+                    <div className="header-actions">
+                        <select
+                            value={filters.sortBy}
+                            onChange={(e) => setFilters((prev) => ({ ...prev, sortBy: e.target.value as BookFilters['sortBy'] }))}
+                            style={{
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                border: '1px solid var(--glass-border)',
+                                background: 'var(--glass-bg)',
+                                color: 'var(--text-primary)',
+                                marginRight: '10px',
+                            }}
+                        >
+                            <option value="added_desc">Recently Added</option>
+                            <option value="added_asc">Oldest First</option>
+                            <option value="title_asc">Title (A-Z)</option>
+                            <option value="author_asc">Author (A-Z)</option>
+                            <option value="rating_desc">Highest Rated</option>
+                            <option value="page_count_desc">Longest</option>
+                            <option value="pub_date_desc">Newest Published</option>
+                        </select>
+                        <button
+                            className="secondary-btn small"
+                            onClick={() => {
+                                setBulkMode(!bulkMode);
+                                setSelectedBooks(new Set());
+                            }}
+                            style={{ marginRight: '10px' }}
+                        >
+                            {bulkMode ? 'Cancel' : 'Select Multiple'}
+                        </button>
+                        <button className="fab" onClick={() => setIsAddModalOpen(true)}>
+                            +
+                        </button>
                     </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '1.5rem' }}>📖</span>
-                    <div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Physical</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                            {books.filter(b => b.format === 'Physical').length}
-                        </div>
-                    </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '1.5rem' }}>💻</span>
-                    <div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Ebooks</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                            {books.filter(b => b.format === 'Ebook').length}
-                        </div>
-                    </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '1.5rem' }}>🎧</span>
-                    <div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Audiobooks</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                            {books.filter(b => b.format === 'Audiobook').length}
-                        </div>
-                    </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '1.5rem' }}>✅</span>
-                    <div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Completed</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                            {books.filter(b => b.status === 'Completed').length}
-                        </div>
-                    </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '1.5rem' }}>📗</span>
-                    <div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>In Progress</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                            {books.filter(b => b.status === 'In Progress').length}
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            {/* Bulk Actions Toolbar */}
-            {bulkMode && selectedBooks.size > 0 && (
+                {/* Library Stats */}
                 <div style={{
-                    padding: '12px 30px',
+                    padding: '15px 30px',
                     background: 'var(--glass-bg)',
                     borderBottom: '1px solid var(--glass-border)',
                     display: 'flex',
-                    gap: '10px',
-                    alignItems: 'center'
+                    gap: '30px',
+                    flexWrap: 'wrap'
                 }}>
-                    <span style={{ marginRight: 'auto', color: 'var(--text-primary)' }}>
-                        {selectedBooks.size} book(s) selected
-                    </span>
-                    <button className="secondary-btn small" onClick={handleBulkDelete}>
-                        Delete Selected
-                    </button>
-                    <select
-                        onChange={(e) => {
-                            if (e.target.value) {
-                                handleBulkUpdateShelf(e.target.value);
-                                e.target.value = '';
-                            }
-                        }}
-                        style={{
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            border: '1px solid var(--glass-border)',
-                            background: 'var(--glass-bg)',
-                            color: 'var(--text-primary)',
-                        }}
-                    >
-                        <option value="">Move to Shelf...</option>
-                        <option value="To Read">To Read</option>
-                        <option value="Currently Reading">Currently Reading</option>
-                        <option value="Favorites">Favorites</option>
-                        <option value="Archive">Archive</option>
-                    </select>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '1.5rem' }}>📚</span>
+                        <div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Total Books</div>
+                            <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>{books.length}</div>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '1.5rem' }}>📖</span>
+                        <div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Physical</div>
+                            <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                                {books.filter(b => b.format === 'Physical').length}
+                            </div>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '1.5rem' }}>💻</span>
+                        <div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Ebooks</div>
+                            <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                                {books.filter(b => b.format === 'Ebook').length}
+                            </div>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '1.5rem' }}>🎧</span>
+                        <div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Audiobooks</div>
+                            <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                                {books.filter(b => b.format === 'Audiobook').length}
+                            </div>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '1.5rem' }}>✅</span>
+                        <div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Completed</div>
+                            <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                                {books.filter(b => b.status === 'Completed').length}
+                            </div>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '1.5rem' }}>📗</span>
+                        <div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>In Progress</div>
+                            <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                                {books.filter(b => b.status === 'In Progress').length}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            )}
 
-            <BookGrid
-                books={filteredBooks}
-                isLoading={isLoading}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onRead={handleRead}
-                bulkMode={bulkMode}
-                selectedBooks={selectedBooks}
-                onToggleSelection={toggleBookSelection}
-            />
+                {/* Bulk Actions Toolbar */}
+                {bulkMode && selectedBooks.size > 0 && (
+                    <div style={{
+                        padding: '12px 30px',
+                        background: 'var(--glass-bg)',
+                        borderBottom: '1px solid var(--glass-border)',
+                        display: 'flex',
+                        gap: '10px',
+                        alignItems: 'center'
+                    }}>
+                        <span style={{ marginRight: 'auto', color: 'var(--text-primary)' }}>
+                            {selectedBooks.size} book(s) selected
+                        </span>
+                        <button className="secondary-btn small" onClick={handleBulkDelete}>
+                            Delete Selected
+                        </button>
+                        <select
+                            onChange={(e) => {
+                                if (e.target.value) {
+                                    handleBulkUpdateShelf(e.target.value);
+                                    e.target.value = '';
+                                }
+                            }}
+                            style={{
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                border: '1px solid var(--glass-border)',
+                                background: 'var(--glass-bg)',
+                                color: 'var(--text-primary)',
+                            }}
+                        >
+                            <option value="">Move to Shelf...</option>
+                            <option value="To Read">To Read</option>
+                            <option value="Currently Reading">Currently Reading</option>
+                            <option value="Favorites">Favorites</option>
+                            <option value="Archive">Archive</option>
+                        </select>
+                    </div>
+                )}
 
-            <AddBookModal
-                isOpen={isAddModalOpen}
-                onClose={() => setIsAddModalOpen(false)}
-                onBookAdded={handleBookAdded}
-            />
+                <BookGrid
+                    books={filteredBooks}
+                    isLoading={isLoading}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onRead={handleRead}
+                    bulkMode={bulkMode}
+                    selectedBooks={selectedBooks}
+                    onToggleSelection={toggleBookSelection}
+                />
 
-            <EditBookModal
-                isOpen={isEditModalOpen}
-                onClose={() => setIsEditModalOpen(false)}
-                book={selectedBook}
-                onBookUpdated={handleBookUpdated}
-            />
+                <AddBookModal
+                    isOpen={isAddModalOpen}
+                    onClose={() => setIsAddModalOpen(false)}
+                    onBookAdded={handleBookAdded}
+                />
 
-            <EpubReaderModal
-                isOpen={isReaderModalOpen}
-                onClose={() => setIsReaderModalOpen(false)}
-                epubUrl={selectedBook?.epub_file_path ? `http://localhost:3000/${selectedBook.epub_file_path}` : ''}
-                bookTitle={selectedBook?.title || ''}
-                bookId={selectedBook?.id}
-            />
+                <EditBookModal
+                    isOpen={isEditModalOpen}
+                    onClose={() => setIsEditModalOpen(false)}
+                    book={selectedBook}
+                    onBookUpdated={handleBookUpdated}
+                />
 
-            <Toast
-                message={toast.message}
-                type={toast.type}
-                isVisible={toast.isVisible}
-                onClose={() => setToast({ ...toast, isVisible: false })}
-            />
+                <EpubReaderModal
+                    isOpen={isReaderModalOpen}
+                    onClose={() => setIsReaderModalOpen(false)}
+                    epubUrl={selectedBook?.epub_file_path ? `http://localhost:3000/${selectedBook.epub_file_path}` : ''}
+                    bookTitle={selectedBook?.title || ''}
+                    bookId={selectedBook?.id}
+                />
+
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    isVisible={toast.isVisible}
+                    onClose={() => setToast({ ...toast, isVisible: false })}
+                />
+            </div>
         </>
     );
 };
