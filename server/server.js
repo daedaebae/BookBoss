@@ -46,6 +46,14 @@ const authenticateToken = (req, res, next) => {
     next();
 };
 
+// Admin Middleware
+const requireAdmin = (req, res, next) => {
+    if (!req.user || !req.user.isAdmin) {
+        return res.sendStatus(403); // Forbidden
+    }
+    next();
+};
+
 // Serve static files (public)
 app.use(express.static(path.join(__dirname, '../book-boss-web')));
 // Serve uploaded files (covers and book files)
@@ -506,7 +514,8 @@ app.delete('/api/books/:id', authenticateToken, (req, res) => {
 
 // Get all users
 // Get all users
-app.get('/api/users', authenticateToken, (req, res) => {
+// Get all users
+app.get('/api/users', authenticateToken, requireAdmin, (req, res) => {
     db.query('SELECT id, username, is_admin FROM users', (err, results) => {
         if (err) {
             console.error('Error fetching users:', err);
@@ -519,7 +528,8 @@ app.get('/api/users', authenticateToken, (req, res) => {
 
 // Create a user
 // Create a user
-app.post('/api/users', authenticateToken, (req, res) => {
+// Create a user
+app.post('/api/users', authenticateToken, requireAdmin, (req, res) => {
     const { username, password, isAdmin } = req.body;
     if (!username || !password) {
         return res.status(400).json({ error: 'Username and password are required' });
@@ -540,7 +550,8 @@ app.post('/api/users', authenticateToken, (req, res) => {
 
 // Update a user
 // Update a user
-app.put('/api/users/:id', authenticateToken, (req, res) => {
+// Update a user
+app.put('/api/users/:id', authenticateToken, requireAdmin, (req, res) => {
     const { id } = req.params;
     const { username, password, isAdmin } = req.body;
 
@@ -581,7 +592,8 @@ app.put('/api/users/:id', authenticateToken, (req, res) => {
 
 // Delete a user
 // Delete a user
-app.delete('/api/users/:id', authenticateToken, (req, res) => {
+// Delete a user
+app.delete('/api/users/:id', authenticateToken, requireAdmin, (req, res) => {
     const { id } = req.params;
     db.query('DELETE FROM users WHERE id = ?', [id], (err, result) => {
         if (err) {
