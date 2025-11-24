@@ -32,7 +32,7 @@
   - Track status: Not Started, In Progress, Completed, DNF (Did Not Finish).
   - Progress bars for current reads (page number or percentage).
 
-- [ ] **Series Management**
+- [x] **Series Management**
   - Group books by series.
   - Sort books within a series by volume number.
 
