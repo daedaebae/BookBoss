@@ -54,6 +54,28 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onEdit, onDelete, onRe
                     e.currentTarget.src = '/no_cover.png';
                 }}
             />
+
+            {/* Progress Bar for books in progress */}
+            {book.status === 'In Progress' && (
+                <div style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: '4px',
+                    background: 'rgba(0, 0, 0, 0.3)',
+                    overflow: 'hidden'
+                }}>
+                    <div style={{
+                        height: '100%',
+                        width: `${book.progress_percentage || (book.current_page && book.page_count ? (book.current_page / book.page_count * 100) : 0)}%`,
+                        background: `linear-gradient(90deg, 
+                            ${(book.progress_percentage || 0) < 50 ? '#fbbf24' :
+                                (book.progress_percentage || 0) < 80 ? '#f97316' : '#10b981'})`,
+                        transition: 'width 0.3s ease'
+                    }} />
+                </div>
+            )}
             <div className="book-info">
                 <div className="book-title" title={book.title}>
                     {book.title}

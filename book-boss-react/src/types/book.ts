@@ -22,6 +22,9 @@ export interface Book {
     borrower_name?: string;
     loan_date?: string;
     due_date?: string;
+    current_page?: number;
+    progress_percentage?: number;
+    last_read_at?: string;
 }
 
 export interface BookFilters {
