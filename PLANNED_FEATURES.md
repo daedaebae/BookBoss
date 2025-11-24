@@ -36,7 +36,7 @@
   - Group books by series.
   - Sort books within a series by volume number.
 
-- [ ] **Loan / Lending Tracker**
+- [x] **Loan / Lending Tracker**
   - Track physical books lent out to friends.
   - Record borrower name and due date.
 
