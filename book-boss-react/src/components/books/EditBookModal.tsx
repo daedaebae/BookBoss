@@ -36,6 +36,8 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
         edition_type: '',
         edge_type: undefined,
         binding_details: '',
+        // Reviews and notes
+        notes: '',
     });
 
     useEffect(() => {
@@ -72,6 +74,8 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
                 edition_type: book.edition_type || '',
                 edge_type: book.edge_type,
                 binding_details: book.binding_details || '',
+                // Reviews and notes
+                notes: book.notes || '',
             });
         }
     }, [book]);
@@ -225,6 +229,16 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
                         step="0.5"
                         value={formData.rating || ''}
                         onChange={(e) => setFormData({ ...formData, rating: parseFloat(e.target.value) })}
+                    />
+                </div>
+                <div className="form-group">
+                    <label>Your Review / Notes</label>
+                    <textarea
+                        value={formData.notes || ''}
+                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                        rows={4}
+                        placeholder="Share your thoughts about this book..."
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--input-bg)', color: 'var(--text-primary)' }}
                     />
                 </div>
                 <div className="form-group">

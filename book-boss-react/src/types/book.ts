@@ -53,6 +53,9 @@ export interface Book {
     edition_type?: string; // 'Limited Edition', 'First Edition', etc.
     edge_type?: 'Gilded' | 'Fore-edge Painted' | 'Sprayed Edges' | 'Hidden Fore-edge';
     binding_details?: string;
+
+    // Reviews and Notes
+    notes?: string; // User's personal notes and reviews
 }
 
 export interface BookPhoto {

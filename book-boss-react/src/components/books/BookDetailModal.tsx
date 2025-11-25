@@ -4,6 +4,7 @@ import { type Book } from '../../types/book';
 import { type Shelf } from '../../types/shelf';
 import { getSafeCoverUrl } from '../../utils/coverUrlGuard';
 import { PhotoGalleryModal } from '../photos/PhotoGalleryModal';
+import { StarRating } from '../common/StarRating';
 
 interface BookDetailModalProps {
     isOpen: boolean;
@@ -139,6 +140,37 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
                                 {book.due_date && (
                                     <div style={{ marginTop: '5px' }}>
                                         <strong>Due:</strong> {new Date(book.due_date).toLocaleDateString()}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Rating and Review Section */}
+                        {(book.rating || book.notes) && (
+                            <div style={{
+                                padding: '15px',
+                                background: 'var(--glass-bg)',
+                                borderRadius: '8px',
+                                border: '1px solid var(--glass-border)',
+                                marginTop: '15px'
+                            }}>
+                                {book.rating && (
+                                    <div style={{ marginBottom: book.notes ? '12px' : '0' }}>
+                                        <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--text-primary)' }}>Your Rating:</strong>
+                                        <StarRating rating={book.rating} size="large" showValue readonly />
+                                    </div>
+                                )}
+                                {book.notes && (
+                                    <div>
+                                        <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--text-primary)' }}>Your Review:</strong>
+                                        <p style={{
+                                            color: 'var(--text-secondary)',
+                                            lineHeight: '1.6',
+                                            margin: 0,
+                                            whiteSpace: 'pre-wrap'
+                                        }}>
+                                            {book.notes}
+                                        </p>
                                     </div>
                                 )}
                             </div>
