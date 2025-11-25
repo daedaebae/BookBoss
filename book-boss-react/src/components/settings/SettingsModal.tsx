@@ -63,7 +63,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 setActiveTab('profile');
             }
         }
-    }, [isOpen]);
+    }, [isOpen, user]);
 
     const fetchSettings = async () => {
         try {
@@ -118,7 +118,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             });
             if (response.ok) {
                 const data = await response.json();
+                console.log('Fetched users:', data);
                 setUsers(data);
+            } else {
+                console.error('Failed to fetch users:', response.status);
             }
         } catch (error) {
             console.error('Failed to fetch users:', error);
@@ -630,6 +633,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                             )}
 
                             <div>
+                                {users.length === 0 && <p style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>No users found.</p>}
                                 {users.map(userItem => (
                                     <div key={userItem.id} style={{
                                         display: 'flex',
