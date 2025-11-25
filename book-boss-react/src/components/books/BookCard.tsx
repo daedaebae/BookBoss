@@ -1,6 +1,7 @@
 import React from 'react';
 import { getSafeCoverUrl } from '../../utils/coverUrlGuard';
 import { type Book } from '../../types/book';
+import { StarRating } from '../common/StarRating';
 
 interface BookCardProps {
     book: Book;
@@ -96,6 +97,11 @@ export const BookCard: React.FC<BookCardProps> = ({
                 {book.series && (
                     <div className="book-series" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                         {book.series} {book.series_index ? `#${book.series_index}` : (book.series_order ? `#${book.series_order}` : '')}
+                    </div>
+                )}
+                {book.rating && (
+                    <div style={{ marginTop: '4px' }}>
+                        <StarRating rating={book.rating} size="small" readonly />
                     </div>
                 )}
                 <div className="book-badges">
