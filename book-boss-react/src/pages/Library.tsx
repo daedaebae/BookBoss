@@ -319,7 +319,28 @@ export const Library: React.FC = () => {
             />
 
             <div style={{ marginLeft: isSidebarVisible ? 'var(--sidebar-width)' : '0', minHeight: '100vh', transition: 'margin-left 0.3s ease' }}>
-                <div className="top-bar" style={{ display: 'flex', gap: '30px', alignItems: 'center', paddingRight: '340px' }}>
+                <div className="top-bar" style={{ display: 'flex', gap: '30px', alignItems: 'center', paddingRight: '340px', position: 'relative' }}>
+                    {/* Mobile Hamburger Menu */}
+                    <button
+                        className="icon-btn mobile-only"
+                        onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+                        style={{
+                            position: 'absolute',
+                            left: '15px',
+                            fontSize: '1.5rem',
+                            zIndex: 10,
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--text-primary)',
+                            cursor: 'pointer',
+                            padding: '8px',
+                            display: 'none'
+                        }}
+                        aria-label="Toggle menu"
+                    >
+                        ☰
+                    </button>
+
                     <div className="search-container" style={{ flex: 1, maxWidth: '400px' }}>
                         <input
                             type="text"
