@@ -44,6 +44,25 @@ export interface Book {
     user_status?: 'read' | 'reading' | 'plan_to_read' | 'dropped';
     user_progress?: number;
     user_rating?: number;
+
+    // Enhanced Physical Book Metadata
+    physical_format?: 'Hardback' | 'Paperback' | 'Mass Market Paperback' | 'Board Book' | 'Leather Bound';
+    book_condition?: 'Excellent' | 'Good' | 'Fair' | 'Poor';
+    is_signed?: boolean;
+    has_bonus_chapters?: boolean;
+    edition_type?: string; // 'Limited Edition', 'First Edition', etc.
+    edge_type?: 'Gilded' | 'Fore-edge Painted' | 'Sprayed Edges' | 'Hidden Fore-edge';
+    binding_details?: string;
+}
+
+export interface BookPhoto {
+    id: number;
+    book_id: number;
+    photo_path: string;
+    photo_type?: 'cover' | 'spine' | 'edges' | 'special';
+    description?: string;
+    tags?: string[];
+    uploaded_at: string;
 }
 
 export interface BookFilters {
