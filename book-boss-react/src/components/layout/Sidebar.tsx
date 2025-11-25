@@ -1,14 +1,17 @@
 import React from 'react';
+import { type Shelf } from '../../types/shelf';
 
 export interface SidebarFilter {
     type: 'all' | 'status' | 'format' | 'shelf';
     value?: string;
+    shelfId?: number;
 }
 
 interface SidebarProps {
     activeFilter: SidebarFilter;
     onFilterChange: (filter: SidebarFilter) => void;
-    shelves: string[];
+    shelves: Shelf[];
+    onManageShelves: () => void;
     bookCounts: {
         total: number;
         notStarted: number;
@@ -28,6 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     activeFilter,
     onFilterChange,
     shelves,
+    onManageShelves,
     bookCounts,
     isMobileOpen = false,
     onMobileClose,
@@ -154,21 +158,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </div>
 
                     {/* Shelves */}
-                    {shelves.length > 0 && (
-                        <div className="sidebar-section">
-                            <div className="sidebar-section-title">Shelves</div>
-                            {shelves.map(shelf => (
+                    <div className="sidebar-section">
+                        <div className="sidebar-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Shelves</span>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onManageShelves(); }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }}
+                                title="Manage Shelves"
+                            >
+                                +
+                            </button>
+                        </div>
+                        {shelves.length > 0 ? (
+                            shelves.map(shelf => (
                                 <button
-                                    key={shelf}
-                                    className={`sidebar-item ${isActive('shelf', shelf) ? 'active' : ''}`}
-                                    onClick={() => handleFilterClick({ type: 'shelf', value: shelf })}
+                                    key={shelf.id}
+                                    className={`sidebar-item ${activeFilter.type === 'shelf' && activeFilter.shelfId === shelf.id ? 'active' : ''}`}
+                                    onClick={() => handleFilterClick({ type: 'shelf', value: shelf.name, shelfId: shelf.id })}
                                 >
                                     <span className="sidebar-icon">📚</span>
-                                    <span className="sidebar-label">{shelf}</span>
+                                    <span className="sidebar-label">{shelf.name}</span>
                                 </button>
-                            ))}
-                        </div>
-                    )}
+                            ))
+                        ) : (
+                            <div style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                No shelves created
+                            </div>
+                        )}
+                    </div>
                 </div>
             </aside>
         </>
