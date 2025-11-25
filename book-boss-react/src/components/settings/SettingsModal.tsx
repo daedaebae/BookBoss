@@ -22,6 +22,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     // Profile settings
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [privacySettings, setPrivacySettings] = useState({
+        share_shelves: false,
+        share_progress: false
+    });
 
     // Filter settings
     const [defaultSort, setDefaultSort] = useState('added_desc');
@@ -31,6 +35,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
     // Users (admin only)
     const [users, setUsers] = useState<any[]>([]);
+    const [usersError, setUsersError] = useState<string | null>(null);
     const [showAddUser, setShowAddUser] = useState(false);
     const [editingUser, setEditingUser] = useState<any>(null); // New state for editing
     const [newUsername, setNewUsername] = useState('');
@@ -62,8 +67,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             if (!user?.is_admin && activeTab === 'general') {
                 setActiveTab('profile');
             }
+            fetchUserProfile();
         }
     }, [isOpen, user]);
+
+    const fetchUserProfile = async () => {
+        try {
+            const response = await fetch('http://localhost:3000/api/users/profile', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.privacy_settings) {
+                    setPrivacySettings(data.privacy_settings);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch user profile:', error);
+        }
+    };
 
     const fetchSettings = async () => {
         try {
@@ -109,22 +133,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         }
     };
 
+    /**
+     * Fetches the list of users from the API
+     * Requires admin authentication
+     */
     const fetchUsers = async () => {
+        setUsersError(null);
         try {
             const response = await fetch('http://localhost:3000/api/users', {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
                 }
             });
+
             if (response.ok) {
                 const data = await response.json();
                 console.log('Fetched users:', data);
                 setUsers(data);
+            } else if (response.status === 401) {
+                setUsersError('Authentication required. Please log in again.');
+            } else if (response.status === 403) {
+                setUsersError('Admin access required to view users.');
             } else {
+                setUsersError(`Failed to load users (Error ${response.status})`);
                 console.error('Failed to fetch users:', response.status);
             }
         } catch (error) {
             console.error('Failed to fetch users:', error);
+            setUsersError('Network error. Please check your connection.');
         }
     };
 
@@ -276,6 +312,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         } catch (error) {
             console.error('Failed to update password:', error);
             alert('Failed to update password');
+        }
+    };
+
+    const savePrivacySettings = async () => {
+        try {
+            const response = await fetch('http://localhost:3000/api/users/profile', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
+                },
+                body: JSON.stringify({ privacy_settings: privacySettings })
+            });
+            if (response.ok) {
+                alert('Privacy settings saved!');
+            }
+        } catch (error) {
+            console.error('Failed to save privacy settings:', error);
+            alert('Failed to save privacy settings');
         }
     };
 
@@ -518,6 +573,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                     {activeTab === 'profile' && (
                         <div>
                             <h3>My Profile</h3>
+
+                            <div style={{ marginBottom: '30px', paddingBottom: '20px', borderBottom: '1px solid var(--glass-border)' }}>
+                                <h4>Privacy Settings</h4>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '15px' }}>
+                                    Control what you share with other users on this server.
+                                </p>
+                                <div className="form-group">
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 'normal', cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={privacySettings.share_shelves}
+                                            onChange={(e) => setPrivacySettings({ ...privacySettings, share_shelves: e.target.checked })}
+                                        />
+                                        Share my shelves with other users
+                                    </label>
+                                </div>
+                                <div className="form-group">
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 'normal', cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={privacySettings.share_progress}
+                                            onChange={(e) => setPrivacySettings({ ...privacySettings, share_progress: e.target.checked })}
+                                        />
+                                        Share my reading progress and status
+                                    </label>
+                                </div>
+                                <button className="primary-btn small" onClick={savePrivacySettings}>Save Privacy Settings</button>
+                            </div>
+
+                            <h4>Change Password</h4>
                             <form onSubmit={handleChangePassword}>
                                 <div className="form-group">
                                     <label>New Password</label>
@@ -633,7 +718,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                             )}
 
                             <div>
-                                {users.length === 0 && <p style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>No users found.</p>}
+                                {usersError && (
+                                    <div style={{
+                                        padding: '15px',
+                                        marginBottom: '15px',
+                                        background: 'rgba(239, 68, 68, 0.1)',
+                                        border: '1px solid var(--danger-color)',
+                                        borderRadius: '8px',
+                                        color: 'var(--danger-color)'
+                                    }}>
+                                        {usersError}
+                                    </div>
+                                )}
+                                {!usersError && users.length === 0 && <p style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>No users found.</p>}
                                 {users.map(userItem => (
                                     <div key={userItem.id} style={{
                                         display: 'flex',

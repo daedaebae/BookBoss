@@ -1,25 +1,34 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { type Book } from '../../types/book';
+import { type Shelf } from '../../types/shelf';
 import { getSafeCoverUrl } from '../../utils/coverUrlGuard';
 
 interface BookDetailModalProps {
     isOpen: boolean;
     onClose: () => void;
     book: Book | null;
+    shelves?: Shelf[];
     onEdit: (book: Book) => void;
     onDelete: (book: Book) => void;
     onRead: (book: Book) => void;
+    onAddToShelf?: (bookId: number, shelfId: number) => void;
+    onUpdateProgress?: (book: Book) => void;
 }
 
 export const BookDetailModal: React.FC<BookDetailModalProps> = ({
     isOpen,
     onClose,
     book,
+    shelves = [],
     onEdit,
     onDelete,
-    onRead
+    onRead,
+    onAddToShelf,
+    onUpdateProgress
 }) => {
+    const [showShelfSelect, setShowShelfSelect] = useState(false);
+
     if (!book) return null;
 
     const coverUrl = getSafeCoverUrl(book);
@@ -133,32 +142,98 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
                     )}
 
                     {/* Action Buttons */}
-                    <div style={{ marginTop: 'auto', display: 'flex', gap: '15px', paddingTop: '20px', borderTop: '1px solid var(--glass-border)' }}>
-                        {(book.format === 'Ebook' || book.epub_file_path) && (
+                    <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '20px', borderTop: '1px solid var(--glass-border)' }}>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            {(book.format === 'Ebook' || book.epub_file_path) && (
+                                <button
+                                    className="primary-btn"
+                                    onClick={() => onRead(book)}
+                                    style={{ flex: 1 }}
+                                >
+                                    📖 Read
+                                </button>
+                            )}
+
+                            {onUpdateProgress && book.status === 'In Progress' && (
+                                <button
+                                    className="secondary-btn"
+                                    onClick={() => onUpdateProgress(book)}
+                                    style={{ flex: 1 }}
+                                >
+                                    📈 Update Progress
+                                </button>
+                            )}
+
+                            {onAddToShelf && shelves.length > 0 && (
+                                <div style={{ position: 'relative', flex: 1 }}>
+                                    <button
+                                        className="secondary-btn"
+                                        onClick={() => setShowShelfSelect(!showShelfSelect)}
+                                        style={{ width: '100%' }}
+                                    >
+                                        📚 Add to Shelf
+                                    </button>
+                                    {showShelfSelect && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            bottom: '100%',
+                                            left: 0,
+                                            right: 0,
+                                            background: 'var(--card-bg)',
+                                            border: '1px solid var(--glass-border)',
+                                            borderRadius: '8px',
+                                            padding: '5px',
+                                            marginBottom: '5px',
+                                            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                                            zIndex: 10
+                                        }}>
+                                            {shelves.map(shelf => (
+                                                <button
+                                                    key={shelf.id}
+                                                    onClick={() => {
+                                                        onAddToShelf(book.id, shelf.id);
+                                                        setShowShelfSelect(false);
+                                                    }}
+                                                    style={{
+                                                        display: 'block',
+                                                        width: '100%',
+                                                        padding: '8px',
+                                                        textAlign: 'left',
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        color: 'var(--text-primary)',
+                                                        cursor: 'pointer',
+                                                        borderRadius: '4px'
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--glass-bg)'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                                                >
+                                                    {shelf.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '10px' }}>
                             <button
-                                className="primary-btn"
-                                onClick={() => onRead(book)}
+                                className="secondary-btn"
+                                onClick={() => onEdit(book)}
                                 style={{ flex: 1 }}
                             >
-                                📖 Read Book
+                                ✏️ Edit
                             </button>
-                        )}
 
-                        <button
-                            className="secondary-btn"
-                            onClick={() => onEdit(book)}
-                            style={{ flex: 1 }}
-                        >
-                            ✏️ Edit
-                        </button>
-
-                        <button
-                            className="danger-btn"
-                            onClick={() => onDelete(book)}
-                            style={{ flex: 1 }}
-                        >
-                            🗑️ Delete
-                        </button>
+                            <button
+                                className="danger-btn"
+                                onClick={() => onDelete(book)}
+                                style={{ flex: 1 }}
+                            >
+                                🗑️ Delete
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

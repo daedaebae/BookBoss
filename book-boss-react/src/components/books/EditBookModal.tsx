@@ -18,6 +18,10 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
         library: '',
         format: '',
         series: '',
+        series_index: undefined,
+        publisher: '',
+        language: '',
+        description: '',
         shelf: '',
         status: undefined,
         is_loaned: false,
@@ -36,6 +40,10 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
                 format: book.format || '',
                 series: book.series || '',
                 series_order: book.series_order,
+                series_index: book.series_index,
+                publisher: book.publisher || '',
+                language: book.language || 'en',
+                description: book.description || '',
                 shelf: book.shelf || '',
                 status: book.status,
                 rating: book.rating,
@@ -57,14 +65,15 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
         if (!book) return;
 
         try {
-            // Remove empty string fields to match Book type expectations
-            const sanitizedData: Partial<Book> = { ...formData };
-            if (!sanitizedData.format) delete sanitizedData.format;
-            if (!sanitizedData.series) delete sanitizedData.series;
-            if (!sanitizedData.shelf) delete sanitizedData.shelf;
-            if (!sanitizedData.status) delete sanitizedData.status;
+            // Use FormData for update
+            const data = new FormData();
+            Object.entries(formData).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '') {
+                    data.append(key, value.toString());
+                }
+            });
 
-            await bookService.updateBook(book.id, sanitizedData);
+            await bookService.updateBook(book.id, data);
             onBookUpdated();
             onClose();
         } catch (error) {
@@ -121,13 +130,39 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
                         <option value="Audiobook">Audiobook</option>
                     </select>
                 </div>
+                <div className="form-group" style={{ display: 'flex', gap: '10px' }}>
+                    <div style={{ flex: 2 }}>
+                        <label>Series</label>
+                        <input
+                            type="text"
+                            value={formData.series || ''}
+                            onChange={(e) => setFormData({ ...formData, series: e.target.value })}
+                        />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <label>Index</label>
+                        <input
+                            type="number"
+                            step="0.1"
+                            value={formData.series_index || ''}
+                            onChange={(e) => setFormData({ ...formData, series_index: parseFloat(e.target.value) })}
+                        />
+                    </div>
+                </div>
                 <div className="form-group">
-                    <label>Series</label>
+                    <label>Publisher</label>
                     <input
                         type="text"
-                        value={formData.series || ''}
-                        onChange={(e) => setFormData({ ...formData, series: e.target.value })}
-                        placeholder="e.g., Harry Potter"
+                        value={formData.publisher || ''}
+                        onChange={(e) => setFormData({ ...formData, publisher: e.target.value })}
+                    />
+                </div>
+                <div className="form-group">
+                    <label>Language</label>
+                    <input
+                        type="text"
+                        value={formData.language || ''}
+                        onChange={(e) => setFormData({ ...formData, language: e.target.value })}
                     />
                 </div>
 
@@ -224,6 +259,15 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
                         type="date"
                         value={formData.publication_date ? new Date(formData.publication_date).toISOString().split('T')[0] : ''}
                         onChange={(e) => setFormData({ ...formData, publication_date: e.target.value })}
+                    />
+                </div>
+                <div className="form-group">
+                    <label>Description</label>
+                    <textarea
+                        value={formData.description || ''}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        rows={3}
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--input-bg)', color: 'var(--text-primary)' }}
                     />
                 </div>
 

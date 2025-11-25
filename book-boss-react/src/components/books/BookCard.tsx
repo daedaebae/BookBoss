@@ -5,15 +5,26 @@ import { type Book } from '../../types/book';
 interface BookCardProps {
     book: Book;
     onClick?: () => void;
-    onEdit?: (book: Book) => void;
-    onDelete?: (book: Book) => void;
     bulkMode?: boolean;
     isSelected?: boolean;
-    onToggleSelection?: (bookId: number) => void;
+    onToggleSelection?: (id: number) => void;
 }
 
-export const BookCard: React.FC<BookCardProps> = ({ book, onClick, bulkMode = false, isSelected = false, onToggleSelection }) => {
+export const BookCard: React.FC<BookCardProps> = ({
+    book,
+    onClick,
+    bulkMode = false,
+    isSelected = false,
+    onToggleSelection
+}) => {
     const coverUrl = getSafeCoverUrl(book);
+
+    // Progress Bar Calculation
+    const progressPercent = book.page_count && book.user_progress
+        ? Math.min(100, Math.round((book.user_progress / book.page_count) * 100))
+        : (book.progress_percentage || 0);
+
+    const displayStatus = book.user_status || book.status;
 
     return (
         <div
@@ -53,8 +64,8 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onClick, bulkMode = fa
                 }}
             />
 
-            {/* Progress Bar for books in progress */}
-            {book.status === 'In Progress' && (
+            {/* Progress Bar */}
+            {((displayStatus === 'In Progress' || displayStatus === 'reading') && progressPercent > 0) && (
                 <div style={{
                     position: 'absolute',
                     bottom: 0,
@@ -66,14 +77,15 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onClick, bulkMode = fa
                 }}>
                     <div style={{
                         height: '100%',
-                        width: `${book.progress_percentage || (book.current_page && book.page_count ? (book.current_page / book.page_count * 100) : 0)}%`,
+                        width: `${progressPercent}%`,
                         background: `linear-gradient(90deg, 
-                            ${(book.progress_percentage || 0) < 50 ? '#fbbf24' :
-                                (book.progress_percentage || 0) < 80 ? '#f97316' : '#10b981'})`,
+                            ${progressPercent < 50 ? '#fbbf24' :
+                                progressPercent < 80 ? '#f97316' : '#10b981'})`,
                         transition: 'width 0.3s ease'
                     }} />
                 </div>
             )}
+
             <div className="book-info">
                 <div className="book-title" title={book.title}>
                     {book.title}
@@ -81,14 +93,23 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onClick, bulkMode = fa
                 <div className="book-author" title={book.author}>
                     {book.author}
                 </div>
+                {book.series && (
+                    <div className="book-series" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        {book.series} {book.series_index ? `#${book.series_index}` : (book.series_order ? `#${book.series_order}` : '')}
+                    </div>
+                )}
                 <div className="book-badges">
                     {book.series && (
                         <span className="badge badge-series" title={book.series}>
-                            {book.series_order ? `Book ${book.series_order}` : book.series}
+                            {book.series_index ? `Book ${book.series_index}` : (book.series_order ? `Book ${book.series_order}` : book.series)}
                         </span>
                     )}
                     {book.format && <span className="badge badge-format">{book.format}</span>}
-                    {book.status && <span className={`badge badge-status ${book.status.toLowerCase().replace(' ', '-')}`}>{book.status}</span>}
+
+                    {displayStatus && <span className={`badge badge-status ${displayStatus.toLowerCase().replace(' ', '-').replace('_', '-')}`}>
+                        {displayStatus.replace(/_/g, ' ')}
+                    </span>}
+
                     {book.is_loaned && (() => {
                         const now = new Date();
                         const dueDate = book.due_date ? new Date(book.due_date) : null;
