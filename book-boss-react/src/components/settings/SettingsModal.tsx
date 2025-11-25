@@ -582,7 +582,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                             )}
 
                             <div>
-                                {users.filter(u => u.id !== user?.id).map(userItem => (
+                                {users.map(userItem => (
                                     <div key={userItem.id} style={{
                                         display: 'flex',
                                         justifyContent: 'space-between',
@@ -590,10 +590,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                         padding: '12px',
                                         marginBottom: '8px',
                                         background: 'var(--glass-bg)',
-                                        borderRadius: '8px'
+                                        borderRadius: '8px',
+                                        border: userItem.id === user?.id ? '1px solid var(--accent-color)' : 'none'
                                     }}>
                                         <div>
                                             <span style={{ fontWeight: 500 }}>{userItem.username}</span>
+                                            {userItem.id === user?.id && <span style={{ marginLeft: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>(You)</span>}
                                             {!!userItem.is_admin && <span style={{
                                                 marginLeft: '10px',
                                                 padding: '2px 8px',
@@ -610,14 +612,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                             >
                                                 ✏️ Edit
                                             </button>
-                                            <button
-                                                className="secondary-btn small"
-                                                onClick={() => setUserToDelete(userItem)}
-                                                title="Delete User"
-                                                style={{ color: 'var(--danger-color)', borderColor: 'var(--danger-color)' }}
-                                            >
-                                                🗑️ Delete
-                                            </button>
+                                            {userItem.id !== user?.id && (
+                                                <button
+                                                    className="secondary-btn small"
+                                                    onClick={() => setUserToDelete(userItem)}
+                                                    title="Delete User"
+                                                    style={{ color: 'var(--danger-color)', borderColor: 'var(--danger-color)' }}
+                                                >
+                                                    🗑️ Delete
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
