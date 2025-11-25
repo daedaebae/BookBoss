@@ -638,6 +638,154 @@ app.patch('/api/books/bulk', authenticateToken, (req, res) => {
     });
 });
 
+// --- Book Photos API ---
+// Endpoints for managing book photos
+
+// Get all photos for a book
+app.get('/api/books/:bookId/photos', authenticateToken, (req, res) => {
+    const { bookId } = req.params;
+
+    db.query(
+        'SELECT * FROM book_photos WHERE book_id = ? ORDER BY uploaded_at DESC',
+        [bookId],
+        (err, results) => {
+            if (err) {
+                console.error('Error fetching photos:', err);
+                return res.status(500).json({ error: err.message });
+            }
+
+            // Parse JSON tags
+            const photos = results.map(photo => ({
+                ...photo,
+                tags: photo.tags ? JSON.parse(photo.tags) : []
+            }));
+
+            res.json(photos);
+        }
+    );
+});
+
+// Upload a new photo for a book
+app.post('/api/books/:bookId/photos', authenticateToken, upload.single('photo'), async (req, res) => {
+    const { bookId } = req.params;
+    const { photo_type, description, tags } = req.body;
+
+    if (!req.file) {
+        return res.status(400).json({ error: 'No photo file provided' });
+    }
+
+    const photoPath = `/uploads/${req.file.filename}`;
+    const parsedTags = tags ? JSON.parse(tags) : null;
+
+    db.query(
+        'INSERT INTO book_photos (book_id, photo_path, photo_type, description, tags) VALUES (?, ?, ?, ?, ?)',
+        [bookId, photoPath, photo_type || null, description || null, parsedTags ? JSON.stringify(parsedTags) : null],
+        (err, result) => {
+            if (err) {
+                console.error('Error saving photo:', err);
+                return res.status(500).json({ error: err.message });
+            }
+
+            // Return the created photo
+            db.query(
+                'SELECT * FROM book_photos WHERE id = ?',
+                [result.insertId],
+                (err, results) => {
+                    if (err) {
+                        return res.status(500).json({ error: err.message });
+                    }
+                    const photo = results[0];
+                    photo.tags = photo.tags ? JSON.parse(photo.tags) : [];
+                    res.status(201).json(photo);
+                }
+            );
+        }
+    );
+});
+
+// Delete a photo
+app.delete('/api/photos/:photoId', authenticateToken, (req, res) => {
+    const { photoId } = req.params;
+
+    // First get the photo path to delete the file
+    db.query('SELECT photo_path FROM book_photos WHERE id = ?', [photoId], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({ error: 'Photo not found' });
+        }
+
+        const photoPath = results[0].photo_path;
+        const fullPath = path.join(__dirname, photoPath);
+
+        // Delete from database
+        db.query('DELETE FROM book_photos WHERE id = ?', [photoId], (err) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+
+            // Try to delete the file (don't fail if file doesn't exist)
+            fs.unlink(fullPath, (err) => {
+                if (err && err.code !== 'ENOENT') {
+                    console.error('Error deleting photo file:', err);
+                }
+            });
+
+            res.json({ message: 'Photo deleted successfully' });
+        });
+    });
+});
+
+// Update photo metadata
+app.put('/api/photos/:photoId', authenticateToken, (req, res) => {
+    const { photoId } = req.params;
+    const { photo_type, description, tags } = req.body;
+
+    const updates = [];
+    const values = [];
+
+    if (photo_type !== undefined) {
+        updates.push('photo_type = ?');
+        values.push(photo_type);
+    }
+    if (description !== undefined) {
+        updates.push('description = ?');
+        values.push(description);
+    }
+    if (tags !== undefined) {
+        updates.push('tags = ?');
+        values.push(JSON.stringify(tags));
+    }
+
+    if (updates.length === 0) {
+        return res.status(400).json({ error: 'No updates provided' });
+    }
+
+    values.push(photoId);
+
+    db.query(
+        `UPDATE book_photos SET ${updates.join(', ')} WHERE id = ?`,
+        values,
+        (err) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+
+            // Return updated photo
+            db.query('SELECT * FROM book_photos WHERE id = ?', [photoId], (err, results) => {
+                if (err) {
+                    return res.status(500).json({ error: err.message });
+                }
+                const photo = results[0];
+                photo.tags = photo.tags ? JSON.parse(photo.tags) : [];
+                res.json(photo);
+            });
+        }
+    );
+});
+
 
 // --- User Management APIs ---
 // Endpoints for managing application users (admin only features planned)
@@ -898,12 +1046,12 @@ app.post('/api/loans', authenticateToken, (req, res) => {
     const { book_id, borrower_name, due_date, notes } = req.body;
     db.query('INSERT INTO loans (user_id, book_id, borrower_name, due_date, notes) VALUES (?, ?, ?, ?, ?)',
         [userId, book_id, borrower_name, due_date, notes], (err, result) => {
-        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
-        // Update book is_loaned status as well for legacy compatibility
-        db.query('UPDATE books SET is_loaned = 1, borrower_name = ?, loan_date = CURRENT_DATE, due_date = ? WHERE id = ?',
-            [borrower_name, due_date, book_id]);
-        res.status(201).json({ message: 'Loan created' });
-    });
+            if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+            // Update book is_loaned status as well for legacy compatibility
+            db.query('UPDATE books SET is_loaned = 1, borrower_name = ?, loan_date = CURRENT_DATE, due_date = ? WHERE id = ?',
+                [borrower_name, due_date, book_id]);
+            res.status(201).json({ message: 'Loan created' });
+        });
 });
 
 // Return a loan
@@ -914,9 +1062,9 @@ app.put('/api/loans/:id/return', authenticateToken, (req, res) => {
         if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
         // Also update book
         db.query('SELECT book_id FROM loans WHERE id = ?', [loanId], (err, resBook) => {
-             if (resBook && resBook.length > 0) {
-                 db.query('UPDATE books SET is_loaned = 0, borrower_name = NULL, loan_date = NULL, due_date = NULL WHERE id = ?', [resBook[0].book_id]);
-             }
+            if (resBook && resBook.length > 0) {
+                db.query('UPDATE books SET is_loaned = 0, borrower_name = NULL, loan_date = NULL, due_date = NULL WHERE id = ?', [resBook[0].book_id]);
+            }
         });
         res.json({ message: 'Book returned' });
     });
