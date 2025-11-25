@@ -18,7 +18,8 @@ export const Login: React.FC = () => {
             const response = await authService.login(username, password);
             login(response.token, response.user);
         } catch (err: any) {
-            setError(err.response?.data?.error || 'Login failed. Please try again.');
+            console.error('Login error:', err);
+            setError(err.message || 'Login failed. Please check your credentials and try again.');
         } finally {
             setIsLoading(false);
         }
