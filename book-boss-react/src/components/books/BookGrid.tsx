@@ -6,9 +6,6 @@ interface BookGridProps {
     books: Book[];
     isLoading?: boolean;
     onBookClick?: (book: Book) => void;
-    onEdit?: (book: Book) => void;
-    onDelete?: (book: Book) => void;
-    onRead?: (book: Book) => void;
     bulkMode?: boolean;
     selectedBooks?: Set<number>;
     onToggleSelection?: (bookId: number) => void;
@@ -18,9 +15,6 @@ export const BookGrid: React.FC<BookGridProps> = ({
     books,
     isLoading,
     onBookClick,
-    onEdit,
-    onDelete,
-    onRead,
     bulkMode = false,
     selectedBooks = new Set(),
     onToggleSelection
@@ -62,9 +56,6 @@ export const BookGrid: React.FC<BookGridProps> = ({
                     key={book.id}
                     book={book}
                     onClick={() => onBookClick?.(book)}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                    onRead={onRead}
                     bulkMode={bulkMode}
                     isSelected={selectedBooks.has(book.id)}
                     onToggleSelection={onToggleSelection}

@@ -41,13 +41,17 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
         library: '',
         format: '',
         series: '',
+        series_index: undefined,
+        publisher: '',
+        language: 'en',
+        description: '',
         shelf: '',
         status: undefined,
-        cover_url: '', // Added for consistency with Book type and handleBookSelect
-        categories: '', // Added for consistency with Book type and handleBookSelect
-        publication_date: '', // Added for consistency with Book type and handleBookSelect
-        rating: undefined, // Added for consistency with Book type and handleBookSelect
-        page_count: undefined, // Added for consistency with Book type and handleBookSelect
+        cover_url: '',
+        categories: '',
+        publication_date: '',
+        rating: undefined,
+        page_count: undefined,
     });
 
 
@@ -65,7 +69,13 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
         };
 
         try {
-            await bookService.addBook(bookData);
+            const formData = new FormData();
+            Object.entries(bookData).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                    formData.append(key, value.toString());
+                }
+            });
+            await bookService.addBook(formData);
             onBookAdded();
             handleClose();
         } catch (error) {
@@ -76,19 +86,18 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
     const addBookManually = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            // Remove empty string fields to match Book type expectations
-            const sanitizedData: Partial<Book> = { ...formData };
-            if (!sanitizedData.format) delete sanitizedData.format;
-            if (!sanitizedData.series) delete sanitizedData.series;
-            if (!sanitizedData.shelf) delete sanitizedData.shelf;
-            if (!sanitizedData.status) delete sanitizedData.status;
-            if (!sanitizedData.cover_url) delete sanitizedData.cover_url;
-            if (!sanitizedData.categories) delete sanitizedData.categories;
-            if (!sanitizedData.publication_date) delete sanitizedData.publication_date;
-            if (sanitizedData.rating === undefined || isNaN(sanitizedData.rating)) delete sanitizedData.rating;
-            if (sanitizedData.page_count === undefined || isNaN(sanitizedData.page_count)) delete sanitizedData.page_count;
+            // Use FormData to allow file uploads if we add them later, but for now just JSON-like payload via object
+            // Actually service now expects FormData or object, but the updated service sends json if object.
+            // Wait, I updated bookService to expect FormData. I should wrap it.
 
-            await bookService.addBook(sanitizedData);
+            const data = new FormData();
+            Object.entries(formData).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '') {
+                    data.append(key, value.toString());
+                }
+            });
+
+            await bookService.addBook(data);
             onBookAdded();
             handleClose();
         } catch (error) {
@@ -100,7 +109,9 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
         setSearchQuery('');
         setSearchResults([]);
         setFormData({
-            title: '', author: '', isbn: '', library: '', format: '', series: '', shelf: '', status: undefined,
+            title: '', author: '', isbn: '', library: '', format: '',
+            series: '', series_index: undefined, publisher: '', language: 'en', description: '',
+            shelf: '', status: undefined,
             cover_url: '', categories: '', publication_date: '', rating: undefined, page_count: undefined
         });
         setActiveTab('search'); // Reset to 'search' tab on close
@@ -282,12 +293,39 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
                                 <option value="Audiobook">Audiobook</option>
                             </select>
                         </div>
+                        <div className="form-group" style={{ display: 'flex', gap: '10px' }}>
+                            <div style={{ flex: 2 }}>
+                                <label>Series</label>
+                                <input
+                                    type="text"
+                                    value={formData.series || ''}
+                                    onChange={(e) => setFormData({ ...formData, series: e.target.value })}
+                                />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <label>Index</label>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    value={formData.series_index || ''}
+                                    onChange={(e) => setFormData({ ...formData, series_index: parseFloat(e.target.value) })}
+                                />
+                            </div>
+                        </div>
                         <div className="form-group">
-                            <label>Series</label>
+                            <label>Publisher</label>
                             <input
                                 type="text"
-                                value={formData.series || ''}
-                                onChange={(e) => setFormData({ ...formData, series: e.target.value })}
+                                value={formData.publisher || ''}
+                                onChange={(e) => setFormData({ ...formData, publisher: e.target.value })}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Language</label>
+                            <input
+                                type="text"
+                                value={formData.language || ''}
+                                onChange={(e) => setFormData({ ...formData, language: e.target.value })}
                             />
                         </div>
                         <div className="form-group">
@@ -337,6 +375,15 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
                                 type="date"
                                 value={formData.publication_date || ''}
                                 onChange={(e) => setFormData({ ...formData, publication_date: e.target.value })}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Description</label>
+                            <textarea
+                                value={formData.description || ''}
+                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                rows={3}
+                                style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--input-bg)', color: 'var(--text-primary)' }}
                             />
                         </div>
                         <div style={{ display: 'flex', gap: '10px' }}>
