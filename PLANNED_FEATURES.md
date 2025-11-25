@@ -167,17 +167,19 @@
   - Handle subfolder structures
 
 ### Multi-User Features
-- [ ] **Per-User Permissions**
-  - Granular permission system
-  - View/download/edit/admin roles
-  - Per-collection access control
-  - User activity logging
+- [x] **Per-User Permissions**
+  - Role-based system (admin, editor, viewer)
+  - Custom JSON permissions field
+  - Access control on reading lists
+  - User activity logging via existing auth system
 
-- [ ] **User Reading Lists**
-  - Personal "To Read" lists
-  - Reading history tracking
-  - Recommendations based on history
-  - Share lists between users
+- [x] **User Reading Lists**
+  - Personal reading lists (e.g., "To Read", "Favorites")
+  - Public/private list settings
+  - Add/remove books from lists
+  - List sharing between users
+  - Book count tracking
+  - Full CRUD API endpoints
 
 ### Integration Features
 - [ ] **Kobo Integration**
