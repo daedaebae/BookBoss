@@ -3,6 +3,9 @@ import { Modal } from '../common/Modal';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { exportService } from '../../services/exportService';
+import { userService } from '../../services/userService';
+import { settingsService } from '../../services/settingsService';
+import { bookService } from '../../services/bookService';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -31,8 +34,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     // Filter settings
     const [defaultSort, setDefaultSort] = useState('added_desc');
 
-    // Export settings
-    const [exportFormat, setExportFormat] = useState('json');
+
 
     // Users (admin only)
     const [users, setUsers] = useState<any[]>([]);
@@ -78,16 +80,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
     const fetchUserProfile = async () => {
         try {
-            const response = await fetch('http://localhost:3000/api/users/profile', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
-                }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                if (data.privacy_settings) {
-                    setPrivacySettings(data.privacy_settings);
-                }
+            const profile = await userService.getProfile();
+            if (profile.privacy_settings) {
+                setPrivacySettings(profile.privacy_settings);
             }
         } catch (error) {
             console.error('Failed to fetch user profile:', error);
@@ -96,19 +91,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
     const fetchSettings = async () => {
         try {
-            const response = await fetch('http://localhost:3000/api/settings', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
-                }
-            });
-            if (response.ok) {
-                const settings = await response.json();
-                setAccentColor(settings.accent_color || 'theme-purple');
-                setAllowRegistration(settings.allow_registration === 'true');
-                // Sync global theme
-                if (settings.accent_color) {
-                    setGlobalAccentColor(settings.accent_color);
-                }
+            const settings = await settingsService.getSettings();
+            if (settings.accent_color) {
+                setAccentColor(settings.accent_color);
+                setGlobalAccentColor(settings.accent_color);
+            }
+            if (settings.allow_registration !== undefined) {
+                setAllowRegistration(settings.allow_registration === 'true' || settings.allow_registration === true);
             }
         } catch (error) {
             console.error('Failed to fetch settings:', error);
@@ -143,58 +132,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
      * Requires admin authentication
      */
     const fetchUsers = async () => {
-        setUsersError(null);
         try {
-            const response = await fetch('http://localhost:3000/api/users', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
-                }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                console.log('Fetched users:', data);
-                setUsers(data);
-            } else if (response.status === 401) {
-                setUsersError('Authentication required. Please log in again.');
-            } else if (response.status === 403) {
-                setUsersError('Admin access required to view users.');
-            } else {
-                setUsersError(`Failed to load users (Error ${response.status})`);
-                console.error('Failed to fetch users:', response.status);
-            }
+            const data = await userService.getUsers();
+            setUsers(data);
+            setUsersError(null);
         } catch (error) {
             console.error('Failed to fetch users:', error);
-            setUsersError('Network error. Please check your connection.');
+            setUsersError('Failed to load users.');
         }
     };
 
-    const createUser = async () => {
+    const handleCreateUser = async (e: React.FormEvent) => {
+        e.preventDefault();
         if (!newUsername || !newUserPassword) {
             alert('Username and password required');
             return;
         }
         try {
-            const response = await fetch('http://localhost:3000/api/users', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
-                },
-                body: JSON.stringify({
-                    username: newUsername,
-                    password: newUserPassword,
-                    isAdmin: newUserIsAdmin
-                })
+            await userService.createUser({
+                username: newUsername,
+                password: newUserPassword,
+                is_admin: newUserIsAdmin
             });
-            if (response.ok) {
-                alert('User created successfully!');
-                setShowAddUser(false);
-                setNewUsername('');
-                setNewUserPassword('');
-                setNewUserIsAdmin(false);
-                fetchUsers();
-            }
+            alert('User created successfully!');
+            setShowAddUser(false);
+            setNewUsername('');
+            setNewUserPassword('');
+            setNewUserIsAdmin(false);
+            fetchUsers();
         } catch (error) {
             console.error('Failed to create user:', error);
             alert('Failed to create user');
@@ -217,30 +182,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         try {
             const body: any = {
                 username: newUsername,
-                isAdmin: newUserIsAdmin
+                is_admin: newUserIsAdmin
             };
             if (newUserPassword) {
                 body.password = newUserPassword;
             }
 
-            const response = await fetch(`http://localhost:3000/api/users/${editingUser.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
-                },
-                body: JSON.stringify(body)
-            });
+            await userService.updateUser(editingUser.id, body);
 
-            if (response.ok) {
-                alert('User updated successfully!');
-                setEditingUser(null);
-                setShowAddUser(false);
-                setNewUsername('');
-                setNewUserPassword('');
-                setNewUserIsAdmin(false);
-                fetchUsers();
-            }
+            alert('User updated successfully!');
+            setEditingUser(null);
+            setShowAddUser(false);
+            setNewUsername('');
+            setNewUserPassword('');
+            setNewUserIsAdmin(false);
+            fetchUsers();
         } catch (error) {
             console.error('Failed to update user:', error);
             alert('Failed to update user');
@@ -258,35 +214,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const deleteUser = async () => {
         if (!userToDelete) return;
         try {
-            const response = await fetch(`http://localhost:3000/api/users/${userToDelete.id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
-                }
-            });
-            if (response.ok) {
-                alert('User deleted successfully');
-                setUserToDelete(null);
-                fetchUsers();
-            }
+            await userService.deleteUser(userToDelete.id);
+            alert('User deleted successfully');
+            setUserToDelete(null);
+            fetchUsers();
         } catch (error) {
             console.error('Failed to delete user:', error);
             alert('Failed to delete user');
+        } finally {
             setUserToDelete(null);
         }
     };
 
     const fetchAbsServers = async () => {
         try {
-            const response = await fetch('http://localhost:3000/api/audiobookshelf/servers', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
-                }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setAbsServers(data);
-            }
+            const data = await settingsService.getAbsServers();
+            setAbsServers(data);
         } catch (error) {
             console.error('Failed to fetch ABS servers:', error);
         }
@@ -301,19 +244,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         if (!user) return;
 
         try {
-            const response = await fetch(`http://localhost:3000/api/users/${user.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
-                },
-                body: JSON.stringify({ password: newPassword })
-            });
-            if (response.ok) {
-                alert('Password updated successfully');
-                setNewPassword('');
-                setConfirmPassword('');
-            }
+            await userService.updateProfile({ password: newPassword });
+            alert('Password updated successfully');
+            setNewPassword('');
+            setConfirmPassword('');
         } catch (error) {
             console.error('Failed to update password:', error);
             alert('Failed to update password');
@@ -322,17 +256,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
     const savePrivacySettings = async () => {
         try {
-            const response = await fetch('http://localhost:3000/api/users/profile', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
-                },
-                body: JSON.stringify({ privacy_settings: privacySettings })
-            });
-            if (response.ok) {
-                alert('Privacy settings saved!');
-            }
+            await userService.updateProfile({ privacy_settings: privacySettings });
+            alert('Privacy settings saved!');
         } catch (error) {
             console.error('Failed to save privacy settings:', error);
             alert('Failed to save privacy settings');
@@ -354,23 +279,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         setRefreshStatus('Starting metadata refresh...');
 
         try {
-            const response = await fetch('http://localhost:3000/api/books/refresh-metadata', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
-                }
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-                throw new Error(errorData.error || `Server returned ${response.status}`);
-            }
-
-            const result = await response.json();
+            const result = await bookService.refreshMetadata();
             setRefreshProgress(100);
             setRefreshStatus(result.message || 'Completed!');
-            alert(`Metadata refresh completed! Processed ${result.processed} books.`);
+            alert(`Metadata refresh completed!`);
         } catch (error: any) {
             console.error('Metadata refresh error:', error);
             setRefreshStatus(`Error: ${error.message}`);
@@ -384,88 +296,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         }
     };
 
-    const exportLibrary = async () => {
-        try {
-            const response = await fetch('http://localhost:3000/api/books', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
-                }
-            });
-            if (response.ok) {
-                const books = await response.json();
-                let content = '';
-                let mimeType = '';
-                let filename = `library_export_${new Date().toISOString().split('T')[0]}`;
 
-                if (exportFormat === 'json') {
-                    content = JSON.stringify(books, null, 2);
-                    mimeType = 'application/json';
-                    filename += '.json';
-                } else if (exportFormat === 'csv') {
-                    const headers = ['Title', 'Author', 'ISBN', 'Library', 'Added At'];
-                    const rows = books.map((b: any) => [
-                        `"${b.title.replace(/"/g, '""')}"`,
-                        `"${b.author.replace(/"/g, '""')}"`,
-                        `"${b.isbn || ''}"`,
-                        `"${b.library || ''}"`,
-                        `"${b.added_at}"`
-                    ]);
-                    content = [headers.join(','), ...rows.map((r: any) => r.join(','))].join('\n');
-                    mimeType = 'text/csv';
-                    filename += '.csv';
-                }
-
-                const blob = new Blob([content], { type: mimeType });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                alert(`Library exported as ${exportFormat.toUpperCase()}`);
-            }
-        } catch (error) {
-            console.error('Failed to export library:', error);
-            alert('Failed to export library');
-        }
-    };
-
-    const downloadBackup = async () => {
-        try {
-            const response = await fetch('http://localhost:3000/api/admin/backup', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
-                }
-            });
-
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                // Use filename from header if available, else generate one
-                const contentDisposition = response.headers.get('Content-Disposition');
-                let filename = `bookboss_backup_${new Date().toISOString().split('T')[0]}.json`;
-                if (contentDisposition) {
-                    const match = contentDisposition.match(/filename="?([^"]+)"?/);
-                    if (match) filename = match[1];
-                }
-
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            } else {
-                alert('Failed to download backup');
-            }
-        } catch (error) {
-            console.error('Backup error:', error);
-            alert('Backup failed');
-        }
-    };
 
     const handleExportCSV = async () => {
         try {
@@ -617,13 +448,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                 <label>System Backup</label>
                                 <button
                                     className="secondary-btn"
-                                    onClick={downloadBackup}
+                                    onClick={handleBackup}
                                     style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}
                                 >
-                                    ⬇️ Download Database Backup
+                                    ⬇️ Create Database Backup
                                 </button>
                                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '5px' }}>
-                                    Downloads a JSON file containing all books, users, and settings.
+                                    Downloads a SQL dump of the database.
                                 </p>
                             </div>
                             <button className="primary-btn" onClick={saveSettings}>Save Changes</button>
@@ -711,12 +542,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                             </p>
                             <div className="form-group">
                                 <label>Export Format</label>
-                                <select value={exportFormat} onChange={(e) => setExportFormat(e.target.value)}>
-                                    <option value="json">JSON</option>
-                                    <option value="csv">CSV</option>
-                                </select>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button className="secondary-btn" onClick={handleExportJSON} style={{ flex: 1 }}>
+                                        Export JSON
+                                    </button>
+                                    <button className="secondary-btn" onClick={handleExportCSV} style={{ flex: 1 }}>
+                                        Export CSV
+                                    </button>
+                                </div>
                             </div>
-                            <button className="primary-btn" onClick={exportLibrary}>Export Library</button>
                         </div>
                     )}
 
@@ -769,7 +603,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                         </label>
                                     </div>
                                     <div style={{ display: 'flex', gap: '10px' }}>
-                                        <button className="primary-btn small" onClick={editingUser ? updateUser : createUser}>
+                                        <button className="primary-btn small" onClick={editingUser ? updateUser : handleCreateUser}>
                                             {editingUser ? 'Update User' : 'Create User'}
                                         </button>
                                         <button className="secondary-btn small" onClick={cancelEdit}>Cancel</button>
