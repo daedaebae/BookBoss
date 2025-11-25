@@ -181,7 +181,7 @@
   - Book count tracking
   - Full CRUD API endpoints
 
-### Integration Features
+### SkippedIntegration Features
 - [ ] **Kobo Integration**
   - Sync with Kobo e-readers
   - Custom cover thumbnails
@@ -200,23 +200,24 @@
   - Support for 20+ languages
   - User language preference
 
-- [ ] **Advanced Search**
-  - Full-text search in metadata
-  - Boolean operators (AND, OR, NOT)
+- [x] **Advanced Search**
+  - Full-text search with MySQL FULLTEXT indexes
+  - Relevance ranking
   - Saved search queries
-  - Search within specific fields
+  - Search within title and author fields
 
-- [ ] **Book Statistics & Analytics**
-  - Reading time tracking
+- [x] **Book Statistics & Analytics**
+  - Reading time tracking with sessions
   - Books read per month/year
-  - Genre distribution charts
-  - Author statistics
+  - Author statistics (top 20 authors)
+  - Genre distribution data
+  - Average ratings and total pages
 
-- [ ] **Duplicate Detection**
+- [x] **Duplicate Detection**
   - Find duplicate books by ISBN
-  - Find duplicates by title/author
-  - Merge duplicate entries
-  - Keep preferred version
+  - Find duplicates by title/author combination
+  - Grouped results with book IDs
+  - Ready for merge functionality
 
 ### Backup & Export
 - [ ] **Automated Backups**
