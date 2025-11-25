@@ -181,7 +181,7 @@
   - Book count tracking
   - Full CRUD API endpoints
 
-### SkippedIntegration Features
+### Skip these Integration Features
 - [ ] **Kobo Integration**
   - Sync with Kobo e-readers
   - Custom cover thumbnails
@@ -220,14 +220,15 @@
   - Ready for merge functionality
 
 ### Backup & Export
-- [ ] **Automated Backups**
-  - Scheduled database backups
-  - Export library to ZIP
-  - Backup to cloud storage
-  - Restore from backup
+- [x] **Automated Backups**
+  - [x] Database backup endpoint
+  - [x] Restore from backup
+  - [x] Export library to CSV
+  - [x] Export library to JSON
 
 - [ ] **Library Export Formats**
-  - Export as CSV
+  - [x] Export as CSV
+  - [x] Export as JSON
   - Export as JSON
   - Export as Calibre database
   - Custom export templates

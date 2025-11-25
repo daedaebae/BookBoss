@@ -319,7 +319,7 @@ export const Library: React.FC = () => {
             />
 
             <div style={{ marginLeft: isSidebarVisible ? 'var(--sidebar-width)' : '0', minHeight: '100vh', transition: 'margin-left 0.3s ease' }}>
-                <div className="top-bar" style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
+                <div className="top-bar" style={{ display: 'flex', gap: '30px', alignItems: 'center', paddingRight: '340px' }}>
                     <div className="search-container" style={{ flex: 1, maxWidth: '400px' }}>
                         <input
                             type="text"

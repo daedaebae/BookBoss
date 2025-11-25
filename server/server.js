@@ -8,6 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const fs = require('fs');
 const crypto = require('crypto');
+const { exec } = require('child_process');
 require('dotenv').config();
 const AudiobookshelfClient = require('./abs-client');
 
@@ -1569,6 +1570,153 @@ app.get('/api/books/:bookId/reading-sessions', authenticateToken, (req, res) => 
             res.json(results);
         }
     );
+});
+
+// --- Backup & Export APIs ---
+
+// Export Library as CSV
+app.get('/api/export/csv', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+
+    const query = `
+        SELECT b.title, b.author, b.isbn, b.publisher, b.publication_date, 
+               b.page_count, b.description, b.status, b.rating, b.notes,
+               b.physical_format, b.book_condition, b.is_signed, b.edition_type
+        FROM books b
+        ORDER BY b.title ASC
+    `;
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('Error exporting CSV:', err);
+            return res.status(500).json({ error: err.message });
+        }
+
+        // Convert to CSV
+        const headers = [
+            'Title', 'Author', 'ISBN', 'Publisher', 'Publication Date',
+            'Page Count', 'Description', 'Status', 'Rating', 'Notes',
+            'Format', 'Condition', 'Signed', 'Edition'
+        ];
+
+        const csvRows = [headers.join(',')];
+
+        results.forEach(row => {
+            const values = headers.map(header => {
+                const key = header.toLowerCase().replace(/ /g, '_');
+                // Map header names to DB columns where they differ
+                const dbKey = {
+                    'publication_date': 'publication_date',
+                    'page_count': 'page_count',
+                    'format': 'physical_format',
+                    'condition': 'book_condition',
+                    'signed': 'is_signed',
+                    'edition': 'edition_type'
+                }[key] || key;
+
+                let val = row[dbKey] || '';
+
+                // Handle booleans
+                if (val === 1 || val === true) val = 'Yes';
+                if (val === 0 || val === false) val = 'No';
+
+                // Escape quotes and wrap in quotes
+                const stringVal = String(val).replace(/"/g, '""');
+                return `"${stringVal}"`;
+            });
+            csvRows.push(values.join(','));
+        });
+
+        const csvString = csvRows.join('\n');
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=library_export.csv');
+        res.send(csvString);
+    });
+});
+
+// Export Library as JSON
+app.get('/api/export/json', authenticateToken, (req, res) => {
+    const query = 'SELECT * FROM books ORDER BY title ASC';
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('Error exporting JSON:', err);
+            return res.status(500).json({ error: err.message });
+        }
+
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', 'attachment; filename=library_export.json');
+        res.json(results);
+    });
+});
+
+// Create Database Backup (SQL Dump)
+app.get('/api/backup', authenticateToken, requireAdmin, (req, res) => {
+    const mysqldump = process.env.MYSQLDUMP_PATH || 'mysqldump';
+    const dbUser = process.env.DB_USER || 'root';
+    const dbPassword = process.env.DB_PASSWORD;
+    const dbName = process.env.DB_NAME || 'bookboss';
+    const dbHost = process.env.DB_HOST || 'localhost';
+
+    // Create backups directory if it doesn't exist
+    const backupDir = path.join(__dirname, 'backups');
+    if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir);
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `backup-${timestamp}.sql`;
+    const filepath = path.join(backupDir, filename);
+
+    // Construct command
+    // Note: Using --no-tablespaces to avoid permission issues on some setups
+    const cmd = `${mysqldump} -h ${dbHost} -u ${dbUser} -p${dbPassword} --no-tablespaces ${dbName} > "${filepath}"`;
+
+    exec(cmd, (error, stdout, stderr) => {
+        if (error) {
+            console.error('Backup error:', error);
+            return res.status(500).json({ error: 'Backup failed', details: error.message });
+        }
+
+        res.download(filepath, filename, (err) => {
+            if (err) {
+                console.error('Download error:', err);
+            }
+            // Optional: Delete file after download to save space
+            // fs.unlinkSync(filepath);
+        });
+    });
+});
+
+// Restore Database from Backup
+app.post('/api/restore', authenticateToken, requireAdmin, upload.single('backupFile'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No backup file provided' });
+    }
+
+    const mysql = process.env.MYSQL_PATH || 'mysql';
+    const dbUser = process.env.DB_USER || 'root';
+    const dbPassword = process.env.DB_PASSWORD;
+    const dbName = process.env.DB_NAME || 'bookboss';
+    const dbHost = process.env.DB_HOST || 'localhost';
+
+    const filepath = req.file.path;
+
+    // Construct command
+    const cmd = `${mysql} -h ${dbHost} -u ${dbUser} -p${dbPassword} ${dbName} < "${filepath}"`;
+
+    exec(cmd, (error, stdout, stderr) => {
+        // Clean up uploaded file
+        fs.unlinkSync(filepath);
+
+        if (error) {
+            console.error('Restore error:', error);
+            return res.status(500).json({ error: 'Restore failed', details: error.message });
+        }
+
+        res.json({ message: 'Database restored successfully' });
+    });
 });
 
 // --- Settings APIs ---

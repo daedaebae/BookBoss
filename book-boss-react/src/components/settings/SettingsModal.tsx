@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { exportService } from '../../services/exportService';
 
 interface SettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
-type SettingsTab = 'general' | 'profile' | 'filters' | 'export' | 'users' | 'audiobookshelf';
+type SettingsTab = 'general' | 'profile' | 'filters' | 'export' | 'users' | 'audiobookshelf' | 'backup';
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     const { user } = useAuth();
@@ -55,6 +56,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [refreshProgress, setRefreshProgress] = useState(0);
     const [refreshStatus, setRefreshStatus] = useState('');
+
+    // Backup & Restore
+    const [backupStatus, setBackupStatus] = useState('');
+    const [isRestoring, setIsRestoring] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -462,6 +467,60 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         }
     };
 
+    const handleExportCSV = async () => {
+        try {
+            await exportService.exportCSV();
+            alert('Library exported as CSV!');
+        } catch (error) {
+            console.error('Export failed:', error);
+            alert('Failed to export library as CSV');
+        }
+    };
+
+    const handleExportJSON = async () => {
+        try {
+            await exportService.exportJSON();
+            alert('Library exported as JSON!');
+        } catch (error) {
+            console.error('Export failed:', error);
+            alert('Failed to export library as JSON');
+        }
+    };
+
+    const handleBackup = async () => {
+        try {
+            await exportService.createBackup();
+            setBackupStatus('Backup created successfully!');
+            setTimeout(() => setBackupStatus(''), 3000);
+        } catch (error: any) {
+            console.error('Backup failed:', error);
+            setBackupStatus(`Backup failed: ${error.message}. Please try again.`);
+        }
+    };
+
+    const handleRestore = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (!confirm('WARNING: Restoring from a backup will OVERWRITE all current data. This action cannot be undone. Are you sure you want to proceed?')) {
+            return;
+        }
+
+        setIsRestoring(true);
+        setBackupStatus('Restoring database... please wait.');
+
+        try {
+            await exportService.restoreBackup(file);
+            setBackupStatus('Database restored successfully! Please refresh the page.');
+            setTimeout(() => window.location.reload(), 2000);
+        } catch (error: any) {
+            console.error('Restore failed:', error);
+            setBackupStatus(`Restore failed: ${error.message}. Please check the file and try again.`);
+        } finally {
+            setIsRestoring(false);
+        }
+    };
+
     const tabs = [
         { id: 'general' as SettingsTab, label: 'General', adminOnly: true },
         { id: 'profile' as SettingsTab, label: 'Profile', adminOnly: false },
@@ -469,6 +528,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         { id: 'export' as SettingsTab, label: 'Export', adminOnly: false },
         { id: 'users' as SettingsTab, label: 'Users', adminOnly: true },
         { id: 'audiobookshelf' as SettingsTab, label: 'Audiobookshelf', adminOnly: true },
+        { id: 'backup' as SettingsTab, label: 'Backup & Restore', adminOnly: true },
     ];
 
     const visibleTabs = tabs.filter(tab => !tab.adminOnly || user?.is_admin);
@@ -873,6 +933,72 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                     ))
                                 )}
                             </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'backup' && user?.is_admin && (
+                        <div className="settings-section">
+                            <h3>Backup & Restore</h3>
+
+                            <div className="setting-group">
+                                <h4>Export Library</h4>
+                                <p className="setting-description">Download your library data in different formats.</p>
+                                <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                                    <button onClick={handleExportCSV} className="secondary-btn">
+                                        📄 Export as CSV
+                                    </button>
+                                    <button onClick={handleExportJSON} className="secondary-btn">
+                                        {'{ }'} Export as JSON
+                                    </button>
+                                </div>
+                            </div>
+
+                            {user?.is_admin && (
+                                <div className="setting-group" style={{ marginTop: '30px', borderTop: '1px solid var(--glass-border)', paddingTop: '20px' }}>
+                                    <h4>Database Backup</h4>
+                                    <p className="setting-description">Create a full backup of your database or restore from a previous backup.</p>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '15px' }}>
+                                        <div>
+                                            <button onClick={handleBackup} className="primary-btn">
+                                                ⬇️ Create Full Backup
+                                            </button>
+                                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '5px' }}>
+                                                Downloads a .sql file containing all your data.
+                                            </p>
+                                        </div>
+
+                                        <div style={{ marginTop: '15px' }}>
+                                            <label className="secondary-btn" style={{ display: 'inline-block', cursor: 'pointer', background: isRestoring ? '#ccc' : undefined }}>
+                                                {isRestoring ? '⏳ Restoring...' : '⬆️ Restore from Backup'}
+                                                <input
+                                                    type="file"
+                                                    accept=".sql"
+                                                    onChange={handleRestore}
+                                                    disabled={isRestoring}
+                                                    style={{ display: 'none' }}
+                                                />
+                                            </label>
+                                            <p style={{ fontSize: '0.85rem', color: '#ef4444', marginTop: '5px', fontWeight: 'bold' }}>
+                                                ⚠️ Warning: Restoring will overwrite all current data!
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {backupStatus && (
+                                        <div style={{
+                                            marginTop: '15px',
+                                            padding: '10px',
+                                            borderRadius: '6px',
+                                            background: backupStatus.includes('failed') ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                                            color: backupStatus.includes('failed') ? '#ef4444' : '#10b981',
+                                            border: `1px solid ${backupStatus.includes('failed') ? '#ef4444' : '#10b981'}`
+                                        }}>
+                                            {backupStatus}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
                 </main>
