@@ -557,6 +557,52 @@ app.delete('/api/books/:id', authenticateToken, (req, res) => {
     });
 });
 
+// Bulk delete books
+app.delete('/api/books/bulk', authenticateToken, (req, res) => {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'Invalid or empty ids array' });
+    }
+
+    const placeholders = ids.map(() => '?').join(',');
+    const query = `DELETE FROM books WHERE id IN (${placeholders})`;
+
+    db.query(query, ids, (err, result) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json({ message: `${result.affectedRows} books deleted successfully` });
+    });
+});
+
+// Bulk update books
+app.patch('/api/books/bulk', authenticateToken, (req, res) => {
+    const { ids, updates } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'Invalid or empty ids array' });
+    }
+    if (!updates || Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: 'No updates provided' });
+    }
+
+    // Build SET clause from updates object
+    const setClause = Object.keys(updates).map(key => `${key} = ?`).join(', ');
+    const setValues = Object.values(updates);
+
+    const placeholders = ids.map(() => '?').join(',');
+    const query = `UPDATE books SET ${setClause} WHERE id IN (${placeholders})`;
+
+    db.query(query, [...setValues, ...ids], (err, result) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json({ message: `${result.affectedRows} books updated successfully` });
+    });
+});
+
+
 // --- User Management APIs ---
 // Endpoints for managing application users (admin only features planned)
 

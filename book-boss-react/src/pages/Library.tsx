@@ -5,6 +5,7 @@ import { BookGrid } from '../components/books/BookGrid';
 import { AddBookModal } from '../components/books/AddBookModal';
 import { EditBookModal } from '../components/books/EditBookModal';
 import { EpubReaderModal } from '../components/books/EpubReaderModal';
+import { BookDetailModal } from '../components/books/BookDetailModal';
 import { Sidebar, type SidebarFilter } from '../components/layout/Sidebar';
 import { Toast } from '../components/common/Toast';
 
@@ -22,6 +23,7 @@ export const Library: React.FC = () => {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isReaderModalOpen, setIsReaderModalOpen] = useState(false);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedBook, setSelectedBook] = useState<Book | null>(null);
 
     // Sidebar state
@@ -163,6 +165,11 @@ export const Library: React.FC = () => {
     const handleRead = (book: Book) => {
         setSelectedBook(book);
         setIsReaderModalOpen(true);
+    };
+
+    const handleBookClick = (book: Book) => {
+        setSelectedBook(book);
+        setIsDetailModalOpen(true);
     };
 
     const toggleBookSelection = (bookId: number) => {
@@ -404,12 +411,32 @@ export const Library: React.FC = () => {
                 <BookGrid
                     books={filteredBooks}
                     isLoading={isLoading}
+                    onBookClick={handleBookClick}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onRead={handleRead}
                     bulkMode={bulkMode}
                     selectedBooks={selectedBooks}
                     onToggleSelection={toggleBookSelection}
+                />
+
+                <BookDetailModal
+                    isOpen={isDetailModalOpen}
+                    onClose={() => setIsDetailModalOpen(false)}
+                    book={selectedBook}
+                    onEdit={(book) => {
+                        setIsDetailModalOpen(false);
+                        setSelectedBook(book);
+                        setIsEditModalOpen(true);
+                    }}
+                    onDelete={(book) => {
+                        setIsDetailModalOpen(false);
+                        handleDelete(book);
+                    }}
+                    onRead={(book) => {
+                        setIsDetailModalOpen(false);
+                        handleRead(book);
+                    }}
                 />
 
                 <AddBookModal

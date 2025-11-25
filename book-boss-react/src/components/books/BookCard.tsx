@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { getSafeCoverUrl } from '../../utils/coverUrlGuard';
 import { type Book } from '../../types/book';
 
@@ -7,28 +7,26 @@ interface BookCardProps {
     onClick?: () => void;
     onEdit?: (book: Book) => void;
     onDelete?: (book: Book) => void;
-    onRead?: (book: Book) => void;
     bulkMode?: boolean;
     isSelected?: boolean;
     onToggleSelection?: (bookId: number) => void;
 }
 
-export const BookCard: React.FC<BookCardProps> = ({ book, onEdit, onDelete, onRead, bulkMode = false, isSelected = false, onToggleSelection }) => {
-    const [showMenu, setShowMenu] = useState(false);
-
+export const BookCard: React.FC<BookCardProps> = ({ book, onClick, bulkMode = false, isSelected = false, onToggleSelection }) => {
     const coverUrl = getSafeCoverUrl(book);
 
     return (
         <div
-            className={`book-card ${showMenu ? 'active' : ''} ${isSelected ? 'selected' : ''}`}
+            className={`book-card ${isSelected ? 'selected' : ''}`}
             onClick={(e) => {
                 if (bulkMode && onToggleSelection) {
                     e.stopPropagation();
                     onToggleSelection(book.id);
-                } else {
-                    setShowMenu(!showMenu);
+                } else if (onClick) {
+                    onClick();
                 }
             }}
+            style={{ cursor: 'pointer' }}
         >
             {bulkMode && (
                 <div
@@ -127,41 +125,6 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onEdit, onDelete, onRe
                     })()}
                 </div>
             </div>
-
-            {showMenu && (
-                <div className="context-menu" onClick={(e) => e.stopPropagation()}>
-                    {book.format === 'Ebook' && book.epub_file_path && onRead && (
-                        <button
-                            className="context-btn"
-                            onClick={() => {
-                                onRead(book);
-                                setShowMenu(false);
-                            }}
-                        >
-                            📖 Read
-                        </button>
-                    )}
-                    <button
-                        className="context-btn"
-                        onClick={() => {
-                            onEdit?.(book);
-                            setShowMenu(false);
-                        }}
-                    >
-                        ✏️ Edit
-                    </button>
-                    <button
-                        className="context-btn"
-                        onClick={() => {
-                            onDelete?.(book);
-                            setShowMenu(false);
-                        }}
-                        style={{ color: 'var(--danger-color)' }}
-                    >
-                        🗑️ Delete
-                    </button>
-                </div>
-            )}
         </div>
     );
 };
