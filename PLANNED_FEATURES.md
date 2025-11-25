@@ -18,6 +18,22 @@
   - Add ability to add/edit/remove metadata descriptors via text boxes.
   - Include specific descriptors for cover and book binding styles (e.g., check boxes).
 
+- [ ] **Photo Gallery & Tagging**
+  - Upload multiple photos per book (cover variations, special pages, etc.)
+  - Tag photos with descriptors (cover, spine, edges, special features)
+  - Photo gallery view in book details
+
+- [ ] **Enhanced Physical Book Metadata**
+  - **Format Types**: Hardback, Paperback, Mass Market Paperback, Board Book, Leather Bound
+  - **Condition**: Excellent, Good, Fair, Poor
+  - **Special Features**: Signed Copy, Bonus Chapters, Limited Edition, First Edition
+  - **Binding & Edge Types**: 
+    - Gilded edges
+    - Fore-edge painting
+    - Sprayed edges
+    - Hidden fore-edge art
+    - Decorative binding details
+
 ## Management & Organization
 
 - [ ] **Advanced Format Tracking**
