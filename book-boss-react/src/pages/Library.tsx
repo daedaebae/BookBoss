@@ -14,6 +14,7 @@ import { UpdateProgressModal } from '../components/books/UpdateProgressModal';
 import { shelfService } from '../services/shelfService';
 import { type Shelf } from '../types/shelf';
 import { useTheme } from '../context/ThemeContext';
+import { MetadataRefreshModal } from '../components/books/MetadataRefreshModal';
 
 export const Library: React.FC = () => {
     const { theme, setTheme } = useTheme();
@@ -35,6 +36,7 @@ export const Library: React.FC = () => {
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [isShelfManagerOpen, setIsShelfManagerOpen] = useState(false);
     const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
+    const [isMetadataRefreshOpen, setIsMetadataRefreshOpen] = useState(false);
     const [selectedBook, setSelectedBook] = useState<Book | null>(null);
 
     // Sidebar state
@@ -422,6 +424,24 @@ export const Library: React.FC = () => {
                             ⚙️
                         </button>
 
+                        {/* Refresh Metadata Button */}
+                        <button
+                            className="secondary-btn"
+                            onClick={() => setIsMetadataRefreshOpen(true)}
+                            style={{
+                                padding: '10px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: '50%',
+                                width: '42px',
+                                height: '42px'
+                            }}
+                            title="Refresh Metadata"
+                        >
+                            🔄
+                        </button>
+
                         {/* Add Book Button */}
                         <button
                             className="primary-btn"
@@ -541,6 +561,12 @@ export const Library: React.FC = () => {
                     onClose={() => setIsProgressModalOpen(false)}
                     book={selectedBook}
                     onProgressUpdated={loadBooks}
+                />
+
+                <MetadataRefreshModal
+                    isOpen={isMetadataRefreshOpen}
+                    onClose={() => setIsMetadataRefreshOpen(false)}
+                    onRefreshComplete={loadBooks}
                 />
 
                 <EpubReaderModal
