@@ -7,10 +7,16 @@ import { EditBookModal } from '../components/books/EditBookModal';
 import { EpubReaderModal } from '../components/books/EpubReaderModal';
 import { Sidebar, type SidebarFilter } from '../components/layout/Sidebar';
 import { Toast } from '../components/common/Toast';
+import { SettingsModal } from '../components/settings/SettingsModal';
+import { ShelfManagerModal } from '../components/shelves/ShelfManagerModal';
+import { UpdateProgressModal } from '../components/books/UpdateProgressModal';
+import { shelfService } from '../services/shelfService';
+import { type Shelf } from '../types/shelf';
 
 export const Library: React.FC = () => {
     const [books, setBooks] = useState<Book[]>([]);
     const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
+    const [shelves, setShelves] = useState<Shelf[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [filters, setFilters] = useState<BookFilters>({
@@ -21,7 +27,10 @@ export const Library: React.FC = () => {
     // Modal states
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
     const [isReaderModalOpen, setIsReaderModalOpen] = useState(false);
+    const [isShelfManagerOpen, setIsShelfManagerOpen] = useState(false);
+    const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
     const [selectedBook, setSelectedBook] = useState<Book | null>(null);
 
     // Sidebar state
@@ -37,14 +46,14 @@ export const Library: React.FC = () => {
     const [selectedBooks, setSelectedBooks] = useState<Set<number>>(new Set());
     const [bulkMode, setBulkMode] = useState(false);
 
-    // Fetch books on mount
+    // Fetch books and shelves on mount
     useEffect(() => {
         loadBooks();
+        loadShelves();
     }, []);
 
-    // Apply filters whenever books or filters change
+    // Apply filters whenever books, filters, or sidebar filter change
     useEffect(() => {
-        loadBooks();
         applyFilters();
     }, [books, filters, sidebarFilter]);
 
@@ -57,13 +66,41 @@ export const Library: React.FC = () => {
         try {
             setIsLoading(true);
             setError(null);
-            const data = await bookService.getBooks();
-            setBooks(data);
+            // Fetch books and user progress in parallel
+            const [booksData, userBooksData] = await Promise.all([
+                bookService.getBooks(),
+                bookService.getUserBooks().catch(() => []) // Silently fail if auth error
+            ]);
+
+            // Merge user progress into books
+            const mergedBooks = booksData.map(book => {
+                const userBook = userBooksData.find((ub: any) => ub.book_id === book.id);
+                if (userBook) {
+                    return {
+                        ...book,
+                        user_status: userBook.status,
+                        user_progress: userBook.progress,
+                        user_rating: userBook.rating
+                    };
+                }
+                return book;
+            });
+
+            setBooks(mergedBooks);
         } catch (err) {
             setError('Failed to load books. Please try again.');
             console.error('Error loading books:', err);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const loadShelves = async () => {
+        try {
+            const data = await shelfService.getShelves();
+            setShelves(data);
+        } catch (err) {
+            console.error('Error loading shelves:', err);
         }
     };
 
@@ -75,7 +112,11 @@ export const Library: React.FC = () => {
             result = result.filter(book => book.status === sidebarFilter.value);
         } else if (sidebarFilter.type === 'format' && sidebarFilter.value) {
             result = result.filter(book => book.format === sidebarFilter.value);
+        } else if (sidebarFilter.type === 'shelf' && sidebarFilter.shelfId) {
+            // New logic for mapped shelves
+            result = result.filter(book => book.shelf_ids && book.shelf_ids.includes(sidebarFilter.shelfId!));
         } else if (sidebarFilter.type === 'shelf' && sidebarFilter.value) {
+            // Fallback to legacy string shelf if no shelfId (though we probably won't use this much)
             result = result.filter(book => book.shelf === sidebarFilter.value);
         }
 
@@ -160,6 +201,11 @@ export const Library: React.FC = () => {
         setIsReaderModalOpen(true);
     };
 
+    const handleUpdateProgress = (book: Book) => {
+        setSelectedBook(book);
+        setIsProgressModalOpen(true);
+    };
+
     const toggleBookSelection = (bookId: number) => {
         const newSelection = new Set(selectedBooks);
         if (newSelection.has(bookId)) {
@@ -189,9 +235,11 @@ export const Library: React.FC = () => {
     const handleBulkUpdateShelf = async (shelf: string) => {
         if (selectedBooks.size === 0) return;
         try {
-            await Promise.all(Array.from(selectedBooks).map(id =>
-                bookService.updateBook(id, { shelf })
-            ));
+            await Promise.all(Array.from(selectedBooks).map(id => {
+                const formData = new FormData();
+                formData.append('shelf', shelf);
+                return bookService.updateBook(id, formData);
+            }));
             loadBooks();
             setSelectedBooks(new Set());
             setBulkMode(false);
@@ -199,6 +247,17 @@ export const Library: React.FC = () => {
         } catch (error) {
             console.error('Error updating books:', error);
             showToast('Failed to update some books', 'error');
+        }
+    };
+
+    const handleAddToShelf = async (bookId: number, shelfId: number) => {
+        try {
+            await shelfService.addBookToShelf(shelfId, bookId);
+            showToast('Book added to shelf', 'success');
+            loadBooks(); // Reload to update shelf_ids
+        } catch (error) {
+            console.error('Error adding to shelf:', error);
+            showToast('Failed to add book to shelf', 'error');
         }
     };
 
@@ -226,9 +285,6 @@ export const Library: React.FC = () => {
         audiobook: books.filter(b => b.format === 'Audiobook').length,
     };
 
-    // Get unique shelves
-    const shelves = Array.from(new Set(books.map(b => b.shelf).filter(Boolean))) as string[];
-
     return (
         <>
             {isSidebarVisible && (
@@ -236,6 +292,7 @@ export const Library: React.FC = () => {
                     activeFilter={sidebarFilter}
                     onFilterChange={setSidebarFilter}
                     shelves={shelves}
+                    onManageShelves={() => setIsShelfManagerOpen(true)}
                     bookCounts={bookCounts}
                     isMobileOpen={isMobileSidebarOpen}
                     onMobileClose={() => setIsMobileSidebarOpen(false)}
@@ -343,6 +400,24 @@ export const Library: React.FC = () => {
                             </div>
                         </label>
 
+                        {/* Settings Button */}
+                        <button
+                            className="secondary-btn"
+                            onClick={() => setIsSettingsModalOpen(true)}
+                            style={{
+                                padding: '10px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: '50%',
+                                width: '42px',
+                                height: '42px'
+                            }}
+                            title="Settings"
+                        >
+                            ⚙️
+                        </button>
+
                         {/* Add Book Button */}
                         <button
                             className="primary-btn"
@@ -405,10 +480,13 @@ export const Library: React.FC = () => {
 
                 <BookGrid
                     books={filteredBooks}
+                    shelves={shelves}
                     isLoading={isLoading}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onRead={handleRead}
+                    onAddToShelf={handleAddToShelf}
+                    onUpdateProgress={handleUpdateProgress}
                     bulkMode={bulkMode}
                     selectedBooks={selectedBooks}
                     onToggleSelection={toggleBookSelection}
@@ -425,6 +503,24 @@ export const Library: React.FC = () => {
                     onClose={() => setIsEditModalOpen(false)}
                     book={selectedBook}
                     onBookUpdated={handleBookUpdated}
+                />
+
+                <SettingsModal
+                    isOpen={isSettingsModalOpen}
+                    onClose={() => setIsSettingsModalOpen(false)}
+                />
+
+                <ShelfManagerModal
+                    isOpen={isShelfManagerOpen}
+                    onClose={() => setIsShelfManagerOpen(false)}
+                    onShelvesUpdated={loadShelves}
+                />
+
+                <UpdateProgressModal
+                    isOpen={isProgressModalOpen}
+                    onClose={() => setIsProgressModalOpen(false)}
+                    book={selectedBook}
+                    onProgressUpdated={loadBooks}
                 />
 
                 <EpubReaderModal

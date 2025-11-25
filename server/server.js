@@ -136,18 +136,38 @@ db.connect(err => {
 // --- API Endpoints ---
 
 // Get all books (public access for testing)
+// Modified to include shelf_ids and reading status for the current user if logged in (via token check optional or if we assume this is mostly auth'd)
+// Since this is public for now, we won't join user_books unless we have a user context.
+// But the frontend sends token. So we should use authenticateToken if we want user specific data.
+// However, the route definition is `app.get('/api/books', ...)` without `authenticateToken`.
+// Let's keep it public but try to parse user if header exists? Or just leave it generic and fetch user data separately.
+// The plan was to fetch reading progress via `/api/user/books`.
+// So we just need `shelf_ids`.
 app.get('/api/books', (req, res) => {
-    const query = 'SELECT * FROM books ORDER BY added_at DESC';
+    // We use a LEFT JOIN to get shelf_ids.
+    // Since we can't easily do GROUP_CONCAT with a simple * select without grouping everything,
+    // subquery is safer for mapped columns.
+    // Note: older MySQL versions might not support JSON_ARRAYAGG.
+    // If that fails, we might need a separate query or GROUP_CONCAT.
+    // Let's try JSON_ARRAYAGG.
+    const query = `
+        SELECT b.*,
+        (SELECT JSON_ARRAYAGG(shelf_id) FROM shelf_books WHERE book_id = b.id) as shelf_ids
+        FROM books b
+        ORDER BY b.added_at DESC
+    `;
+
     db.query(query, (err, results) => {
         if (err) {
             console.error(err);
             return res.status(500).json({ error: err.message });
         }
-        // Parse JSON categories
+        // Parse JSON categories and shelf_ids
         const books = results.map(book => ({
             ...book,
             categories: typeof book.categories === 'string' ? JSON.parse(book.categories || '[]') : (book.categories || []),
-            descriptors: typeof book.descriptors === 'string' ? JSON.parse(book.descriptors || '[]') : (book.descriptors || [])
+            descriptors: typeof book.descriptors === 'string' ? JSON.parse(book.descriptors || '[]') : (book.descriptors || []),
+            shelf_ids: typeof book.shelf_ids === 'string' ? JSON.parse(book.shelf_ids || '[]') : (book.shelf_ids || [])
         }));
         res.json(books);
     });
@@ -241,14 +261,14 @@ app.post('/api/books', authenticateToken, upload.fields([{ name: 'file', maxCoun
     }
     const mysqlDatetime = addedAtValue.toISOString().slice(0, 19).replace('T', ' ');
 
-    const query = 'INSERT INTO books (title, author, isbn, cover_url, cover_image_path, `library`, categories, file_path, format, binding_type, descriptors, series, shelf, status, rating, page_count, publication_date, is_loaned, borrower_name, loan_date, due_date, added_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const query = 'INSERT INTO books (title, author, isbn, cover_url, cover_image_path, `library`, categories, file_path, format, binding_type, descriptors, series, series_index, publisher, language, description, shelf, status, rating, page_count, publication_date, is_loaned, borrower_name, loan_date, due_date, added_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 
     db.query(query, [
         title,
         author,
         isbn,
-        cover || null, // Keep original cover URL logic if needed, or use this for external URL
-        coverPath,     // New column for local path or external URL if we want to unify
+        cover || null,
+        coverPath,
         library || 'Main Library',
         categoryList,
         bookFilePath,
@@ -256,7 +276,11 @@ app.post('/api/books', authenticateToken, upload.fields([{ name: 'file', maxCoun
         req.body.binding_type || 'Paperback',
         descriptorsJson,
         req.body.series || null,
-        req.body.shelf || null,
+        req.body.series_index || null,
+        req.body.publisher || null,
+        req.body.language || 'en',
+        req.body.description || null,
+        req.body.shelf || null, // Legacy shelf column, might be deprecated in favor of shelf_books
         req.body.status || 'Not Started',
         req.body.rating || 0,
         req.body.page_count || 0,
@@ -281,8 +305,13 @@ app.post('/api/books', authenticateToken, upload.fields([{ name: 'file', maxCoun
 // Allows updating book details including cover image
 app.put('/api/books/:id', authenticateToken, upload.fields([{ name: 'coverFile', maxCount: 1 }]), (req, res) => {
     const { id } = req.params;
-    const { title, author, isbn, library, categories, cover, format, binding_type, descriptors, series, shelf, status, rating, page_count, publication_date, is_loaned, borrower_name, loan_date, due_date } = req.body;
-    const coverFile = req.files['coverFile'] ? req.files['coverFile'][0] : null;
+    const {
+        title, author, isbn, library, categories, cover, format, binding_type, descriptors,
+        series, series_index, publisher, language, description,
+        shelf, status, rating, page_count, publication_date,
+        is_loaned, borrower_name, loan_date, due_date
+    } = req.body;
+    const coverFile = req.files && req.files['coverFile'] ? req.files['coverFile'][0] : null;
 
     // Handle categories parsing safely
     let parsedCategories = [];
@@ -294,13 +323,20 @@ app.put('/api/books/:id', authenticateToken, upload.fields([{ name: 'coverFile',
     const finalCover = coverFile ? coverFile.path : (cover || null);
     const descriptorsJson = descriptors ? descriptors : '[]';
 
-    // We update both cover_url and cover_image_path to be safe, or just one. 
-    // Let's update cover_image_path if it's a file, and cover_url if it's a string.
-    // For simplicity, let's assume finalCover goes to cover_url for now as legacy, 
-    // but we should also update cover_image_path if it's a local file.
+    let query = `UPDATE books SET
+        title = ?, author = ?, isbn = ?, \`library\` = ?, categories = ?,
+        format = ?, binding_type = ?, descriptors = ?,
+        series = ?, series_index = ?, publisher = ?, language = ?, description = ?,
+        shelf = ?, status = ?, rating = ?, page_count = ?, publication_date = ?,
+        is_loaned = ?, borrower_name = ?, loan_date = ?, due_date = ?`;
 
-    let query = 'UPDATE books SET title = ?, author = ?, isbn = ?, `library` = ?, categories = ?, format = ?, binding_type = ?, descriptors = ?, series = ?, shelf = ?, status = ?, rating = ?, page_count = ?, publication_date = ?, is_loaned = ?, borrower_name = ?, loan_date = ?, due_date = ?';
-    let values = [title, author, isbn, library, JSON.stringify(parsedCategories), format || 'Physical', binding_type, descriptorsJson, series || null, shelf || null, status || 'Not Started', rating || 0, page_count || 0, publication_date || null, is_loaned || false, borrower_name || null, loan_date || null, due_date || null];
+    let values = [
+        title, author, isbn, library, JSON.stringify(parsedCategories),
+        format || 'Physical', binding_type, descriptorsJson,
+        series || null, series_index || null, publisher || null, language || 'en', description || null,
+        shelf || null, status || 'Not Started', rating || 0, page_count || 0, publication_date || null,
+        is_loaned || false, borrower_name || null, loan_date || null, due_date || null
+    ];
 
     if (finalCover) {
         query += ', cover_url = ?, cover_image_path = ?';
@@ -674,6 +710,162 @@ app.post('/api/register', (req, res) => {
             }
             res.status(201).json({ message: 'User created successfully' });
         });
+    });
+});
+
+// --- Shelves APIs ---
+
+// Get all shelves for a user
+app.get('/api/shelves', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    db.query('SELECT * FROM shelves WHERE user_id = ?', [userId], (err, results) => {
+        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+        res.json(results);
+    });
+});
+
+// Create a shelf
+app.post('/api/shelves', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Shelf name is required' });
+
+    db.query('INSERT INTO shelves (user_id, name) VALUES (?, ?)', [userId, name], (err, result) => {
+        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+        res.status(201).json({ id: result.insertId, name, user_id: userId });
+    });
+});
+
+// Delete a shelf
+app.delete('/api/shelves/:id', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const shelfId = req.params.id;
+    db.query('DELETE FROM shelves WHERE id = ? AND user_id = ?', [shelfId, userId], (err, result) => {
+        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+        res.json({ message: 'Shelf deleted' });
+    });
+});
+
+// Add book to shelf
+app.post('/api/shelves/:id/books', authenticateToken, (req, res) => {
+    const shelfId = req.params.id;
+    const { bookId } = req.body;
+    // Verify shelf belongs to user
+    db.query('SELECT id FROM shelves WHERE id = ? AND user_id = ?', [shelfId, req.user.id], (err, results) => {
+        if (err || results.length === 0) return res.status(403).json({ error: 'Shelf not found or access denied' });
+
+        db.query('INSERT IGNORE INTO shelf_books (shelf_id, book_id) VALUES (?, ?)', [shelfId, bookId], (err, result) => {
+            if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+            res.json({ message: 'Book added to shelf' });
+        });
+    });
+});
+
+// Remove book from shelf
+app.delete('/api/shelves/:id/books/:bookId', authenticateToken, (req, res) => {
+    const shelfId = req.params.id;
+    const bookId = req.params.bookId;
+    // Verify shelf belongs to user
+    db.query('SELECT id FROM shelves WHERE id = ? AND user_id = ?', [shelfId, req.user.id], (err, results) => {
+        if (err || results.length === 0) return res.status(403).json({ error: 'Shelf not found or access denied' });
+
+        db.query('DELETE FROM shelf_books WHERE shelf_id = ? AND book_id = ?', [shelfId, bookId], (err, result) => {
+            if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+            res.json({ message: 'Book removed from shelf' });
+        });
+    });
+});
+
+// --- Reading Progress APIs ---
+
+// Update reading progress
+app.post('/api/user/books/:bookId', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const bookId = req.params.bookId;
+    const { status, progress, rating } = req.body;
+
+    const query = `INSERT INTO user_books (user_id, book_id, status, progress, rating)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON DUPLICATE KEY UPDATE status = VALUES(status), progress = VALUES(progress), rating = VALUES(rating)`;
+
+    db.query(query, [userId, bookId, status, progress || 0, rating || 0], (err, result) => {
+        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+        res.json({ message: 'Progress updated' });
+    });
+});
+
+// Get reading progress for all books of a user
+app.get('/api/user/books', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    db.query('SELECT * FROM user_books WHERE user_id = ?', [userId], (err, results) => {
+        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+        res.json(results);
+    });
+});
+
+// --- Loans APIs ---
+
+// Get all loans
+app.get('/api/loans', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    db.query('SELECT loans.*, books.title as book_title FROM loans JOIN books ON loans.book_id = books.id WHERE user_id = ?', [userId], (err, results) => {
+        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+        res.json(results);
+    });
+});
+
+// Create a loan
+app.post('/api/loans', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const { book_id, borrower_name, due_date, notes } = req.body;
+    db.query('INSERT INTO loans (user_id, book_id, borrower_name, due_date, notes) VALUES (?, ?, ?, ?, ?)',
+        [userId, book_id, borrower_name, due_date, notes], (err, result) => {
+        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+        // Update book is_loaned status as well for legacy compatibility
+        db.query('UPDATE books SET is_loaned = 1, borrower_name = ?, loan_date = CURRENT_DATE, due_date = ? WHERE id = ?',
+            [borrower_name, due_date, book_id]);
+        res.status(201).json({ message: 'Loan created' });
+    });
+});
+
+// Return a loan
+app.put('/api/loans/:id/return', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const loanId = req.params.id;
+    db.query('UPDATE loans SET return_date = CURRENT_DATE WHERE id = ? AND user_id = ?', [loanId, userId], (err, result) => {
+        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+        // Also update book
+        db.query('SELECT book_id FROM loans WHERE id = ?', [loanId], (err, resBook) => {
+             if (resBook && resBook.length > 0) {
+                 db.query('UPDATE books SET is_loaned = 0, borrower_name = NULL, loan_date = NULL, due_date = NULL WHERE id = ?', [resBook[0].book_id]);
+             }
+        });
+        res.json({ message: 'Book returned' });
+    });
+});
+
+// --- User Profile/Privacy APIs ---
+
+app.get('/api/users/profile', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    db.query('SELECT id, username, is_admin, privacy_settings FROM users WHERE id = ?', [userId], (err, results) => {
+        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+        if (results.length === 0) return res.status(404).json({ error: 'User not found' });
+
+        const user = results[0];
+        if (typeof user.privacy_settings === 'string') {
+            user.privacy_settings = JSON.parse(user.privacy_settings || '{}');
+        }
+        res.json(user);
+    });
+});
+
+app.put('/api/users/profile', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const { privacy_settings } = req.body;
+    db.query('UPDATE users SET privacy_settings = ? WHERE id = ?', [JSON.stringify(privacy_settings), userId], (err, result) => {
+        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+        res.json({ message: 'Profile updated' });
     });
 });
 
