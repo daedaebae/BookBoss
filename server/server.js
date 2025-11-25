@@ -1288,6 +1288,289 @@ app.delete('/api/reading-lists/:listId', authenticateToken, (req, res) => {
     );
 });
 
+// --- Advanced Library Features ---
+
+// Advanced Search with fulltext
+app.get('/api/books/search/advanced', authenticateToken, (req, res) => {
+    const { query, fields } = req.query;
+
+    if (!query) {
+        return res.status(400).json({ error: 'Search query is required' });
+    }
+
+    // Use MySQL fulltext search
+    const searchQuery = `
+        SELECT *, MATCH(title, author) AGAINST(? IN NATURAL LANGUAGE MODE) as relevance
+        FROM books
+        WHERE MATCH(title, author) AGAINST(? IN NATURAL LANGUAGE MODE)
+        ORDER BY relevance DESC
+        LIMIT 100
+    `;
+
+    db.query(searchQuery, [query, query], (err, results) => {
+        if (err) {
+            console.error('Error in advanced search:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(results);
+    });
+});
+
+// Get book statistics for current user
+app.get('/api/statistics/books', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+
+    const statsQuery = `
+        SELECT 
+            COUNT(*) as total_books,
+            COUNT(CASE WHEN status = 'Completed' THEN 1 END) as completed_books,
+            COUNT(CASE WHEN status = 'In Progress' THEN 1 END) as in_progress_books,
+            COUNT(CASE WHEN status = 'Not Started' THEN 1 END) as not_started_books,
+            COUNT(CASE WHEN format = 'Ebook' THEN 1 END) as ebooks,
+            COUNT(CASE WHEN format = 'Physical' THEN 1 END) as physical_books,
+            COUNT(CASE WHEN format = 'Audiobook' THEN 1 END) as audiobooks,
+            AVG(rating) as average_rating,
+            SUM(page_count) as total_pages
+        FROM books
+    `;
+
+    db.query(statsQuery, (err, results) => {
+        if (err) {
+            console.error('Error fetching statistics:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(results[0]);
+    });
+});
+
+// Get reading statistics by month
+app.get('/api/statistics/reading-by-month', authenticateToken, (req, res) => {
+    const { year } = req.query;
+    const currentYear = year || new Date().getFullYear();
+
+    const query = `
+        SELECT 
+            MONTH(added_at) as month,
+            COUNT(*) as books_added,
+            COUNT(CASE WHEN status = 'Completed' THEN 1 END) as books_completed
+        FROM books
+        WHERE YEAR(added_at) = ?
+        GROUP BY MONTH(added_at)
+        ORDER BY month
+    `;
+
+    db.query(query, [currentYear], (err, results) => {
+        if (err) {
+            console.error('Error fetching monthly stats:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(results);
+    });
+});
+
+// Get author statistics
+app.get('/api/statistics/authors', authenticateToken, (req, res) => {
+    const query = `
+        SELECT 
+            author,
+            COUNT(*) as book_count,
+            AVG(rating) as average_rating,
+            COUNT(CASE WHEN status = 'Completed' THEN 1 END) as completed_count
+        FROM books
+        WHERE author IS NOT NULL AND author != ''
+        GROUP BY author
+        ORDER BY book_count DESC
+        LIMIT 20
+    `;
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('Error fetching author stats:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(results);
+    });
+});
+
+// Find duplicate books
+app.get('/api/books/duplicates', authenticateToken, (req, res) => {
+    const { method } = req.query; // 'isbn' or 'title-author'
+
+    let query;
+    if (method === 'isbn') {
+        query = `
+            SELECT isbn, GROUP_CONCAT(id) as book_ids, GROUP_CONCAT(title SEPARATOR ' | ') as titles, COUNT(*) as count
+            FROM books
+            WHERE isbn IS NOT NULL AND isbn != ''
+            GROUP BY isbn
+            HAVING count > 1
+        `;
+    } else {
+        query = `
+            SELECT 
+                CONCAT(title, ' - ', author) as book_key,
+                GROUP_CONCAT(id) as book_ids,
+                title,
+                author,
+                COUNT(*) as count
+            FROM books
+            WHERE title IS NOT NULL AND author IS NOT NULL
+            GROUP BY title, author
+            HAVING count > 1
+        `;
+    }
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('Error finding duplicates:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(results);
+    });
+});
+
+// Save a search query
+app.post('/api/saved-searches', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const { name, query_params } = req.body;
+
+    if (!name || !query_params) {
+        return res.status(400).json({ error: 'Name and query parameters are required' });
+    }
+
+    db.query(
+        'INSERT INTO saved_searches (user_id, name, query_params) VALUES (?, ?, ?)',
+        [userId, name, JSON.stringify(query_params)],
+        (err, result) => {
+            if (err) {
+                console.error('Error saving search:', err);
+                return res.status(500).json({ error: err.message });
+            }
+            res.status(201).json({
+                id: result.insertId,
+                message: 'Search saved successfully'
+            });
+        }
+    );
+});
+
+// Get saved searches
+app.get('/api/saved-searches', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+
+    db.query(
+        'SELECT * FROM saved_searches WHERE user_id = ? ORDER BY created_at DESC',
+        [userId],
+        (err, results) => {
+            if (err) {
+                console.error('Error fetching saved searches:', err);
+                return res.status(500).json({ error: err.message });
+            }
+
+            // Parse JSON query_params
+            const searches = results.map(search => ({
+                ...search,
+                query_params: JSON.parse(search.query_params)
+            }));
+
+            res.json(searches);
+        }
+    );
+});
+
+// Delete a saved search
+app.delete('/api/saved-searches/:id', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    db.query(
+        'DELETE FROM saved_searches WHERE id = ? AND user_id = ?',
+        [id, userId],
+        (err, result) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'Saved search not found' });
+            }
+            res.json({ message: 'Saved search deleted' });
+        }
+    );
+});
+
+// Start a reading session
+app.post('/api/reading-sessions', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const { book_id } = req.body;
+
+    db.query(
+        'INSERT INTO reading_sessions (user_id, book_id) VALUES (?, ?)',
+        [userId, book_id],
+        (err, result) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            res.status(201).json({
+                session_id: result.insertId,
+                message: 'Reading session started'
+            });
+        }
+    );
+});
+
+// End a reading session
+app.put('/api/reading-sessions/:id/end', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { pages_read } = req.body;
+    const userId = req.user.id;
+
+    // Calculate duration
+    db.query(
+        'SELECT started_at FROM reading_sessions WHERE id = ? AND user_id = ?',
+        [id, userId],
+        (err, results) => {
+            if (err || results.length === 0) {
+                return res.status(404).json({ error: 'Session not found' });
+            }
+
+            const startedAt = new Date(results[0].started_at);
+            const endedAt = new Date();
+            const durationMinutes = Math.round((endedAt - startedAt) / 60000);
+
+            db.query(
+                'UPDATE reading_sessions SET ended_at = NOW(), duration_minutes = ?, pages_read = ? WHERE id = ? AND user_id = ?',
+                [durationMinutes, pages_read || 0, id, userId],
+                (err) => {
+                    if (err) {
+                        return res.status(500).json({ error: err.message });
+                    }
+                    res.json({
+                        message: 'Reading session ended',
+                        duration_minutes: durationMinutes
+                    });
+                }
+            );
+        }
+    );
+});
+
+// Get reading sessions for a book
+app.get('/api/books/:bookId/reading-sessions', authenticateToken, (req, res) => {
+    const { bookId } = req.params;
+    const userId = req.user.id;
+
+    db.query(
+        'SELECT * FROM reading_sessions WHERE book_id = ? AND user_id = ? ORDER BY started_at DESC',
+        [bookId, userId],
+        (err, results) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            res.json(results);
+        }
+    );
+});
+
 // --- Settings APIs ---
 
 // Get all settings
