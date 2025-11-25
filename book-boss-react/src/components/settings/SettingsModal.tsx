@@ -369,6 +369,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         }
     };
 
+    const downloadBackup = async () => {
+        try {
+            const response = await fetch('http://localhost:3000/api/admin/backup', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
+                }
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                // Use filename from header if available, else generate one
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = `bookboss_backup_${new Date().toISOString().split('T')[0]}.json`;
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename="?([^"]+)"?/);
+                    if (match) filename = match[1];
+                }
+
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } else {
+                alert('Failed to download backup');
+            }
+        } catch (error) {
+            console.error('Backup error:', error);
+            alert('Backup failed');
+        }
+    };
+
     const tabs = [
         { id: 'general' as SettingsTab, label: 'General', adminOnly: true },
         { id: 'profile' as SettingsTab, label: 'Profile', adminOnly: false },
@@ -459,6 +494,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                         <div style={{ width: `${refreshProgress}%`, height: '100%', background: 'var(--accent-color)', transition: 'width 0.3s' }}></div>
                                     </div>
                                 )}
+                            </div>
+                            <div className="form-group">
+                                <label>System Backup</label>
+                                <button
+                                    className="secondary-btn"
+                                    onClick={downloadBackup}
+                                    style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}
+                                >
+                                    ⬇️ Download Database Backup
+                                </button>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '5px' }}>
+                                    Downloads a JSON file containing all books, users, and settings.
+                                </p>
                             </div>
                             <button className="primary-btn" onClick={saveSettings}>Save Changes</button>
                         </div>

@@ -699,6 +699,33 @@ app.delete('/api/users/:id', authenticateToken, requireAdmin, (req, res) => {
     });
 });
 
+// --- System Management APIs ---
+
+// Backup Database
+app.get('/api/admin/backup', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const tables = ['books', 'users', 'settings', 'audiobookshelf_servers'];
+        const backup = {};
+
+        for (const table of tables) {
+            // Check if table exists first to avoid errors
+            const [tableExists] = await db.promise().query(`SHOW TABLES LIKE '${table}'`);
+            if (tableExists.length > 0) {
+                const [rows] = await db.promise().query(`SELECT * FROM ${table}`);
+                backup[table] = rows;
+            }
+        }
+
+        const filename = `bookboss_backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+        res.json(backup);
+    } catch (error) {
+        console.error('Backup failed:', error);
+        res.status(500).json({ error: 'Backup failed: ' + error.message });
+    }
+});
+
 // Public Registration Endpoint
 app.post('/api/register', (req, res) => {
     const { username, password } = req.body;

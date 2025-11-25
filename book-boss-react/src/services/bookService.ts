@@ -30,4 +30,14 @@ export const bookService = {
     deleteBook: async (id: number): Promise<void> => {
         await apiClient.delete(`/books/${id}`);
     },
+
+    // Bulk delete books
+    bulkDeleteBooks: async (ids: number[]): Promise<void> => {
+        await apiClient.delete('/books/bulk', { data: { ids } });
+    },
+
+    // Bulk update books
+    bulkUpdateBooks: async (ids: number[], updates: Partial<Book>): Promise<void> => {
+        await apiClient.patch('/books/bulk', { ids, updates });
+    },
 };

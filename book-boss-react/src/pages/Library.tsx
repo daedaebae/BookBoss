@@ -186,7 +186,7 @@ export const Library: React.FC = () => {
         if (selectedBooks.size === 0) return;
         if (window.confirm(`Delete ${selectedBooks.size} selected books?`)) {
             try {
-                await Promise.all(Array.from(selectedBooks).map(id => bookService.deleteBook(id)));
+                await bookService.bulkDeleteBooks(Array.from(selectedBooks));
                 loadBooks();
                 setSelectedBooks(new Set());
                 setBulkMode(false);
@@ -201,9 +201,7 @@ export const Library: React.FC = () => {
     const handleBulkUpdateShelf = async (shelf: string) => {
         if (selectedBooks.size === 0) return;
         try {
-            await Promise.all(Array.from(selectedBooks).map(id =>
-                bookService.updateBook(id, { shelf })
-            ));
+            await bookService.bulkUpdateBooks(Array.from(selectedBooks), { shelf });
             loadBooks();
             setSelectedBooks(new Set());
             setBulkMode(false);
