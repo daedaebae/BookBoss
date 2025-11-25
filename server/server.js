@@ -1095,6 +1095,199 @@ app.put('/api/users/profile', authenticateToken, (req, res) => {
     });
 });
 
+// --- Reading Lists APIs ---
+
+// Get all reading lists for the current user
+app.get('/api/reading-lists', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const query = `
+        SELECT rl.*, 
+               COUNT(rlb.id) as book_count
+        FROM reading_lists rl
+        LEFT JOIN reading_list_books rlb ON rl.id = rlb.list_id
+        WHERE rl.user_id = ?
+        GROUP BY rl.id
+        ORDER BY rl.updated_at DESC
+    `;
+
+    db.query(query, [userId], (err, results) => {
+        if (err) {
+            console.error('Error fetching reading lists:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(results);
+    });
+});
+
+// Create a new reading list
+app.post('/api/reading-lists', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const { name, description, is_public } = req.body;
+
+    if (!name) {
+        return res.status(400).json({ error: 'List name is required' });
+    }
+
+    db.query(
+        'INSERT INTO reading_lists (user_id, name, description, is_public) VALUES (?, ?, ?, ?)',
+        [userId, name, description || null, is_public || false],
+        (err, result) => {
+            if (err) {
+                console.error('Error creating reading list:', err);
+                return res.status(500).json({ error: err.message });
+            }
+            res.status(201).json({
+                id: result.insertId,
+                message: 'Reading list created successfully'
+            });
+        }
+    );
+});
+
+// Get books in a specific reading list
+app.get('/api/reading-lists/:listId/books', authenticateToken, (req, res) => {
+    const { listId } = req.params;
+    const userId = req.user.id;
+
+    // First verify the list belongs to the user or is public
+    db.query(
+        'SELECT * FROM reading_lists WHERE id = ? AND (user_id = ? OR is_public = TRUE)',
+        [listId, userId],
+        (err, lists) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (lists.length === 0) {
+                return res.status(404).json({ error: 'Reading list not found' });
+            }
+
+            // Get books in the list
+            const query = `
+                SELECT b.*, rlb.added_at, rlb.notes as list_notes
+                FROM books b
+                INNER JOIN reading_list_books rlb ON b.id = rlb.book_id
+                WHERE rlb.list_id = ?
+                ORDER BY rlb.added_at DESC
+            `;
+
+            db.query(query, [listId], (err, results) => {
+                if (err) {
+                    return res.status(500).json({ error: err.message });
+                }
+                res.json(results);
+            });
+        }
+    );
+});
+
+// Add a book to a reading list
+app.post('/api/reading-lists/:listId/books', authenticateToken, (req, res) => {
+    const { listId } = req.params;
+    const { book_id, notes } = req.body;
+    const userId = req.user.id;
+
+    // Verify the list belongs to the user
+    db.query(
+        'SELECT * FROM reading_lists WHERE id = ? AND user_id = ?',
+        [listId, userId],
+        (err, lists) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (lists.length === 0) {
+                return res.status(403).json({ error: 'Access denied' });
+            }
+
+            // Add book to list
+            db.query(
+                'INSERT INTO reading_list_books (list_id, book_id, notes) VALUES (?, ?, ?)',
+                [listId, book_id, notes || null],
+                (err, result) => {
+                    if (err) {
+                        if (err.code === 'ER_DUP_ENTRY') {
+                            return res.status(400).json({ error: 'Book already in this list' });
+                        }
+                        return res.status(500).json({ error: err.message });
+                    }
+                    res.status(201).json({ message: 'Book added to reading list' });
+                }
+            );
+        }
+    );
+});
+
+// Remove a book from a reading list
+app.delete('/api/reading-lists/:listId/books/:bookId', authenticateToken, (req, res) => {
+    const { listId, bookId } = req.params;
+    const userId = req.user.id;
+
+    // Verify the list belongs to the user
+    db.query(
+        'SELECT * FROM reading_lists WHERE id = ? AND user_id = ?',
+        [listId, userId],
+        (err, lists) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (lists.length === 0) {
+                return res.status(403).json({ error: 'Access denied' });
+            }
+
+            db.query(
+                'DELETE FROM reading_list_books WHERE list_id = ? AND book_id = ?',
+                [listId, bookId],
+                (err, result) => {
+                    if (err) {
+                        return res.status(500).json({ error: err.message });
+                    }
+                    res.json({ message: 'Book removed from reading list' });
+                }
+            );
+        }
+    );
+});
+
+// Update a reading list
+app.put('/api/reading-lists/:listId', authenticateToken, (req, res) => {
+    const { listId } = req.params;
+    const { name, description, is_public } = req.body;
+    const userId = req.user.id;
+
+    db.query(
+        'UPDATE reading_lists SET name = ?, description = ?, is_public = ? WHERE id = ? AND user_id = ?',
+        [name, description, is_public, listId, userId],
+        (err, result) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'Reading list not found' });
+            }
+            res.json({ message: 'Reading list updated' });
+        }
+    );
+});
+
+// Delete a reading list
+app.delete('/api/reading-lists/:listId', authenticateToken, (req, res) => {
+    const { listId } = req.params;
+    const userId = req.user.id;
+
+    db.query(
+        'DELETE FROM reading_lists WHERE id = ? AND user_id = ?',
+        [listId, userId],
+        (err, result) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'Reading list not found' });
+            }
+            res.json({ message: 'Reading list deleted' });
+        }
+    );
+});
+
 // --- Settings APIs ---
 
 // Get all settings
