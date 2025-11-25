@@ -183,6 +183,26 @@ app.get('/api/books', (req, res) => {
 // Add a new book (with optional file upload)
 // Add a new book (with optional file upload)
 // Handles both metadata and file uploads (book file and cover image)
+// Bulk delete books
+app.post('/api/books/bulk-delete', authenticateToken, (req, res) => {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'Invalid or empty IDs array' });
+    }
+
+    const placeholders = ids.map(() => '?').join(',');
+    const query = `DELETE FROM books WHERE id IN (${placeholders})`;
+
+    db.query(query, ids, (err, result) => {
+        if (err) {
+            console.error('Error bulk deleting books:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json({ message: `Successfully deleted ${result.affectedRows} books` });
+    });
+});
+
+// Add a new book
 app.post('/api/books', authenticateToken, upload.fields([{ name: 'file', maxCount: 1 }, { name: 'coverFile', maxCount: 1 }]), async (req, res) => {
     const { title, author, isbn, cover, library, categories, addedAt } = req.body;
     const bookFile = req.files && req.files['file'] ? req.files['file'][0] : null;

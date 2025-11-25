@@ -48,6 +48,11 @@ export const bookService = {
         await apiClient.delete(`/books/${id}`);
     },
 
+    // Bulk delete books
+    bulkDeleteBooks: async (ids: number[]): Promise<void> => {
+        await apiClient.post('/books/bulk-delete', { ids });
+    },
+
     // Refresh Metadata
     refreshMetadata: async (): Promise<{ success: boolean, message: string }> => {
         const response = await apiClient.post('/books/refresh-metadata');
