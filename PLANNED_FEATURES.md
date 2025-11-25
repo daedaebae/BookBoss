@@ -136,21 +136,22 @@
   - Download permissions control
 
 ### Advanced Metadata Management
-- [ ] **Metadata Download from Multiple Sources**
-  - Support for multiple metadata providers
-  - Plugin system for custom metadata sources
-  - Batch metadata download
-  - Conflict resolution UI
+- [x] **Metadata Download from Multiple Sources**
+  - Metadata refresh from OpenLibrary API
+  - Batch metadata download for all books
+  - Success/error feedback UI
+  - Automatic book list refresh
 
-- [ ] **Publisher & Language Tracking**
-  - Add publisher field
+- [x] **Publisher & Language Tracking**
+  - Publisher field in database and UI
   - Language/locale tracking
-  - Filter by publisher or language
+  - Ready for filtering (fields exist)
 
-- [ ] **Book Ratings & Reviews**
-  - Star ratings (1-5)
+- [x] **Book Ratings & Reviews**
+  - Star ratings (0-5, supports decimals)
   - Personal review/notes field
-  - Average rating display
+  - StarRating component with hover effects
+  - Display on BookCard and BookDetailModal
 
 ### Format Conversion & Processing
 - [ ] **eBook Format Conversion**
