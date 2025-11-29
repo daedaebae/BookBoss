@@ -5,7 +5,7 @@ import { withMermaid } from 'vitepress-plugin-mermaid'
 export default withMermaid(defineConfig({
   title: "BookBoss Wiki",
   description: "Documentation for BookBoss Library Manager",
-  base: '/book-boss/', // Assuming repo name is 'book-boss'. User can change if needed.
+  base: '/BookBoss/', // Matches repo name 'BookBoss'
 
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
