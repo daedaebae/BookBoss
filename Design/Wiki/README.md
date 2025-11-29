@@ -27,8 +27,8 @@ Welcome to the BookBoss application documentation. This wiki provides comprehens
 
 ## Quick Links
 
-- [Getting Started](../../README.md)
-- [Planned Features](../../PLANNED_FEATURES.md)
+- [Getting Started](https://github.com/daedaebae/BookBoss/blob/main/README.md)
+- [Planned Features](./Planning/PLANNED_FEATURES.md)
 - [Project Repository](https://github.com/yourusername/BookBoss)
 
 ## About BookBoss
