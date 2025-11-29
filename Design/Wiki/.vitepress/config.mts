@@ -12,7 +12,15 @@ export default withMermaid(defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Features', link: '/Features' },
-      { text: 'Architecture', link: '/System_Architecture' }
+      { text: 'Architecture', link: '/System_Architecture' },
+      {
+        text: 'Sponsor',
+        items: [
+          { text: 'Patreon', link: 'https://www.patreon.com/cw/durfy' },
+          { text: 'Ko-fi', link: 'https://ko-fi.com/durfy' },
+          { text: 'Buy Me a Coffee', link: 'https://buymeacoffee.com/durf' }
+        ]
+      }
     ],
 
     sidebar: [
