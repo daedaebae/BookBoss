@@ -14,25 +14,12 @@ interface AddBookModalProps {
 
 type Tab = 'manual' | 'api' | 'scan' | 'search' | 'abs';
 
-interface GoogleBook {
-    id: string;
-    volumeInfo: {
-        title: string;
-        authors?: string[];
-        industryIdentifiers?: Array<{ type: string; identifier: string }>;
-        imageLinks?: { thumbnail: string };
-    };
-}
+
 
 export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onBookAdded }) => {
     const [activeTab, setActiveTab] = useState<Tab>('search'); // Default to search for better UX? Or keep manual. Let's stick to manual default for now, or maybe 'search' as requested in features.
     // Actually, let's make 'search' the default if that's the new primary way.
     // But for now, let's just add the tab.
-
-    // Form state
-    const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState<GoogleBook[]>([]);
-    const [isSearching, setIsSearching] = useState(false);
 
     // Manual entry form
     const [formData, setFormData] = useState<Partial<Book>>({
@@ -55,35 +42,6 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
         page_count: undefined,
     });
 
-
-
-    const addBookFromAPI = async (googleBook: GoogleBook) => {
-        const isbn = googleBook.volumeInfo.industryIdentifiers?.find(
-            (id) => id.type === 'ISBN_13' || id.type === 'ISBN_10'
-        )?.identifier || '';
-
-        const bookData: Partial<Book> = {
-            title: googleBook.volumeInfo.title,
-            author: googleBook.volumeInfo.authors?.join(', ') || 'Unknown',
-            isbn,
-            cover_url: googleBook.volumeInfo.imageLinks?.thumbnail,
-        };
-
-        try {
-            const formData = new FormData();
-            Object.entries(bookData).forEach(([key, value]) => {
-                if (value !== undefined && value !== null) {
-                    formData.append(key, value.toString());
-                }
-            });
-            await bookService.addBook(formData);
-            onBookAdded();
-            handleClose();
-        } catch (error) {
-            console.error('Error adding book:', error);
-        }
-    };
-
     const addBookManually = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
@@ -94,7 +52,11 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
             const data = new FormData();
             Object.entries(formData).forEach(([key, value]) => {
                 if (value !== undefined && value !== null && value !== '') {
-                    data.append(key, value.toString());
+                    if (key === 'cover_url') {
+                        data.append('cover', value.toString());
+                    } else {
+                        data.append(key, value.toString());
+                    }
                 }
             });
 
@@ -103,12 +65,11 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
             handleClose();
         } catch (error) {
             console.error('Error adding book:', error);
+            alert('Failed to add book. Please check the console for details.');
         }
     };
 
     const handleClose = () => {
-        setSearchQuery('');
-        setSearchResults([]);
         setFormData({
             title: '', author: '', isbn: '', library: '', format: '',
             series: '', series_index: undefined, publisher: '', language: 'en', description: '',
@@ -122,30 +83,9 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
     const handleScanSuccess = (decodedText: string) => {
         // Clean ISBN (remove dashes)
         const cleanIsbn = decodedText.replace(/-/g, '').trim();
-        setSearchQuery(`isbn:${cleanIsbn}`);
-        setActiveTab('api');
-        // Trigger search immediately
-        // We need to use the cleanIsbn directly because setState is async
-        searchGoogleBooks(`isbn:${cleanIsbn}`);
-    };
-
-    // Overload searchGoogleBooks to accept a query argument
-    const searchGoogleBooks = async (queryOverride?: string) => {
-        const query = queryOverride || searchQuery;
-        if (!query.trim()) return;
-
-        setIsSearching(true);
-        try {
-            const response = await fetch(
-                `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=10`
-            );
-            const data = await response.json();
-            setSearchResults(data.items || []);
-        } catch (error) {
-            console.error('Search error:', error);
-        } finally {
-            setIsSearching(false);
-        }
+        // TODO: Pass this to BookSearch or Manual entry
+        console.log('Scanned ISBN:', cleanIsbn);
+        alert(`Scanned ISBN: ${cleanIsbn}. Please search or enter manually.`);
     };
 
     const handleBookSelect = (book: Partial<Book>) => {
@@ -217,12 +157,7 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
                 >
                     Scan Barcode
                 </button>
-                <button
-                    className={`tab-btn ${activeTab === 'api' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('api')}
-                >
-                    Google API (Legacy)
-                </button>
+                {/* Legacy Google API removed */}
                 <button
                     className={`tab-btn ${activeTab === 'abs' ? 'active' : ''}`}
                     onClick={() => setActiveTab('abs')}
@@ -235,52 +170,14 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
                 <BookSearch onBookSelect={handleBookSelect} />
             )}
 
-            {activeTab === 'api' && (
-                <div className="tab-content active">
-                    <div className="search-form">
-                        <input
-                            type="text"
-                            placeholder="Search by title, author, or ISBN..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && searchGoogleBooks()}
-                        />
-                        <button className="primary-btn" onClick={() => searchGoogleBooks()} disabled={isSearching}>
-                            {isSearching ? 'Searching...' : 'Search'}
-                        </button>
-                    </div>
-
-                    <div className="api-results-list">
-                        {searchResults.map((book) => (
-                            <div
-                                key={book.id}
-                                className="api-result-item"
-                                onClick={() => addBookFromAPI(book)}
-                            >
-                                {book.volumeInfo.imageLinks?.thumbnail && (
-                                    <img
-                                        src={book.volumeInfo.imageLinks.thumbnail}
-                                        alt={book.volumeInfo.title}
-                                        className="api-result-thumb"
-                                    />
-                                )}
-                                <div>
-                                    <div style={{ fontWeight: 600 }}>{book.volumeInfo.title}</div>
-                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                        {book.volumeInfo.authors?.join(', ') || 'Unknown Author'}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+            {/* Legacy API tab content removed */}
 
             {activeTab === 'abs' && (
                 <div className="tab-content active">
                     <div className="text-sm text-gray-400 mb-4">
                         Search across all your connected Audiobookshelf servers.
                     </div>
+                    {/* ... (rest of ABS content remains) ... */}
                     <div className="search-form">
                         <input
                             type="text"
@@ -338,6 +235,28 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
             {activeTab === 'manual' && (
                 <div className="tab-content active">
                     <form onSubmit={addBookManually}>
+                        {/* Cover Preview */}
+                        {formData.cover_url && (
+                            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+                                <img
+                                    src={formData.cover_url}
+                                    alt="Cover Preview"
+                                    style={{ height: '200px', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
+                                    onError={(e) => e.currentTarget.style.display = 'none'}
+                                />
+                            </div>
+                        )}
+
+                        <div className="form-group">
+                            <label>Cover URL</label>
+                            <input
+                                type="text"
+                                value={formData.cover_url || ''}
+                                onChange={(e) => setFormData({ ...formData, cover_url: e.target.value })}
+                                placeholder="https://..."
+                            />
+                        </div>
+
                         <div className="form-group">
                             <label>Title *</label>
                             <input
@@ -362,6 +281,15 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
                                 type="text"
                                 value={formData.isbn}
                                 onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Categories (comma separated)</label>
+                            <input
+                                type="text"
+                                value={formData.categories || ''}
+                                onChange={(e) => setFormData({ ...formData, categories: e.target.value })}
+                                placeholder="Fiction, Thriller, etc."
                             />
                         </div>
                         <div className="form-group">

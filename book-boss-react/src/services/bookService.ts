@@ -34,10 +34,16 @@ export const bookService = {
     },
 
     // Update book (FormData support)
-    updateBook: async (id: number, formData: FormData): Promise<Book> => {
-        const response = await apiClient.put<Book>(`/books/${id}`, formData, {
-            headers: {
+    // Update book (JSON)
+    updateBook: async (id: number, data: Partial<Book> | FormData): Promise<Book> => {
+        // Check if data is FormData or plain object
+        const isFormData = data instanceof FormData;
+
+        const response = await apiClient.put<Book>(`/books/${id}`, data, {
+            headers: isFormData ? {
                 'Content-Type': 'multipart/form-data',
+            } : {
+                'Content-Type': 'application/json',
             },
         });
         return response.data;

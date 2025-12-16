@@ -6,6 +6,7 @@ import { getSafeCoverUrl } from '../../utils/coverUrlGuard';
 import { PhotoGalleryModal } from '../photos/PhotoGalleryModal';
 import { StarRating } from '../common/StarRating';
 import { absService, type AbsSearchResult } from '../../services/absService';
+import { bookService } from '../../services/bookService';
 
 interface BookDetailModalProps {
     isOpen: boolean;
@@ -32,6 +33,18 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
 }) => {
     const [showShelfSelect, setShowShelfSelect] = useState(false);
     const [showPhotoGallery, setShowPhotoGallery] = useState(false);
+    const [localRating, setLocalRating] = useState<number | undefined>(undefined);
+
+    const handleRatingChange = async (newRating: number) => {
+        if (!book) return;
+        setLocalRating(newRating);
+        try {
+            await bookService.updateBook(book.id, { rating: newRating });
+        } catch (error) {
+            console.error('Failed to update rating:', error);
+            setLocalRating(undefined);
+        }
+    };
 
     // ABS Linking
     const [isLinking, setIsLinking] = useState(false);
@@ -85,20 +98,14 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
 
     return (
         <>
-            <Modal isOpen={isOpen} onClose={onClose} title="Book Details">
-                <div style={{ display: 'flex', gap: '30px', alignItems: 'flex-start' }}>
+            <Modal isOpen={isOpen} onClose={onClose} title="Book Details" className="book-details" maxWidth="98vw">
+                <div className="book-detail-layout">
                     {/* Left Column: Large Cover Image */}
-                    <div style={{ flex: '0 0 300px' }}>
+                    <div className="book-cover-container">
                         <img
                             src={coverUrl}
                             alt={book.title}
-                            style={{
-                                width: '100%',
-                                borderRadius: '12px',
-                                boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-                                objectFit: 'cover',
-                                aspectRatio: '2/3'
-                            }}
+                            className="book-cover-large"
                             onError={(e) => {
                                 e.currentTarget.src = '/no_cover.png';
                             }}
@@ -106,24 +113,19 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
                     </div>
 
                     {/* Right Column: Details & Actions */}
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div className="book-info-column">
                         <div>
-                            <h2 style={{ fontSize: '2rem', marginBottom: '8px', color: 'var(--text-primary)' }}>{book.title}</h2>
-                            <h3 style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>{book.author}</h3>
+                            <h2 className="book-title">{book.title}</h2>
+                            <h3 className="book-author">{book.author}</h3>
 
                             {book.series && (
-                                <div style={{ marginTop: '8px', color: 'var(--accent-color)', fontWeight: 500 }}>
+                                <div className="book-series">
                                     {book.series} {book.series_order ? `#${book.series_order}` : ''}
                                 </div>
                             )}
                         </div>
 
-                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                            {book.rating && (
-                                <span className="badge" style={{ background: 'var(--glass-background)', border: '1px solid var(--glass-border)' }}>
-                                    ⭐ {book.rating}
-                                </span>
-                            )}
+                        <div className="book-badges">
                             {book.status && (
                                 <span className={`badge badge-status ${book.status.toLowerCase().replace(' ', '-')}`}>
                                     {book.status}
@@ -146,11 +148,31 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
                             </div>
                         )}
 
-                        {/* Metadata Grid */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '10px 20px', fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
-                            {book.isbn && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '10px 20px', fontSize: '0.95rem', color: 'var(--text-secondary)', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                            {/* Dynamically show fields only if they have non-zero/non-empty data */}
+                            {book.isbn && book.isbn !== '0' && (
                                 <>
                                     <strong>ISBN:</strong> <span>{book.isbn}</span>
+                                </>
+                            )}
+                            {book.series_index !== undefined && book.series_index !== 0 && (
+                                <>
+                                    <strong>Series Index:</strong> <span>{book.series_index}</span>
+                                </>
+                            )}
+                            {book.publisher && (
+                                <>
+                                    <strong>Publisher:</strong> <span>{book.publisher}</span>
+                                </>
+                            )}
+                            {book.language && (
+                                <>
+                                    <strong>Language:</strong> <span>{book.language.toUpperCase()}</span>
+                                </>
+                            )}
+                            {book.categories && (
+                                <>
+                                    <strong>Categories:</strong> <span>{Array.isArray(book.categories) ? book.categories.join(', ') : book.categories}</span>
                                 </>
                             )}
                             {book.publication_date && (
@@ -173,7 +195,56 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
                                     <strong>Shelf:</strong> <span>{book.shelf}</span>
                                 </>
                             )}
+                            {book.physical_format && (
+                                <>
+                                    <strong>Format:</strong> <span>{book.physical_format}</span>
+                                </>
+                            )}
+                            {book.book_condition && (
+                                <>
+                                    <strong>Condition:</strong> <span>{book.book_condition}</span>
+                                </>
+                            )}
+                            {!!book.is_signed && (
+                                <>
+                                    <strong>Signed:</strong> <span>Yes ✍️</span>
+                                </>
+                            )}
+                            {book.edition_type && (
+                                <>
+                                    <strong>Edition:</strong> <span>{book.edition_type}</span>
+                                </>
+                            )}
+                            {book.edge_type && (
+                                <>
+                                    <strong>Edges:</strong> <span>{book.edge_type}</span>
+                                </>
+                            )}
+                            {book.binding_details && (
+                                <>
+                                    <strong>Binding:</strong> <span>{book.binding_details}</span>
+                                </>
+                            )}
+                            {!!book.has_bonus_chapters && (
+                                <>
+                                    <strong>Bonus:</strong> <span>Includes Bonus Chapters 📖</span>
+                                </>
+                            )}
+                            {book.page_count && book.page_count > 0 && (
+                                <>
+                                    <strong>Pages:</strong> <span>{book.page_count}</span>
+                                </>
+                            )}
                         </div>
+
+                        {book.description && (
+                            <div style={{ marginTop: '15px', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
+                                <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '5px' }}>Description</strong>
+                                <p style={{ fontSize: '0.9rem', lineHeight: '1.5', color: 'var(--text-secondary)', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                                    {book.description}
+                                </p>
+                            </div>
+                        )}
 
                         {/* Loan Info */}
                         {book.is_loaned && (
@@ -283,35 +354,37 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
                         </div>
 
                         {/* Rating and Review Section */}
-                        {(book.rating || book.notes) && (
-                            <div style={{
-                                padding: '15px',
-                                background: 'var(--glass-bg)',
-                                borderRadius: '8px',
-                                border: '1px solid var(--glass-border)',
-                                marginTop: '15px'
-                            }}>
-                                {book.rating && (
-                                    <div style={{ marginBottom: book.notes ? '12px' : '0' }}>
-                                        <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--text-primary)' }}>Your Rating:</strong>
-                                        <StarRating rating={book.rating} size="large" showValue readonly />
-                                    </div>
-                                )}
-                                {book.notes && (
-                                    <div>
-                                        <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--text-primary)' }}>Your Review:</strong>
-                                        <p style={{
-                                            color: 'var(--text-secondary)',
-                                            lineHeight: '1.6',
-                                            margin: 0,
-                                            whiteSpace: 'pre-wrap'
-                                        }}>
-                                            {book.notes}
-                                        </p>
-                                    </div>
-                                )}
+                        <div style={{
+                            padding: '15px',
+                            background: 'var(--glass-bg)',
+                            borderRadius: '8px',
+                            border: '1px solid var(--glass-border)',
+                            marginTop: '15px'
+                        }}>
+                            <div style={{ marginBottom: book.notes ? '12px' : '0' }}>
+                                <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--text-primary)' }}>Your Rating:</strong>
+                                <StarRating
+                                    rating={localRating !== undefined ? localRating : (book.rating || 0)}
+                                    size="large"
+                                    onRatingChange={handleRatingChange}
+                                />
                             </div>
-                        )}
+                            {book.notes && (
+                                <div>
+                                    <strong style={{ display: 'block', marginBottom: '8px', color: 'var(--text-primary)' }}>Your Review:</strong>
+                                    <p style={{
+                                        color: 'var(--text-secondary)',
+                                        lineHeight: '1.6',
+                                        margin: 0,
+                                        whiteSpace: 'pre-wrap',
+                                        wordBreak: 'break-word',
+                                        overflowWrap: 'anywhere'
+                                    }}>
+                                        {book.notes}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
 
                         {/* Action Buttons */}
                         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '20px', borderTop: '1px solid var(--glass-border)' }}>
