@@ -20,6 +20,12 @@ export const BookCard: React.FC<BookCardProps> = ({
 }) => {
     const coverUrl = getSafeCoverUrl(book);
 
+    // Format Detection
+    const isAudio = book.format === 'Audiobook' || book.library === 'Audiobooks';
+    const isEbook = book.format === 'Ebook' || !!book.epub_file_path;
+    const isPhysical = book.format === 'Physical' || !!book.physical_format ||
+        ['Hardback', 'Paperback', 'Mass Market Paperback'].includes(book.format || '');
+
     // Progress Bar Calculation
     const progressPercent = book.page_count && book.user_progress
         ? Math.min(100, Math.round((book.user_progress / book.page_count) * 100))
@@ -56,14 +62,35 @@ export const BookCard: React.FC<BookCardProps> = ({
                     />
                 </div>
             )}
-            <img
-                src={coverUrl}
-                alt={book.title}
-                className="book-cover"
-                onError={(e) => {
-                    e.currentTarget.src = '/no_cover.png';
-                }}
-            />
+
+            <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                <img
+                    src={coverUrl}
+                    alt={book.title}
+                    className="book-cover"
+                    onError={(e) => {
+                        e.currentTarget.src = '/no_cover.png';
+                    }}
+                />
+
+                {/* Format Emojis */}
+                <div style={{
+                    position: 'absolute',
+                    bottom: '8px',
+                    right: '8px',
+                    display: 'flex',
+                    gap: '4px',
+                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                    padding: '2px 6px',
+                    borderRadius: '12px',
+                    backdropFilter: 'blur(4px)',
+                    zIndex: 5
+                }}>
+                    {isAudio && <span role="img" aria-label="Audiobook" title="Audiobook">🎧</span>}
+                    {isEbook && <span role="img" aria-label="Ebook" title="Ebook">📱</span>}
+                    {isPhysical && <span role="img" aria-label="Physical" title="Physical">📕</span>}
+                </div>
+            </div>
 
             {/* Progress Bar */}
             {((displayStatus === 'In Progress' || displayStatus === 'reading') && progressPercent > 0) && (

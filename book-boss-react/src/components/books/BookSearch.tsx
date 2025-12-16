@@ -39,22 +39,55 @@ export const BookSearch: React.FC<BookSearchProps> = ({ onBookSelect }) => {
         }
     };
 
-    const handleAddBook = (doc: any) => {
-        const coverId = doc.cover_i;
-        const book: Partial<Book> = {
-            title: doc.title,
-            author: doc.author_name ? doc.author_name.join(', ') : 'Unknown Author',
-            isbn: doc.isbn ? doc.isbn[0] : '',
-            cover_url: coverId ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : undefined,
-            categories: doc.subject ? doc.subject.slice(0, 5) : [],
-            publication_date: doc.first_publish_year ? String(doc.first_publish_year) : undefined,
-            library: 'Main Library',
-            format: 'Physical',
-            binding_type: 'Paperback',
-            status: 'Not Started',
-            added_at: new Date().toISOString()
-        };
-        onBookSelect(book);
+    const handleAddBook = async (doc: any) => {
+        setIsLoading(true);
+        try {
+            // Fetch detailed work info for description
+            let description = '';
+            if (doc.key) {
+                try {
+                    const workRes = await fetch(`https://openlibrary.org${doc.key}.json`);
+                    if (workRes.ok) {
+                        const workData = await workRes.json();
+                        description = typeof workData.description === 'string'
+                            ? workData.description
+                            : workData.description?.value || '';
+                    }
+                } catch (e) {
+                    console.error('Failed to fetch work details', e);
+                }
+            }
+
+            const coverId = doc.cover_i;
+            const book: Partial<Book> = {
+                title: doc.title,
+                author: doc.author_name ? doc.author_name.join(', ') : 'Unknown Author',
+                isbn: doc.isbn ? doc.isbn[0] : '',
+                cover_url: coverId ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : undefined,
+                categories: doc.subject ? doc.subject.slice(0, 5) : [],
+                publication_date: doc.first_publish_year ? String(doc.first_publish_year) : undefined,
+                publisher: doc.publisher ? doc.publisher[0] : undefined,
+                page_count: doc.number_of_pages_median || undefined,
+                description: description,
+                library: 'Main Library',
+                format: 'Physical',
+                binding_type: 'Paperback',
+                status: 'Not Started',
+                added_at: new Date().toISOString()
+            };
+            onBookSelect(book);
+        } catch (error) {
+            console.error('Error preparing book details:', error);
+            // Fallback to basic details
+            const coverId = doc.cover_i;
+            onBookSelect({
+                title: doc.title,
+                author: doc.author_name ? doc.author_name.join(', ') : 'Unknown Author',
+                cover_url: coverId ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : undefined,
+            });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -83,49 +116,28 @@ export const BookSearch: React.FC<BookSearchProps> = ({ onBookSelect }) => {
                 </div>
             )}
 
-            <div className="search-results" style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-                gap: '20px',
-                maxHeight: '400px',
-                overflowY: 'auto',
-                paddingRight: '10px'
-            }}>
+            <div className="search-results-grid">
                 {results.map((doc, index) => (
-                    <div key={doc.key || index} className="book-card" style={{
-                        padding: '10px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '10px'
-                    }}>
-                        <div style={{
-                            height: '200px',
-                            background: 'var(--glass-bg)',
-                            borderRadius: '8px',
-                            overflow: 'hidden',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
+                    <div key={doc.key || index} className="book-card search-result-card">
+                        <div className="search-result-cover">
                             {doc.cover_i ? (
                                 <img
                                     src={`https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`}
                                     alt={doc.title}
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 />
                             ) : (
                                 <span style={{ fontSize: '2rem' }}>📚</span>
                             )}
                         </div>
-                        <div style={{ flex: 1 }}>
-                            <h4 style={{ margin: '0 0 5px 0', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={doc.title}>
+                        <div className="search-result-info">
+                            <h4 title={doc.title}>
                                 {doc.title}
                             </h4>
-                            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            <p className="search-result-author">
                                 {doc.author_name ? doc.author_name[0] : 'Unknown'}
                             </p>
                             {doc.first_publish_year && (
-                                <p style={{ margin: '5px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                <p className="search-result-year">
                                     {doc.first_publish_year}
                                 </p>
                             )}
@@ -133,7 +145,6 @@ export const BookSearch: React.FC<BookSearchProps> = ({ onBookSelect }) => {
                         <button
                             className="secondary-btn small"
                             onClick={() => handleAddBook(doc)}
-                            style={{ width: '100%' }}
                         >
                             + Add
                         </button>

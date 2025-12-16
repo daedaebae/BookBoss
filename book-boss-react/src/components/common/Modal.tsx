@@ -6,14 +6,15 @@ interface ModalProps {
     title: string;
     children: ReactNode;
     maxWidth?: string;
+    className?: string;
 }
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, maxWidth = '600px' }) => {
+export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, maxWidth = '600px', className = '' }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth }}>
+        <div className={`modal-overlay ${className}`} onClick={onClose}>
+            <div className={`modal-content ${className}`} onClick={(e) => e.stopPropagation()} style={{ maxWidth }}>
                 <div className="modal-header">
                     <h3>{title}</h3>
                     <button className="close-modal-btn" onClick={onClose}>

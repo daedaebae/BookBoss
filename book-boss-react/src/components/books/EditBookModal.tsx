@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
+import { Toast } from '../common/Toast';
 import { type Book } from '../../types/book';
 import { bookService } from '../../services/bookService';
 
@@ -11,6 +12,12 @@ interface EditBookModalProps {
 }
 
 export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, book, onBookUpdated }) => {
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; isVisible: boolean }>({
+        message: '',
+        type: 'success',
+        isVisible: false
+    });
+
     const [formData, setFormData] = useState<Partial<Book>>({
         title: '',
         author: '',
@@ -80,25 +87,48 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
         }
     }, [book]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const showToast = (message: string, type: 'success' | 'error') => {
+        setToast({ message, type, isVisible: true });
+    };
+
+    const handleSave = async (shouldClose: boolean) => {
         if (!book) return;
 
         try {
-            // Use FormData for update
-            const data = new FormData();
-            Object.entries(formData).forEach(([key, value]) => {
-                if (value !== undefined && value !== null && value !== '') {
-                    data.append(key, value.toString());
+            const payload: any = { ...formData };
+            // Clean up empty strings or undefined logic if needed
+            Object.keys(payload).forEach(key => {
+                if (payload[key] === '' || payload[key] === undefined) {
+                    // maintain existing behavior or cleanup
                 }
             });
 
-            await bookService.updateBook(book.id, data);
+            await bookService.updateBook(book.id, payload);
             onBookUpdated();
-            onClose();
+
+            showToast('Book updated successfully!', 'success');
+
+            if (shouldClose) {
+                // Delay close slightly to show toast, or close immediately?
+                // Toast is inside modal, so if we close modal, toast disappears.
+                // If "Save & Close", maybe we don't need toast? Or we need global toast?
+                // User said "provide a toast notification when you click save button to show success/fail".
+                // And "add a 'save and close' button".
+                // If I click Save & Close, and modal closes, I won't see toast if it's IN the modal.
+                // But I'll implement it such that it closes after a short delay for now, or just updates.
+                setTimeout(() => {
+                    onClose();
+                }, 1000);
+            }
         } catch (error) {
             console.error('Error updating book:', error);
+            showToast('Failed to update book', 'error');
         }
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        handleSave(false);
     };
 
     return (
@@ -220,17 +250,7 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
                         <option value="DNF">DNF</option>
                     </select>
                 </div>
-                <div className="form-group">
-                    <label>Rating (0-5)</label>
-                    <input
-                        type="number"
-                        min="0"
-                        max="5"
-                        step="0.5"
-                        value={formData.rating || ''}
-                        onChange={(e) => setFormData({ ...formData, rating: parseFloat(e.target.value) })}
-                    />
-                </div>
+
                 <div className="form-group">
                     <label>Your Review / Notes</label>
                     <textarea
@@ -444,15 +464,26 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
                     )}
                 </div>
 
-                <div style={{ display: 'flex', gap: '10px' }}>
-                    <button type="button" className="secondary-btn" onClick={onClose}>
+                <div className="modal-footer">
+                    <button type="button" className="btn-secondary" onClick={onClose}>
                         Cancel
                     </button>
-                    <button type="submit" className="primary-btn" style={{ flex: 1 }}>
-                        Save Changes
-                    </button>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button type="button" className="btn-primary" onClick={() => handleSave(true)}>
+                            Save & Close
+                        </button>
+                        <button type="submit" className="btn-primary">
+                            Save Changes
+                        </button>
+                    </div>
                 </div>
             </form>
+            <Toast
+                message={toast.message}
+                type={toast.type === 'success' ? 'success' : 'error'}
+                isVisible={toast.isVisible}
+                onClose={() => setToast(prev => ({ ...prev, isVisible: false }))}
+            />
         </Modal>
     );
 };
