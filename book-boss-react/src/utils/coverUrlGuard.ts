@@ -11,21 +11,27 @@ import { type Book } from '../types/book';
 export function getSafeCoverUrl(book: Book): string {
     // Local uploaded cover image path
     if (book.cover_image_path) {
-        return `http://localhost:3000/${book.cover_image_path}`;
+        return book.cover_image_path.startsWith('/')
+            ? book.cover_image_path
+            : `/${book.cover_image_path}`;
     }
 
     // Remote cover URL
     if (book.cover_url) {
         const urlStr = book.cover_url.trim();
 
-        // Ensure it starts with http/https; otherwise prepend localhost
-        // Also handle missing leading slash
+        // Ensure it starts with http/https; otherwise treat as relative path
         const url = urlStr.startsWith('http')
             ? urlStr
-            : `http://localhost:3000${urlStr.startsWith('/') ? '' : '/'}${urlStr}`;
+            : (urlStr.startsWith('/') ? urlStr : `/${urlStr}`);
 
         // Guard against placeholder domains (example.com) or empty host
         try {
+            // If it's a relative path, return it directly
+            if (url.startsWith('/')) {
+                return url;
+            }
+
             const parsed = new URL(url);
             if (parsed.hostname === 'example.com' || parsed.hostname === 'abs.example.com') {
                 return '/no_cover.png';

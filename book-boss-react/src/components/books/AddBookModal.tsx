@@ -4,6 +4,7 @@ import { BarcodeScanner } from './BarcodeScanner';
 import { BookSearch } from './BookSearch';
 import { type Book } from '../../types/book';
 import { bookService } from '../../services/bookService';
+import { absService, type AbsSearchResult } from '../../services/absService';
 
 interface AddBookModalProps {
     isOpen: boolean;
@@ -11,7 +12,7 @@ interface AddBookModalProps {
     onBookAdded: () => void;
 }
 
-type Tab = 'manual' | 'api' | 'scan' | 'search';
+type Tab = 'manual' | 'api' | 'scan' | 'search' | 'abs';
 
 interface GoogleBook {
     id: string;
@@ -165,6 +166,36 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
         setActiveTab('manual');
     };
 
+    // ABS Integration
+    const [absSearchQuery, setAbsSearchQuery] = useState('');
+    const [absSearchResults, setAbsSearchResults] = useState<AbsSearchResult[]>([]);
+    const [isAbsSearching, setIsAbsSearching] = useState(false);
+
+    const handleAbsSearch = async () => {
+        if (!absSearchQuery.trim()) return;
+        setIsAbsSearching(true);
+        try {
+            const results = await absService.search(absSearchQuery);
+            setAbsSearchResults(results);
+        } catch (error) {
+            console.error('ABS Search Error:', error);
+            // Optionally show toast error
+        } finally {
+            setIsAbsSearching(false);
+        }
+    };
+
+    const handleAbsImport = async (item: AbsSearchResult) => {
+        try {
+            await absService.importBook(item);
+            onBookAdded();
+            handleClose();
+        } catch (error) {
+            console.error('ABS Import Error:', error);
+            // Optionally show toast error
+        }
+    };
+
     return (
         <Modal isOpen={isOpen} onClose={handleClose} title="Add New Book">
             <div className="tabs" style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--glass-border)', paddingBottom: '10px' }}>
@@ -192,13 +223,19 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
                 >
                     Google API (Legacy)
                 </button>
+                <button
+                    className={`tab-btn ${activeTab === 'abs' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('abs')}
+                >
+                    Audiobookshelf
+                </button>
             </div>
 
             {activeTab === 'search' && (
                 <BookSearch onBookSelect={handleBookSelect} />
             )}
 
-            {activeTab === 'api' ? (
+            {activeTab === 'api' && (
                 <div className="tab-content active">
                     <div className="search-form">
                         <input
@@ -237,14 +274,68 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
                         ))}
                     </div>
                 </div>
-            ) : activeTab === 'scan' ? (
+            )}
+
+            {activeTab === 'abs' && (
+                <div className="tab-content active">
+                    <div className="text-sm text-gray-400 mb-4">
+                        Search across all your connected Audiobookshelf servers.
+                    </div>
+                    <div className="search-form">
+                        <input
+                            type="text"
+                            placeholder="Search Audiobookshelf..."
+                            value={absSearchQuery}
+                            onChange={(e) => setAbsSearchQuery(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleAbsSearch()}
+                        />
+                        <button className="primary-btn" onClick={() => handleAbsSearch()} disabled={isAbsSearching}>
+                            {isAbsSearching ? 'Searching...' : 'Search'}
+                        </button>
+                    </div>
+
+                    <div className="api-results-list">
+                        {absSearchResults.map((item) => (
+                            <div
+                                key={item.id}
+                                className="api-result-item"
+                                onClick={() => handleAbsImport(item)}
+                            >
+                                {item.media.coverPath ? (
+                                    <div className="api-result-thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>
+                                        🎧
+                                    </div>
+                                ) : (
+                                    <div className="api-result-thumb" />
+                                )}
+                                <div>
+                                    <div style={{ fontWeight: 600 }}>{item.media.metadata.title || item.name}</div>
+                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                        {item.media.metadata.authorName || (item.media.metadata.authors && item.media.metadata.authors.length > 0 ? item.media.metadata.authors[0].name : 'Unknown Author')}
+                                    </div>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--accent-color)', marginTop: '4px' }}>
+                                        {item._server.name} • {item._library.name}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        {absSearchResults.length === 0 && !isAbsSearching && absSearchQuery && (
+                            <div className="text-center text-gray-500 mt-4">No results found.</div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'scan' && (
                 <div className="tab-content active">
                     <BarcodeScanner
                         onScanSuccess={handleScanSuccess}
                         onScanFailure={(err) => console.log(err)}
                     />
                 </div>
-            ) : (
+            )}
+
+            {activeTab === 'manual' && (
                 <div className="tab-content active">
                     <form onSubmit={addBookManually}>
                         <div className="form-group">

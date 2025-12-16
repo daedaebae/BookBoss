@@ -1,5 +1,27 @@
 # BookBoss
 
+A comprehensive book management system.
+
+## 🚀 Quick Start (Docker)
+
+The easiest way to run BookBoss is with Docker.
+
+1.  **Prerequisites**:
+    *   Install [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+    *   Add `127.0.0.1 durf.local` to your `/etc/hosts` file.
+2.  **Run**:
+    ```bash
+    docker compose up --build -d
+    ```
+3.  **Access**:
+    -   **Frontend**: https://durf.local (or https://localhost)
+        -   *Note*: Accept the self-signed certificate warning in your browser.
+    -   **Backend**: http://localhost:3000 (API)
+    -   **Database**: Port 3306 (internal), 3307 (external)
+
+> **Note**: Default credentials in `docker-compose.yml` are for development only. Change `JWT_SECRET` and passwords for production usage.
+
+## Manual Installation
 A modern, full-featured book management application for tracking your personal library with support for physical books, ebooks, and audiobooks.
 
 ## 📚 Documentation

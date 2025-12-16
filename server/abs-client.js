@@ -195,6 +195,12 @@ class AudiobookshelfClient {
      * @param {string} query - The search query
      * @returns {Promise<Object>} Search results
      */
+    /**
+     * Search within a specific library
+     * @param {string} libraryId - The library ID
+     * @param {string} query - The search query
+     * @returns {Promise<Object>} Search results
+     */
     async searchLibrary(libraryId, query) {
         try {
             const response = await this.client.get(`/api/libraries/${libraryId}/search`, {
@@ -213,7 +219,7 @@ class AudiobookshelfClient {
      */
     async getServerStatus() {
         try {
-            const response = await this.client.get('/api/authorize');
+            const response = await this.client.get('/api/me');
             return response.data;
         } catch (error) {
             console.error('ABS Get Server Status Error:', error.response ? error.response.data : error.message);

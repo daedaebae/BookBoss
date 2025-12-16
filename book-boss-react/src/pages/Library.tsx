@@ -14,10 +14,12 @@ import { UpdateProgressModal } from '../components/books/UpdateProgressModal';
 import { shelfService } from '../services/shelfService';
 import { type Shelf } from '../types/shelf';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { MetadataRefreshModal } from '../components/books/MetadataRefreshModal';
 
 export const Library: React.FC = () => {
     const { theme, setTheme } = useTheme();
+    const { user, logout } = useAuth();
     const [books, setBooks] = useState<Book[]>([]);
     const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
     const [shelves, setShelves] = useState<Shelf[]>([]);
@@ -316,134 +318,72 @@ export const Library: React.FC = () => {
                 onMobileClose={() => setIsMobileSidebarOpen(false)}
                 onToggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)}
                 isVisible={isSidebarVisible}
+                user={user}
+                onLogout={logout}
+                onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                onSettingsClick={() => setIsSettingsModalOpen(true)}
             />
 
-            <div style={{ marginLeft: isSidebarVisible ? 'var(--sidebar-width)' : '0', minHeight: '100vh', transition: 'margin-left 0.3s ease' }}>
-                <div className="top-bar" style={{ display: 'flex', gap: '30px', alignItems: 'center', paddingRight: '340px', position: 'relative' }}>
-                    {/* Mobile Hamburger Menu */}
-                    <button
-                        className="icon-btn mobile-only"
-                        onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-                        style={{
-                            position: 'absolute',
-                            left: '15px',
-                            fontSize: '1.5rem',
-                            zIndex: 10,
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--text-primary)',
-                            cursor: 'pointer',
-                            padding: '8px',
-                            display: 'none'
-                        }}
-                        aria-label="Toggle menu"
-                    >
-                        ☰
-                    </button>
-
-                    <div className="search-container" style={{ flex: 1, maxWidth: '400px' }}>
-                        <input
-                            type="text"
-                            placeholder="Search books by title, author, or ISBN..."
-                            value={filters.search}
-                            onChange={(e) => handleSearch(e.target.value)}
-                        />
-                    </div>
-                    <button
-                        className="secondary-btn small"
-                        onClick={() => {
-                            setBulkMode(!bulkMode);
-                            setSelectedBooks(new Set());
-                        }}
-                    >
-                        {bulkMode ? 'Cancel' : 'Select Multiple'}
-                    </button>
-                    <select
-                        value={filters.sortBy}
-                        onChange={(e) => setFilters((prev) => ({ ...prev, sortBy: e.target.value as BookFilters['sortBy'] }))}
-                        style={{
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            border: '1px solid var(--glass-border)',
-                            background: 'var(--glass-bg)',
-                            color: 'var(--text-primary)',
-                        }}
-                    >
-                        <option value="added_desc">Recently Added</option>
-                        <option value="added_asc">Oldest First</option>
-                        <option value="title_asc">Title (A-Z)</option>
-                        <option value="author_asc">Author (A-Z)</option>
-                        <option value="rating_desc">Highest Rated</option>
-                        <option value="page_count_desc">Longest</option>
-                        <option value="pub_date_desc">Newest Published</option>
-                    </select>
-
-                    {/* Theme Toggle and Add Book - Fixed Position */}
-                    <div style={{
-                        position: 'fixed',
-                        top: '20px',
-                        right: '20px',
-                        zIndex: 100,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '15px'
-                    }}>
-                        {/* Dark/Light Mode Toggle */}
-                        <label style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            cursor: 'pointer',
-                            background: 'var(--glass-bg)',
-                            padding: '8px 12px',
-                            borderRadius: '20px',
-                            border: '1px solid var(--glass-border)'
-                        }}>
-                            <span style={{ fontSize: '1.2rem' }}>{theme === 'dark' ? '🌙' : '☀️'}</span>
-                            <input
-                                type="checkbox"
-                                checked={theme === 'light'}
-                                onChange={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                                style={{ display: 'none' }}
-                            />
-                            <div style={{
-                                width: '40px',
-                                height: '20px',
-                                background: theme === 'dark' ? 'var(--text-secondary)' : 'var(--accent-color)',
-                                borderRadius: '10px',
-                                position: 'relative',
-                                transition: 'background 0.3s'
-                            }}>
-                                <div style={{
-                                    width: '16px',
-                                    height: '16px',
-                                    background: 'white',
-                                    borderRadius: '50%',
-                                    position: 'absolute',
-                                    top: '2px',
-                                    left: theme === 'dark' ? '2px' : '22px',
-                                    transition: 'left 0.3s'
-                                }} />
-                            </div>
-                        </label>
-
-                        {/* Settings Button */}
+            <div className="content-area" style={{ marginLeft: isSidebarVisible ? 'var(--sidebar-width)' : '0', minHeight: '100vh', transition: 'margin-left 0.3s ease' }}>
+                <div className="top-bar" style={{ display: 'flex', gap: '20px', alignItems: 'center', position: 'sticky', top: 0, zIndex: 40, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flex: 1, minWidth: '300px' }}>
+                        {/* Mobile Hamburger Menu */}
                         <button
-                            className="secondary-btn"
-                            onClick={() => setIsSettingsModalOpen(true)}
+                            className="icon-btn mobile-only"
+                            onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
                             style={{
-                                padding: '10px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: '50%',
-                                width: '42px',
-                                height: '42px'
+                                fontSize: '1.5rem',
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--text-primary)',
+                                cursor: 'pointer',
+                                padding: '8px',
                             }}
-                            title="Settings"
+                            aria-label="Toggle menu"
                         >
-                            ⚙️
+                            ☰
                         </button>
+
+                        <div className="search-container" style={{ flex: 1 }}>
+                            <input
+                                type="text"
+                                placeholder="Search books..."
+                                value={filters.search}
+                                onChange={(e) => handleSearch(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <button
+                            className="secondary-btn small"
+                            onClick={() => {
+                                setBulkMode(!bulkMode);
+                                setSelectedBooks(new Set());
+                            }}
+                        >
+                            {bulkMode ? 'Cancel' : 'Select'}
+                        </button>
+                        <select
+                            value={filters.sortBy}
+                            onChange={(e) => setFilters((prev) => ({ ...prev, sortBy: e.target.value as BookFilters['sortBy'] }))}
+                            style={{
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                border: '1px solid var(--glass-border)',
+                                background: 'var(--glass-bg)',
+                                color: 'var(--text-primary)',
+                                maxWidth: '150px'
+                            }}
+                        >
+                            <option value="added_desc">Recent</option>
+                            <option value="added_asc">Oldest</option>
+                            <option value="title_asc">Title</option>
+                            <option value="author_asc">Author</option>
+                            <option value="rating_desc">Rating</option>
+                            <option value="page_count_desc">Length</option>
+                            <option value="pub_date_desc">Published</option>
+                        </select>
 
                         {/* Refresh Metadata Button */}
                         <button
@@ -477,7 +417,7 @@ export const Library: React.FC = () => {
                             }}
                         >
                             <span style={{ fontSize: '1.2rem' }}>+</span>
-                            <span>Add Book</span>
+                            <span>Add</span>
                         </button>
                     </div>
                 </div>

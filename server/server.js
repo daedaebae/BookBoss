@@ -4,13 +4,21 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const multer = require('multer');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
+
 const axios = require('axios');
 const fs = require('fs');
 const crypto = require('crypto');
 const { exec } = require('child_process');
 require('dotenv').config();
 const AudiobookshelfClient = require('./abs-client');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const helmet = require('helmet');
+
+if (!process.env.JWT_SECRET) {
+    console.warn('WARNING: JWT_SECRET environment variable is not set. Using insecure default.');
+}
+const JWT_SECRET = process.env.JWT_SECRET || 'insecure-default-secret';
 
 /**
  * BookBoss Server
@@ -19,13 +27,15 @@ const AudiobookshelfClient = require('./abs-client');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// In-memory session store
-const sessions = {}; // token -> { userId, username, isAdmin, expiresAt }
-const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+// Security Middleware
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow cross-origin for images
+}));
+
 
 // Middleware - Enhanced CORS Configuration
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:8080'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Range'],
@@ -48,24 +58,23 @@ app.use((req, res, next) => {
     next();
 });
 
+// In-memory session store (Removed in favor of JWT)
+// const sessions = {}; 
+// const SESSION_DURATION = 24 * 60 * 60 * 1000;
+
 // Authentication Middleware
-// Verifies the Bearer token against the in-memory session store
+// Verifies the Bearer token using JWT
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
     if (!token) return res.sendStatus(401); // Unauthorized
 
-    const session = sessions[token];
-    if (!session) return res.sendStatus(403); // Forbidden (Invalid token)
-
-    if (Date.now() > session.expiresAt) {
-        delete sessions[token];
-        return res.sendStatus(403); // Expired
-    }
-
-    req.user = session;
-    next();
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.sendStatus(403); // Forbidden (Invalid token)
+        req.user = user;
+        next();
+    });
 };
 
 // Admin Middleware
@@ -121,20 +130,26 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // Database Connection
-const db = mysql.createConnection({
+// Database Connection
+const db = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD ?? 'password',
-    database: process.env.DB_NAME || 'bookboss'
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME || 'bookboss',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
-db.connect(err => {
-    if (err) {
-        console.error('Database connection failed:', err.stack);
-        return;
-    }
-    console.log('Connected to database.');
+if (!process.env.DB_PASSWORD) {
+    console.warn('WARNING: DB_PASSWORD environment variable is not set. Database connection may fail.');
+}
+
+// Pool events (optional logging)
+db.on('connection', (connection) => {
+    console.log('DB Connection established');
 });
+
 
 // --- API Endpoints ---
 
@@ -150,16 +165,14 @@ db.connect(err => {
 // The plan was to fetch reading progress via `/api/user/books`.
 // So we just need `shelf_ids`.
 app.get('/api/books', (req, res) => {
-    // We use a LEFT JOIN to get shelf_ids.
-    // Since we can't easily do GROUP_CONCAT with a simple * select without grouping everything,
-    // subquery is safer for mapped columns.
-    // Note: older MySQL versions might not support JSON_ARRAYAGG.
-    // If that fails, we might need a separate query or GROUP_CONCAT.
-    // Let's try JSON_ARRAYAGG.
+    // We use a LEFT JOIN to get shelf_ids and ABS mapping.
+    // Since we also join shelf_books, let's keep it robust.
     const query = `
         SELECT b.*,
-        (SELECT JSON_ARRAYAGG(shelf_id) FROM shelf_books WHERE book_id = b.id) as shelf_ids
+        (SELECT JSON_ARRAYAGG(shelf_id) FROM shelf_books WHERE book_id = b.id) as shelf_ids,
+        abm.abs_server_id, abm.abs_library_item_id, abm.abs_library_id
         FROM books b
+        LEFT JOIN abs_book_mappings abm ON b.id = abm.book_id
         ORDER BY b.added_at DESC
     `;
 
@@ -169,12 +182,30 @@ app.get('/api/books', (req, res) => {
             return res.status(500).json({ error: err.message });
         }
         // Parse JSON categories and shelf_ids
-        const books = results.map(book => ({
-            ...book,
-            categories: typeof book.categories === 'string' ? JSON.parse(book.categories || '[]') : (book.categories || []),
-            descriptors: typeof book.descriptors === 'string' ? JSON.parse(book.descriptors || '[]') : (book.descriptors || []),
-            shelf_ids: typeof book.shelf_ids === 'string' ? JSON.parse(book.shelf_ids || '[]') : (book.shelf_ids || [])
-        }));
+        const books = results.map(book => {
+            const b = {
+                ...book,
+                categories: typeof book.categories === 'string' ? JSON.parse(book.categories || '[]') : (book.categories || []),
+                descriptors: typeof book.descriptors === 'string' ? JSON.parse(book.descriptors || '[]') : (book.descriptors || []),
+                shelf_ids: typeof book.shelf_ids === 'string' ? JSON.parse(book.shelf_ids || '[]') : (book.shelf_ids || []),
+            };
+
+            // Structure ABS info
+            if (book.abs_server_id) {
+                b.abs_metadata = {
+                    serverId: book.abs_server_id,
+                    libraryItemId: book.abs_library_item_id,
+                    libraryId: book.abs_library_id
+                };
+            }
+
+            // Clean up flat fields to avoid pollution (optional)
+            delete b.abs_server_id;
+            delete b.abs_library_item_id;
+            delete b.abs_library_id;
+
+            return b;
+        });
         res.json(books);
     });
 });
@@ -556,17 +587,12 @@ app.get('/api/books/:id/download', authenticateToken, (req, res) => {
 });
 
 // Login Endpoint
-// Login Endpoint
-// Authenticates user and returns a session token
-app.post('/api/login', (req, res) => {
+// Authenticates user and returns a JWT token
+app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
-    const query = 'SELECT * FROM users WHERE username = ?';
 
-    db.query(query, [username], (err, results) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ error: err.message });
-        }
+    try {
+        const [results] = await db.promise().query('SELECT * FROM users WHERE username = ?', [username]);
 
         if (results.length === 0) {
             return res.status(401).json({ error: 'User not found' });
@@ -574,19 +600,18 @@ app.post('/api/login', (req, res) => {
 
         const user = results[0];
 
-        // Check password (plaintext for now)
-        if (user.password !== password) {
+        // Check password
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) {
             return res.status(401).json({ error: 'Password incorrect' });
         }
 
-        // Generate Session Token
-        const token = uuidv4();
-        sessions[token] = {
-            userId: user.id,
-            username: user.username,
-            isAdmin: user.is_admin === 1,
-            expiresAt: Date.now() + SESSION_DURATION
-        };
+        // Generate JWT Token
+        const token = jwt.sign(
+            { id: user.id, username: user.username, isAdmin: user.is_admin === 1 },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
 
         res.json({
             token: token,
@@ -594,7 +619,10 @@ app.post('/api/login', (req, res) => {
             username: user.username,
             isAdmin: user.is_admin === 1
         });
-    });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Delete a book
@@ -643,9 +671,28 @@ app.patch('/api/books/bulk', authenticateToken, (req, res) => {
         return res.status(400).json({ error: 'No updates provided' });
     }
 
+    // Whitelist allowed fields to prevent SQL injection
+    const ALLOWED_FIELDS = [
+        'title', 'author', 'isbn', 'library', 'categories', 'format', 'binding_type',
+        'descriptors', 'series', 'series_index', 'publisher', 'language', 'description',
+        'shelf', 'status', 'rating', 'page_count', 'publication_date', 'is_loaned',
+        'borrower_name', 'loan_date', 'due_date'
+    ];
+
+    const validUpdates = {};
+    Object.keys(updates).forEach(key => {
+        if (ALLOWED_FIELDS.includes(key)) {
+            validUpdates[key] = updates[key];
+        }
+    });
+
+    if (Object.keys(validUpdates).length === 0) {
+        return res.status(400).json({ error: 'No valid update fields provided' });
+    }
+
     // Build SET clause from updates object
-    const setClause = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-    const setValues = Object.values(updates);
+    const setClause = Object.keys(validUpdates).map(key => `${key} = ?`).join(', ');
+    const setValues = Object.values(validUpdates);
 
     const placeholders = ids.map(() => '?').join(',');
     const query = `UPDATE books SET ${setClause} WHERE id IN (${placeholders})`;
@@ -828,13 +875,14 @@ app.get('/api/users', authenticateToken, requireAdmin, (req, res) => {
 // Create a user
 // Create a user
 // Create a user
-app.post('/api/users', authenticateToken, requireAdmin, (req, res) => {
+app.post('/api/users', authenticateToken, requireAdmin, async (req, res) => {
     const { username, password, isAdmin } = req.body;
     if (!username || !password) {
         return res.status(400).json({ error: 'Username and password are required' });
     }
+    const hashedPassword = await bcrypt.hash(password, 10);
     const query = 'INSERT INTO users (username, password, is_admin) VALUES (?, ?, ?)';
-    db.query(query, [username, password, isAdmin || false], (err, result) => {
+    db.query(query, [username, hashedPassword, isAdmin || false], (err, result) => {
         if (err) {
             console.error('Error creating user:', err);
             if (err.code === 'ER_DUP_ENTRY') {
@@ -850,7 +898,7 @@ app.post('/api/users', authenticateToken, requireAdmin, (req, res) => {
 // Update a user
 // Update a user
 // Update a user
-app.put('/api/users/:id', authenticateToken, requireAdmin, (req, res) => {
+app.put('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { username, password, isAdmin } = req.body;
 
@@ -865,7 +913,7 @@ app.put('/api/users/:id', authenticateToken, requireAdmin, (req, res) => {
     }
     if (password) {
         updates.push('password = ?');
-        values.push(password);
+        values.push(await bcrypt.hash(password, 10));
     }
     if (isAdmin !== undefined) {
         updates.push('is_admin = ?');
@@ -932,32 +980,30 @@ app.get('/api/admin/backup', authenticateToken, requireAdmin, async (req, res) =
 });
 
 // Public Registration Endpoint
-app.post('/api/register', (req, res) => {
+// Public Registration Endpoint
+app.post('/api/register', async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) {
         return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    // Check if user exists
-    db.query('SELECT * FROM users WHERE username = ?', [username], (err, results) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ error: err.message });
-        }
+    try {
+        // Check if user exists
+        const [results] = await db.promise().query('SELECT * FROM users WHERE username = ?', [username]);
+
         if (results.length > 0) {
             return res.status(409).json({ error: 'Username already exists' });
         }
 
         // Create user (default not admin)
-        const query = 'INSERT INTO users (username, password, is_admin) VALUES (?, ?, 0)';
-        db.query(query, [username, password], (err, result) => {
-            if (err) {
-                console.error('Error creating user:', err);
-                return res.status(500).json({ error: 'Failed to create user' });
-            }
-            res.status(201).json({ message: 'User created successfully' });
-        });
-    });
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const [result] = await db.promise().query('INSERT INTO users (username, password, is_admin) VALUES (?, ?, 0)', [username, hashedPassword]);
+
+        res.status(201).json({ message: 'User created successfully' });
+    } catch (error) {
+        console.error('Error creating user:', error);
+        res.status(500).json({ error: 'Failed to create user' });
+    }
 });
 
 // --- Shelves APIs ---
@@ -1813,23 +1859,26 @@ app.get('/api/audiobookshelf/servers', authenticateToken, (req, res) => {
 // Add ABS server
 // Add ABS server
 // Authenticates with the ABS server and stores the connection details
+// Add ABS server
+// Authenticates with the ABS server and stores the connection details
 app.post('/api/audiobookshelf/servers', authenticateToken, async (req, res) => {
     const userId = req.user.id;
-    const { server_name, server_url, username, password } = req.body;
+    const { server_name, server_url, api_key } = req.body;
 
-    if (!server_name || !server_url || !username || !password) {
+    if (!server_name || !server_url || !api_key) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
 
     try {
-        // Authenticate with ABS to get token
-        const loginData = await AudiobookshelfClient.login(server_url, username, password);
-        const apiToken = loginData.user.token;
+        // Authenticate with ABS by verifying the token
+        const client = new AudiobookshelfClient(server_url, api_key);
+        const status = await client.getServerStatus();
 
-        // Save to DB
+        // If successful, save to DB
+        // We reuse the api_token column for the API Key
         db.query(
             'INSERT INTO audiobookshelf_servers (user_id, server_name, server_url, api_token) VALUES (?, ?, ?, ?)',
-            [userId, server_name, server_url, apiToken],
+            [userId, server_name, server_url, api_key],
             (err, result) => {
                 if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
                 res.status(201).json({ message: 'Server added successfully', id: result.insertId });
@@ -1837,35 +1886,520 @@ app.post('/api/audiobookshelf/servers', authenticateToken, async (req, res) => {
         );
     } catch (error) {
         console.error('ABS Connection Error:', error);
-        res.status(500).json({ error: 'Failed to connect to Audiobookshelf server. Please check credentials and URL.' });
+        res.status(500).json({ error: 'Failed to connect to Audiobookshelf server. Please check URL and API Key.' });
     }
 });
 
+
 // Update ABS server
-app.put('/api/audiobookshelf/servers/:id', authenticateToken, (req, res) => {
+app.put('/api/audiobookshelf/servers/:id', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const serverId = req.params.id;
-    const { server_name, server_url, is_active } = req.body;
+    const { server_name, server_url, api_key, is_active } = req.body;
 
-    db.query(
-        'UPDATE audiobookshelf_servers SET server_name = ?, server_url = ?, is_active = ? WHERE id = ? AND user_id = ?',
-        [server_name, server_url, is_active, serverId, userId],
-        (err, result) => {
+    try {
+        let updateQuery = 'UPDATE audiobookshelf_servers SET server_name = ?, server_url = ?, is_active = ?';
+        let queryParams = [server_name, server_url, is_active];
+
+        // If API Key is provided, verify it first
+        if (api_key) {
+            console.log('Verifying new API Key for update...');
+            const client = new AudiobookshelfClient(server_url, api_key);
+            await client.getServerStatus(); // Will throw if invalid
+
+            updateQuery += ', api_token = ?';
+            queryParams.push(api_key);
+        }
+
+        updateQuery += ' WHERE id = ? AND user_id = ?';
+        queryParams.push(serverId, userId);
+
+        db.query(updateQuery, queryParams, (err, result) => {
             if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
             res.json({ message: 'Server updated successfully' });
-        }
-    );
+        });
+    } catch (error) {
+        console.error('ABS Update Error:', error);
+        res.status(500).json({ error: 'Failed to verify connection with new API Key.' });
+    }
 });
 
-// Delete ABS server
-app.delete('/api/audiobookshelf/servers/:id', authenticateToken, (req, res) => {
+// Search ABS servers
+app.get('/api/audiobookshelf/search', authenticateToken, async (req, res) => {
     const userId = req.user.id;
-    const serverId = req.params.id;
+    const { q } = req.query;
 
-    db.query('DELETE FROM audiobookshelf_servers WHERE id = ? AND user_id = ?', [serverId, userId], (err, result) => {
-        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
-        res.json({ message: 'Server removed successfully' });
-    });
+    if (!q) return res.status(400).json({ error: 'Query parameter "q" is required' });
+
+    try {
+        const servers = await db.promise().query(
+            'SELECT * FROM audiobookshelf_servers WHERE user_id = ? AND is_active = true',
+            [userId]
+        );
+
+        if (servers[0].length === 0) {
+            return res.json({ results: [] });
+        }
+
+        const allResults = [];
+
+        for (const server of servers[0]) {
+            try {
+                const client = new AudiobookshelfClient(server.server_url, server.api_token);
+                const libraries = await client.getLibraries();
+
+                for (const lib of libraries) {
+                    try {
+                        const searchRes = await client.searchLibrary(lib.id, q);
+                        // ABS search results structure: { book: [...], podcast: [...] } or just array?
+                        // Documentation says it returns array of items usually, or object with 'results'.
+                        // Let's assume typical ABS response which is usually an array matches or object with 'results'.
+                        // We will standardize the output.
+
+                        const items = searchRes.results || searchRes.book || searchRes || [];
+
+                        // Filter for books/audiobooks only
+                        const books = Array.isArray(items) ? items : (items.book || []);
+
+                        books.forEach(item => {
+                            // Enrich with server info for the frontend
+                            allResults.push({
+                                ...item,
+                                _server: {
+                                    id: server.id,
+                                    name: server.server_name,
+                                    url: server.server_url
+                                },
+                                _library: {
+                                    id: lib.id,
+                                    name: lib.name
+                                }
+                            });
+                        });
+
+                    } catch (searchErr) {
+                        console.error(`Search failed for lib ${lib.name} on ${server.server_name}:`, searchErr.message);
+                    }
+                }
+            } catch (serverErr) {
+                console.error(`Failed to connect to server ${server.server_name}:`, serverErr.message);
+            }
+        }
+
+        res.json({ results: allResults });
+
+    } catch (error) {
+        console.error('ABS Search Error:', error);
+        res.status(500).json({ error: 'Search failed' });
+    }
+});
+
+// Helper to download image
+const downloadImage = async (url, token, filepath) => {
+    try {
+        const response = await axios({
+            url: url,
+            method: 'GET',
+            responseType: 'stream',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (response.status !== 200) {
+            throw new Error(`Failed to download image: Status ${response.status}`);
+        }
+
+        const dir = path.dirname(filepath);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+
+        const writer = fs.createWriteStream(filepath);
+        response.data.pipe(writer);
+
+        return new Promise((resolve, reject) => {
+            writer.on('finish', resolve);
+            writer.on('error', (err) => {
+                writer.close(); // Ensure stream is closed
+                // Optionally delete the partial file
+                if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+                reject(err);
+            });
+        });
+    } catch (error) {
+        console.error(`Image Download Error (${url}):`, error.message);
+        throw error;
+    }
+};
+
+// Import book from ABS
+app.post('/api/books/import/abs', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
+    const { absItem, serverId, libraryId } = req.body;
+
+    if (!absItem || !serverId) return res.status(400).json({ error: 'Missing required data' });
+
+    const connection = await db.promise().getConnection();
+    try {
+        await connection.beginTransaction();
+
+        // Fetch Server details to get Token/URL for cover download
+        const [servers] = await connection.query('SELECT * FROM audiobookshelf_servers WHERE id = ?', [serverId]);
+        const server = servers[0];
+
+        // 1. Fetch full details (optional)
+
+        // 2. Insert into books table
+        const collapsedSeries = absItem.media.metadata.series ? absItem.media.metadata.series.map(s => s.name).join(', ') : '';
+        const author = absItem.media.metadata.authorName || (absItem.media.metadata.authors && absItem.media.metadata.authors.length > 0 ? absItem.media.metadata.authors[0].name : 'Unknown');
+
+        // Create Book
+        const [bookResult] = await connection.query(
+            `INSERT INTO books (
+                title, author, description, 
+                series, series_order, 
+                publication_date, publisher, 
+                language, duration, 
+                format, status, added_at, cover_url
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)`,
+            [
+                absItem.media.metadata.title || absItem.name,
+                author,
+                absItem.media.metadata.description,
+                collapsedSeries,
+                null,
+                absItem.media.metadata.publishedYear ? `${absItem.media.metadata.publishedYear}-01-01` : null,
+                absItem.media.metadata.publisher,
+                absItem.media.metadata.language,
+                absItem.media.duration,
+                'Audiobook',
+                'Not Started',
+                '' // Placeholder for cover_url, will update after download if successful
+            ]
+        );
+
+        const newBookId = bookResult.insertId;
+
+        // 3. Create Mapping
+        await connection.query(
+            `INSERT INTO abs_book_mappings (
+                book_id, abs_server_id, abs_library_item_id, abs_library_id, last_synced
+            ) VALUES (?, ?, ?, ?, NOW())`,
+            [newBookId, serverId, absItem.id, libraryId]
+        );
+
+        // 4. Handle Cover
+        let coverUrl = null;
+        if (server && absItem.media.coverPath) {
+            try {
+                // absItem.media.coverPath is usually relative "/api/items/..."
+                // or just "items/..." depending on ABS version. 
+                // But client usually sees relative path.
+                // We construct full URL.
+                // If it starts with /, append to server_url.
+                const fullCoverUrl = server.server_url + (absItem.media.coverPath.startsWith('/') ? '' : '/') + absItem.media.coverPath;
+
+                const filename = `abs-${newBookId}-${Date.now()}.jpg`;
+                const localPath = path.join(__dirname, 'uploads/covers', filename);
+                const dbPath = `/uploads/covers/${filename}`;
+
+                await downloadImage(fullCoverUrl, server.api_token, localPath);
+
+                // Update book with cover url
+                await connection.query('UPDATE books SET cover_url = ? WHERE id = ?', [dbPath, newBookId]);
+                coverUrl = dbPath;
+            } catch (imgErr) {
+                console.warn('Failed to download cover:', imgErr.message);
+            }
+        }
+
+        await connection.commit();
+        res.status(201).json({ message: 'Book imported successfully', bookId: newBookId, coverUrl });
+
+    } catch (error) {
+        await connection.rollback();
+        console.error('Import Error:', error);
+        res.status(500).json({ error: 'Import failed: ' + error.message });
+    } finally {
+        connection.release();
+    }
+});
+
+// Link existing book to ABS
+app.post('/api/books/:id/link/abs', authenticateToken, async (req, res) => {
+    const bookId = req.params.id;
+    const { serverId, libraryItemId, libraryId } = req.body;
+
+    if (!serverId || !libraryItemId) return res.status(400).json({ error: 'Missing required link data' });
+
+    try {
+        await db.promise().query(
+            `INSERT INTO abs_book_mappings (
+                book_id, abs_server_id, abs_library_item_id, abs_library_id, last_synced
+            ) VALUES (?, ?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE 
+                abs_server_id = VALUES(abs_server_id),
+                abs_library_item_id = VALUES(abs_library_item_id),
+                abs_library_id = VALUES(abs_library_id),
+                last_synced = NOW()`,
+            [bookId, serverId, libraryItemId, libraryId]
+        );
+        res.json({ message: 'Book linked successfully' });
+    } catch (error) {
+        console.error('Link Error:', error);
+        res.status(500).json({ error: 'Failed to link book' });
+    }
+});
+
+// Sync/Bulk Import from ABS
+app.post('/api/audiobookshelf/sync', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
+    const { serverId, debug } = req.body;
+
+    // Debug Log Helper
+    const logs = [];
+    const log = (msg) => {
+        if (debug) logs.push(`[${new Date().toISOString()}] ${msg}`);
+    };
+
+    log('Starting Sync Process...');
+
+    try {
+        let query = 'SELECT * FROM audiobookshelf_servers WHERE user_id = ? AND is_active = true';
+        const params = [userId];
+        if (serverId) {
+            query += ' AND id = ?';
+            params.push(serverId);
+        }
+
+        const [servers] = await db.promise().query(query, params);
+        log(`Found ${servers.length} active server(s) to sync.`);
+
+        if (servers.length === 0) {
+            return res.json({ message: 'No active servers found', stats: { imported: 0, linked: 0, skipped: 0, updated: 0, errors: 0 }, logs });
+        }
+
+        const stats = { imported: 0, linked: 0, skipped: 0, updated: 0, errors: 0 };
+        const connection = await db.promise().getConnection();
+
+        try {
+            for (const server of servers) {
+                log(`Syncing Server: ${server.server_name} (${server.server_url})...`);
+                try {
+                    const client = new AudiobookshelfClient(server.server_url, server.api_token);
+                    const libraries = await client.getLibraries();
+                    log(`Fetched ${libraries.length} libraries.`);
+
+                    for (const lib of libraries) {
+                        log(`Processing Library: ${lib.name} (ID: ${lib.id})...`);
+                        const libItemsRes = await client.getLibraryItems(lib.id, { limit: 100000 });
+                        const items = libItemsRes.results || libItemsRes.items || [];
+                        log(`Fetched ${items.length} items from library.`);
+
+                        for (const item of items) {
+                            if (!item.media || !item.media.metadata || !item.media.metadata.title) {
+                                log(`Skipping invalid item: ${item.id}`);
+                                continue;
+                            }
+
+                            const title = item.media.metadata.title;
+                            const author = item.media.metadata.authorName ||
+                                (item.media.metadata.authors && item.media.metadata.authors.length > 0 ? item.media.metadata.authors[0].name : 'Unknown Author');
+
+                            log(`Processing Item: "${title}" by ${author}`);
+
+                            // Check existing mapping
+                            const [existingMapping] = await connection.query(
+                                'SELECT book_id FROM abs_book_mappings WHERE abs_library_item_id = ? AND abs_server_id = ?',
+                                [item.id, server.id]
+                            );
+
+                            let bookIdToUpdate = null;
+                            let isNewLink = false;
+
+                            if (existingMapping.length > 0) {
+                                bookIdToUpdate = existingMapping[0].book_id;
+                                log(` -> Already mapped to Book ID: ${bookIdToUpdate}`);
+                            } else {
+                                // Check for existing book by Title + Author
+                                const [existingBooks] = await connection.query(
+                                    'SELECT id FROM books WHERE title = ? AND author = ?',
+                                    [title, author]
+                                );
+
+                                if (existingBooks.length > 0) {
+                                    bookIdToUpdate = existingBooks[0].id;
+                                    isNewLink = true;
+                                    log(` -> Match found (Title/Author). linking to Book ID: ${bookIdToUpdate}`);
+                                    try {
+                                        await connection.query(
+                                            `INSERT INTO abs_book_mappings (book_id, abs_server_id, abs_library_id, abs_library_item_id)
+                                             VALUES (?, ?, ?, ?)`,
+                                            [bookIdToUpdate, server.id, lib.id, item.id]
+                                        );
+                                        stats.linked++;
+                                        log(`    -> Linked to Book ID: ${bookIdToUpdate}`);
+                                    } catch (linkErr) {
+                                        if (linkErr.code === 'ER_DUP_ENTRY') {
+                                            stats.skipped++;
+                                            log(`    -> Already linked to another item? Checking...`);
+                                        } else {
+                                            throw linkErr;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (bookIdToUpdate) {
+                                // Backfill Logic
+                                const [currentBooks] = await connection.query('SELECT * FROM books WHERE id = ?', [bookIdToUpdate]);
+                                if (currentBooks.length > 0) {
+                                    const book = currentBooks[0];
+                                    let updates = [];
+                                    let params = [];
+
+                                    const fields = {
+                                        description: item.media.metadata.description,
+                                        publisher: item.media.metadata.publisher,
+                                        language: item.media.metadata.language,
+                                        publication_date: item.media.metadata.publishedYear ? `${item.media.metadata.publishedYear}-01-01` : null
+                                    };
+
+                                    for (const [key, val] of Object.entries(fields)) {
+                                        if (!book[key] && val) {
+                                            updates.push(`${key} = ?`);
+                                            params.push(val);
+                                            log(`    -> Backfilling ${key}`);
+                                        }
+                                    }
+
+                                    if (!book.series && item.media.metadata.series && item.media.metadata.series.length > 0) {
+                                        updates.push('series = ?');
+                                        params.push(item.media.metadata.series.map(s => s.name).join(', '));
+                                        log(`    -> Backfilling series`);
+                                    }
+
+                                    if (!book.cover_url && item.media.coverPath) {
+                                        log(`    -> Missing cover. Attempting download...`);
+                                        try {
+                                            // Use API endpoint for cover
+                                            const fullCoverUrl = `${server.server_url}/api/items/${item.id}/cover`;
+                                            const filename = `abs-${bookIdToUpdate}-${Date.now()}.jpg`;
+                                            const localPath = path.join(__dirname, 'uploads/covers', filename);
+                                            const dbPath = `/uploads/covers/${filename}`;
+                                            await downloadImage(fullCoverUrl, server.api_token, localPath);
+                                            updates.push('cover_url = ?');
+                                            params.push(dbPath);
+                                            log(`    -> Cover downloaded vs API and linked.`);
+                                        } catch (e) {
+                                            log(`    -> Cover download failed: ${e.message}`);
+                                            console.warn('Backfill cover err:', e.message);
+                                        }
+                                    }
+
+                                    if (updates.length > 0) {
+                                        params.push(bookIdToUpdate);
+                                        await connection.query(`UPDATE books SET ${updates.join(', ')} WHERE id = ?`, params);
+                                        stats.updated++;
+                                        log(`    -> Updated book with ${updates.length} fields.`);
+                                    } else {
+                                        if (!isNewLink) {
+                                            stats.skipped++;
+                                            log(`    -> No updates needed.`);
+                                        }
+                                    }
+                                }
+                            } else {
+                                // IMPORT
+                                log(` -> Importing new book: "${title}"`);
+                                const collapsedSeries = item.media.metadata.series && item.media.metadata.series.length > 0
+                                    ? item.media.metadata.series.map(s => s.name).join(', ')
+                                    : '';
+
+                                const [bookResult] = await connection.query(
+                                    `INSERT INTO books (
+                                        title, author, description, 
+                                        series, series_order, 
+                                        publication_date, publisher, 
+                                        language, duration, 
+                                        format, status, added_at, cover_url
+                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)`,
+                                    [
+                                        title,
+                                        author,
+                                        item.media.metadata.description,
+                                        collapsedSeries,
+                                        null,
+                                        item.media.metadata.publishedYear ? `${item.media.metadata.publishedYear}-01-01` : null,
+                                        item.media.metadata.publisher,
+                                        item.media.metadata.language,
+                                        item.media.duration,
+                                        'Audiobook',
+                                        'Not Started',
+                                        ''
+                                    ]
+                                );
+
+                                const newBookId = bookResult.insertId;
+                                await connection.query(
+                                    `INSERT INTO abs_book_mappings (book_id, abs_server_id, abs_library_id, abs_library_item_id)
+                                     VALUES (?, ?, ?, ?)`,
+                                    [newBookId, server.id, lib.id, item.id]
+                                );
+                                stats.imported++;
+                                log(`    -> Imported as Book ID: ${newBookId}`);
+
+                                if (item.media.coverPath) {
+                                    try {
+                                        log(`    -> Downloading cover...`);
+                                        // Use API endpoint
+                                        const fullCoverUrl = `${server.server_url}/api/items/${item.id}/cover`;
+                                        const filename = `abs-${newBookId}-${Date.now()}.jpg`;
+                                        const localPath = path.join(__dirname, 'uploads/covers', filename);
+                                        const dbPath = `/uploads/covers/${filename}`;
+
+                                        await downloadImage(fullCoverUrl, server.api_token, localPath);
+                                        await connection.query('UPDATE books SET cover_url = ? WHERE id = ?', [dbPath, newBookId]);
+                                        log(`    -> Cover saved via API.`);
+                                    } catch (imgErr) {
+                                        log(`    -> Cover download failed: ${imgErr.message}`);
+                                        console.warn(`Failed to download cover for ${title}:`, imgErr.message);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (serverErr) {
+                    console.error(`Error syncing server ${server.server_name}:`, serverErr);
+                    log(`Error syncing server ${server.server_name}: ${serverErr.message}`);
+                    stats.errors++;
+                }
+            }
+        } finally {
+            connection.release();
+        }
+
+        log('Sync complete.');
+        res.json({ message: 'Sync complete', stats, logs });
+
+    } catch (error) {
+        console.error('ABS Sync Error:', error);
+        log(`Fatal Sync Error: ${error.message}`);
+        res.status(500).json({ error: 'Sync failed: ' + error.message, logs });
+    }
+});
+
+// Unlink book
+app.delete('/api/books/:id/link/abs', authenticateToken, async (req, res) => {
+    const bookId = req.params.id;
+    try {
+        await db.promise().query('DELETE FROM abs_book_mappings WHERE book_id = ?', [bookId]);
+        res.json({ message: 'Book unlinked successfully' });
+    } catch (error) {
+        console.error('Unlink Error:', error);
+        res.status(500).json({ error: 'Failed to unlink book' });
+    }
 });
 
 // Test/Status ABS server

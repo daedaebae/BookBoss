@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
+import LogViewerModal from '../common/LogViewerModal';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { exportService } from '../../services/exportService';
 import { userService } from '../../services/userService';
 import { settingsService } from '../../services/settingsService';
 import { bookService } from '../../services/bookService';
+import { absService } from '../../services/absService';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -22,6 +24,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     // General settings
     const [accentColor, setAccentColor] = useState('theme-purple');
     const [allowRegistration, setAllowRegistration] = useState(false);
+    const [debugMode, setDebugMode] = useState(false);
+
+    // Logging
+    const [showLogs, setShowLogs] = useState(false);
+    const [logs, setLogs] = useState<string[]>([]);
 
     // Profile settings
     const [newPassword, setNewPassword] = useState('');
@@ -51,8 +58,117 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const [showAddServer, setShowAddServer] = useState(false);
     const [newServerName, setNewServerName] = useState('');
     const [newServerUrl, setNewServerUrl] = useState('');
-    const [newServerUsername, setNewServerUsername] = useState('');
-    const [newServerPassword, setNewServerPassword] = useState('');
+    const [newServerApiKey, setNewServerApiKey] = useState('');
+    const [isEditingServer, setIsEditingServer] = useState(false);
+    const [editingServerId, setEditingServerId] = useState<number | null>(null);
+    const [syncingServerId, setSyncingServerId] = useState<number | null>(null);
+
+    // ... (existing code)
+
+    const handleConnectServer = async () => {
+        // Validation: Name and URL always required. API Key required for new, optional for edit.
+        if (!newServerName || !newServerUrl || (!isEditingServer && !newServerApiKey)) {
+            alert('Please fill in all required fields');
+            return;
+        }
+
+        try {
+            if (isEditingServer && editingServerId) {
+                await settingsService.updateAbsServer(editingServerId, {
+                    server_name: newServerName,
+                    server_url: newServerUrl,
+                    api_key: newServerApiKey, // Optional if empty
+                    is_active: true // default to active on edit for now
+                });
+                alert('Server updated successfully!');
+            } else {
+                await settingsService.addAbsServer({
+                    server_name: newServerName,
+                    server_url: newServerUrl,
+                    api_key: newServerApiKey
+                });
+                alert('Server connected successfully!');
+            }
+            closeServerForm();
+            fetchAbsServers();
+        } catch (error: any) {
+            console.error('Failed to save server:', error);
+            alert(`Failed to connect: ${error.message || 'Unknown error'}`);
+        }
+    };
+
+    // ... (inside render)
+
+    const handleTestServer = async (server: any) => {
+        try {
+            const result = await settingsService.testAbsServer(server.id);
+            if (result.status === 'connected') {
+                alert(`Connection Successful!\nUser: ${result.info.username}`);
+            } else {
+                alert('Connection Failed');
+            }
+        } catch (error: any) {
+            console.error('Test failed:', error);
+            alert(`Test Failed: ${error.response?.data?.error || error.message}`);
+        }
+    };
+
+    const handleDeleteServer = async (server: any) => {
+        if (!confirm(`Are you sure you want to remove "${server.server_name}"?`)) return;
+
+        try {
+            await settingsService.deleteAbsServer(server.id);
+            alert('Server removed');
+            fetchAbsServers();
+        } catch (error: any) {
+            console.error('Delete failed:', error);
+            alert('Failed to remove server');
+        }
+    };
+
+    const startEditServer = (server: any) => {
+        setNewServerName(server.server_name);
+        setNewServerUrl(server.server_url);
+        setNewServerApiKey(''); // Don't show existing key
+        setEditingServerId(server.id);
+        setIsEditingServer(true);
+        setShowAddServer(true);
+    };
+
+    const closeServerForm = () => {
+        setShowAddServer(false);
+        setIsEditingServer(false);
+        setEditingServerId(null);
+        setNewServerName('');
+        setNewServerUrl('');
+        setNewServerApiKey('');
+    };
+
+
+    const handleSync = async (server: any) => {
+        if (!confirm(`Sync entire library from "${server.server_name}"? This might take a minute.`)) return;
+
+        setSyncingServerId(server.id);
+        try {
+            const result = await absService.syncLibrary(server.id, '', debugMode);
+
+            if (debugMode && result.logs) {
+                setLogs(result.logs);
+                setShowLogs(true);
+            } else {
+                alert(`Sync Complete!\nImported: ${result.stats.imported}\nLinked: ${result.stats.linked}\nSkipped: ${result.stats.skipped}\nErrors: ${result.stats.errors}`);
+            }
+        } catch (error: any) {
+            console.error('Sync failed:', error);
+            if (debugMode && error.response?.data?.logs) {
+                setLogs(error.response.data.logs);
+                setShowLogs(true);
+            }
+            alert(`Sync Failed: ${error.response?.data?.error || error.message}`);
+        } finally {
+            setSyncingServerId(null);
+        }
+    };
 
     // Metadata refresh
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -99,6 +215,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             if (settings.allow_registration !== undefined) {
                 setAllowRegistration(settings.allow_registration === 'true' || settings.allow_registration === true);
             }
+            const storedDebug = localStorage.getItem('bookboss_debug_mode');
+            if (storedDebug) {
+                setDebugMode(storedDebug === 'true');
+            }
         } catch (error) {
             console.error('Failed to fetch settings:', error);
         }
@@ -106,7 +226,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
     const saveSettings = async () => {
         try {
-            const response = await fetch('http://localhost:3000/api/settings', {
+            const response = await fetch('/api/settings', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -119,6 +239,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             });
             if (response.ok) {
                 setGlobalAccentColor(accentColor);
+                localStorage.setItem('bookboss_debug_mode', String(debugMode));
                 alert('Settings saved successfully!');
             }
         } catch (error) {
@@ -457,6 +578,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                     Downloads a SQL dump of the database.
                                 </p>
                             </div>
+
+                            <div className="form-group">
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={debugMode}
+                                        onChange={(e) => setDebugMode(e.target.checked)}
+                                    />
+                                    {' '} Enable Debug Mode
+                                </label>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '5px' }}>
+                                    Show detailed logs for actions like Sync.
+                                </p>
+                            </div>
+
                             <button className="primary-btn" onClick={saveSettings}>Save Changes</button>
                         </div>
                     )}
@@ -676,14 +812,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                         <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                                 <h3>Audiobookshelf Servers</h3>
-                                <button className="secondary-btn small" onClick={() => setShowAddServer(!showAddServer)}>
-                                    + Add Server
-                                </button>
+                                {!showAddServer && (
+                                    <button className="secondary-btn small" onClick={() => { closeServerForm(); setShowAddServer(true); }}>
+                                        + Add Server
+                                    </button>
+                                )}
                             </div>
 
                             {showAddServer && (
                                 <div style={{ marginBottom: '20px', padding: '15px', background: 'var(--glass-bg)', borderRadius: '8px' }}>
-                                    <h4>Connect New Server</h4>
+                                    <h4>{isEditingServer ? 'Edit Server' : 'Connect New Server'}</h4>
                                     <div className="form-group">
                                         <label>Server Name</label>
                                         <input
@@ -697,70 +835,68 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                         <label>Server URL</label>
                                         <input
                                             type="url"
-                                            placeholder=""
+                                            placeholder="http://localhost:13378"
                                             value={newServerUrl}
                                             onChange={(e) => setNewServerUrl(e.target.value)}
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label>Username</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Username"
-                                            value={newServerUsername}
-                                            onChange={(e) => setNewServerUsername(e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Password</label>
+                                        <label>API Key {isEditingServer && <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--text-secondary)' }}>(Leave blank to keep unchanged)</span>}</label>
                                         <input
                                             type="password"
-                                            placeholder="Password"
-                                            value={newServerPassword}
-                                            onChange={(e) => setNewServerPassword(e.target.value)}
+                                            placeholder={isEditingServer ? "Enter new API Key to update" : "Paste API Key here"}
+                                            value={newServerApiKey}
+                                            onChange={(e) => setNewServerApiKey(e.target.value)}
                                         />
                                     </div>
                                     <div style={{ display: 'flex', gap: '10px' }}>
-                                        <button className="primary-btn small">Connect</button>
-                                        <button className="secondary-btn small" onClick={() => setShowAddServer(false)}>Cancel</button>
+                                        <button className="primary-btn small" onClick={handleConnectServer}>{isEditingServer ? 'Update' : 'Connect'}</button>
+                                        <button className="secondary-btn small" onClick={closeServerForm}>Cancel</button>
                                     </div>
                                 </div>
                             )}
 
-                            <div>
+                            <div className="server-grid">
                                 {absServers.length === 0 ? (
-                                    <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '20px' }}>
+                                    <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '20px', gridColumn: '1 / -1' }}>
                                         No servers connected.
                                     </p>
                                 ) : (
                                     absServers.map(server => (
-                                        <div key={server.id} style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            padding: '12px',
-                                            marginBottom: '8px',
-                                            background: 'var(--glass-bg)',
-                                            borderRadius: '8px'
-                                        }}>
-                                            <div>
-                                                <div style={{ fontWeight: 500 }}>{server.server_name}</div>
-                                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                                    {server.server_url}
+                                        <div key={server.id} className="server-card">
+                                            <div className="server-card-header">
+                                                <div className="server-info">
+                                                    <h4>{server.server_name}</h4>
+                                                    <span className="server-url">{server.server_url}</span>
+                                                </div>
+                                                <div className={`status-badge ${server.is_active ? 'active' : 'inactive'}`}>
+                                                    {server.is_active ? 'Active' : 'Inactive'}
                                                 </div>
                                             </div>
-                                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                                <span style={{
-                                                    padding: '4px 8px',
-                                                    borderRadius: '4px',
-                                                    fontSize: '0.8rem',
-                                                    background: server.is_active ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                                                    color: server.is_active ? '#86efac' : '#fca5a5'
-                                                }}>
-                                                    {server.is_active ? 'Active' : 'Inactive'}
-                                                </span>
-                                                <button className="delete-btn" title="Remove Server">
-                                                    🗑️
+
+                                            <div className="server-card-actions">
+                                                <button
+                                                    onClick={() => handleSync(server)}
+                                                    className="secondary-btn small"
+                                                    disabled={syncingServerId === server.id}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                                                >
+                                                    {syncingServerId === server.id ? (
+                                                        <>
+                                                            <span className="spinner-small"></span> Syncing...
+                                                        </>
+                                                    ) : (
+                                                        'Sync'
+                                                    )}
+                                                </button>
+                                                <button onClick={() => handleTestServer(server)} className="secondary-btn small">
+                                                    Test
+                                                </button>
+                                                <button onClick={() => startEditServer(server)} className="secondary-btn small">
+                                                    Edit
+                                                </button>
+                                                <button onClick={() => handleDeleteServer(server)} className="secondary-btn small danger">
+                                                    Delete
                                                 </button>
                                             </div>
                                         </div>
@@ -770,118 +906,128 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                         </div>
                     )}
 
-                    {activeTab === 'backup' && user?.is_admin && (
-                        <div className="settings-section">
-                            <h3>Backup & Restore</h3>
+                    {
+                        activeTab === 'backup' && user?.is_admin && (
+                            <div className="settings-section">
+                                <h3>Backup & Restore</h3>
 
-                            <div className="setting-group">
-                                <h4>Export Library</h4>
-                                <p className="setting-description">Download your library data in different formats.</p>
-                                <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                                    <button onClick={handleExportCSV} className="secondary-btn">
-                                        📄 Export as CSV
-                                    </button>
-                                    <button onClick={handleExportJSON} className="secondary-btn">
-                                        {'{ }'} Export as JSON
-                                    </button>
-                                </div>
-                            </div>
-
-                            {user?.is_admin && (
-                                <div className="setting-group" style={{ marginTop: '30px', borderTop: '1px solid var(--glass-border)', paddingTop: '20px' }}>
-                                    <h4>Database Backup</h4>
-                                    <p className="setting-description">Create a full backup of your database or restore from a previous backup.</p>
-
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '15px' }}>
-                                        <div>
-                                            <button onClick={handleBackup} className="primary-btn">
-                                                ⬇️ Create Full Backup
-                                            </button>
-                                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '5px' }}>
-                                                Downloads a .sql file containing all your data.
-                                            </p>
-                                        </div>
-
-                                        <div style={{ marginTop: '15px' }}>
-                                            <label className="secondary-btn" style={{ display: 'inline-block', cursor: 'pointer', background: isRestoring ? '#ccc' : undefined }}>
-                                                {isRestoring ? '⏳ Restoring...' : '⬆️ Restore from Backup'}
-                                                <input
-                                                    type="file"
-                                                    accept=".sql"
-                                                    onChange={handleRestore}
-                                                    disabled={isRestoring}
-                                                    style={{ display: 'none' }}
-                                                />
-                                            </label>
-                                            <p style={{ fontSize: '0.85rem', color: '#ef4444', marginTop: '5px', fontWeight: 'bold' }}>
-                                                ⚠️ Warning: Restoring will overwrite all current data!
-                                            </p>
-                                        </div>
+                                <div className="setting-group">
+                                    <h4>Export Library</h4>
+                                    <p className="setting-description">Download your library data in different formats.</p>
+                                    <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                                        <button onClick={handleExportCSV} className="secondary-btn">
+                                            📄 Export as CSV
+                                        </button>
+                                        <button onClick={handleExportJSON} className="secondary-btn">
+                                            {'{ }'} Export as JSON
+                                        </button>
                                     </div>
-
-                                    {backupStatus && (
-                                        <div style={{
-                                            marginTop: '15px',
-                                            padding: '10px',
-                                            borderRadius: '6px',
-                                            background: backupStatus.includes('failed') ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                                            color: backupStatus.includes('failed') ? '#ef4444' : '#10b981',
-                                            border: `1px solid ${backupStatus.includes('failed') ? '#ef4444' : '#10b981'}`
-                                        }}>
-                                            {backupStatus}
-                                        </div>
-                                    )}
                                 </div>
-                            )}
-                        </div>
-                    )}
-                </main>
-            </div>
+
+                                {user?.is_admin && (
+                                    <div className="setting-group" style={{ marginTop: '30px', borderTop: '1px solid var(--glass-border)', paddingTop: '20px' }}>
+                                        <h4>Database Backup</h4>
+                                        <p className="setting-description">Create a full backup of your database or restore from a previous backup.</p>
+
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '15px' }}>
+                                            <div>
+                                                <button onClick={handleBackup} className="primary-btn">
+                                                    ⬇️ Create Full Backup
+                                                </button>
+                                                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '5px' }}>
+                                                    Downloads a .sql file containing all your data.
+                                                </p>
+                                            </div>
+
+                                            <div style={{ marginTop: '15px' }}>
+                                                <label className="secondary-btn" style={{ display: 'inline-block', cursor: 'pointer', background: isRestoring ? '#ccc' : undefined }}>
+                                                    {isRestoring ? '⏳ Restoring...' : '⬆️ Restore from Backup'}
+                                                    <input
+                                                        type="file"
+                                                        accept=".sql"
+                                                        onChange={handleRestore}
+                                                        disabled={isRestoring}
+                                                        style={{ display: 'none' }}
+                                                    />
+                                                </label>
+                                                <p style={{ fontSize: '0.85rem', color: '#ef4444', marginTop: '5px', fontWeight: 'bold' }}>
+                                                    ⚠️ Warning: Restoring will overwrite all current data!
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {backupStatus && (
+                                            <div style={{
+                                                marginTop: '15px',
+                                                padding: '10px',
+                                                borderRadius: '6px',
+                                                background: backupStatus.includes('failed') ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                                                color: backupStatus.includes('failed') ? '#ef4444' : '#10b981',
+                                                border: `1px solid ${backupStatus.includes('failed') ? '#ef4444' : '#10b981'}`
+                                            }}>
+                                                {backupStatus}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    }
+                </main >
+            </div >
 
             {/* Delete Confirmation Modal */}
-            {userToDelete && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'rgba(0, 0, 0, 0.7)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 10000
-                }}>
+            {
+                userToDelete && (
                     <div style={{
-                        background: 'var(--glass-bg)',
-                        padding: '30px',
-                        borderRadius: '12px',
-                        border: '1px solid var(--glass-border)',
-                        maxWidth: '400px',
-                        width: '90%'
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'rgba(0, 0, 0, 0.7)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 10000
                     }}>
-                        <h3 style={{ marginTop: 0 }}>Delete User</h3>
-                        <p>Are you sure you want to delete user <strong>{userToDelete.username}</strong>?</p>
-                        <p style={{ color: 'var(--danger-color)', fontSize: '0.9rem' }}>This action cannot be undone.</p>
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                            <button
-                                className="secondary-btn"
-                                onClick={() => setUserToDelete(null)}
-                                style={{ flex: 1 }}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                className="primary-btn"
-                                onClick={deleteUser}
-                                style={{ flex: 1, background: 'var(--danger-color)', borderColor: 'var(--danger-color)' }}
-                            >
-                                Delete
-                            </button>
+                        <div style={{
+                            background: 'var(--glass-bg)',
+                            padding: '30px',
+                            borderRadius: '12px',
+                            border: '1px solid var(--glass-border)',
+                            maxWidth: '400px',
+                            width: '90%'
+                        }}>
+                            <h3 style={{ marginTop: 0 }}>Delete User</h3>
+                            <p>Are you sure you want to delete user <strong>{userToDelete.username}</strong>?</p>
+                            <p style={{ color: 'var(--danger-color)', fontSize: '0.9rem' }}>This action cannot be undone.</p>
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                                <button
+                                    className="secondary-btn"
+                                    onClick={() => setUserToDelete(null)}
+                                    style={{ flex: 1 }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    className="primary-btn"
+                                    onClick={deleteUser}
+                                    style={{ flex: 1, background: 'var(--danger-color)', borderColor: 'var(--danger-color)' }}
+                                >
+                                    Delete
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </Modal>
+                )
+            }
+
+            <LogViewerModal
+                isOpen={showLogs}
+                onClose={() => setShowLogs(false)}
+                logs={logs}
+            />
+        </Modal >
     );
 };

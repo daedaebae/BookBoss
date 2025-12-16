@@ -29,6 +29,10 @@ interface SidebarProps {
     onMobileClose?: () => void;
     onToggleSidebar?: () => void;
     isVisible?: boolean;
+    user?: any;
+    onLogout?: () => void;
+    onThemeToggle?: () => void;
+    onSettingsClick?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -41,7 +45,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     isMobileOpen = false,
     onMobileClose,
     onToggleSidebar,
-    isVisible = true
+    isVisible = true,
+    user,
+    onLogout,
+    onThemeToggle,
+    onSettingsClick
 }) => {
     const isActive = (type: string, value?: string) => {
         return activeFilter.type === type && activeFilter.value === value;
@@ -80,29 +88,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
             )}
 
-            <aside className={`sidebar ${isMobileOpen ? 'mobile-open' : ''}`} style={{ display: isVisible ? 'block' : 'none' }}>
+            <aside className={`sidebar ${isMobileOpen ? 'open' : ''}`} style={{ display: isVisible ? 'block' : 'none' }}>
                 {/* Sidebar Header with Hide Button */}
-                <div style={{
-                    padding: '15px 20px',
-                    borderBottom: '1px solid var(--glass-border)',
+                <div className="sidebar-header" style={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    alignItems: 'center'
+                    alignItems: 'start'
                 }}>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Filters</h3>
+                    <div>
+                        <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, background: 'linear-gradient(to right, #c084fc, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>BookBoss</h2>
+                        {user && (
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                {user.username}
+                            </p>
+                        )}
+                    </div>
                     {onToggleSidebar && (
                         <button
                             className="secondary-btn small"
                             onClick={onToggleSidebar}
                             title="Hide Sidebar"
-                            style={{ padding: '4px 8px' }}
+                            style={{ padding: '4px 8px', height: 'fit-content' }}
                         >
                             ◀
                         </button>
                     )}
                 </div>
 
-                <div className="sidebar-content">
+                <div className="sidebar-nav">
                     {/* All Books */}
                     <div className="sidebar-section">
                         <button
@@ -254,6 +267,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             ))}
                         </div>
                     )}
+                    {/* System Section */}
+                    <div className="sidebar-section" style={{ marginTop: 'auto', paddingTop: '20px', borderTop: '1px solid var(--glass-border)' }}>
+                        <div className="sidebar-section-title">System</div>
+                        {onSettingsClick && (
+                            <button className="sidebar-item" onClick={() => { onSettingsClick(); onMobileClose?.(); }}>
+                                <span className="sidebar-icon">⚙️</span>
+                                <span className="sidebar-label">Settings</span>
+                            </button>
+                        )}
+                        {onThemeToggle && (
+                            <button className="sidebar-item" onClick={() => { onThemeToggle(); onMobileClose?.(); }}>
+                                <span className="sidebar-icon">🌓</span>
+                                <span className="sidebar-label">Toggle Theme</span>
+                            </button>
+                        )}
+                        {onLogout && (
+                            <button className="sidebar-item" onClick={onLogout}>
+                                <span className="sidebar-icon">🚪</span>
+                                <span className="sidebar-label">Logout</span>
+                            </button>
+                        )}
+                    </div>
                 </div>
             </aside>
         </>
