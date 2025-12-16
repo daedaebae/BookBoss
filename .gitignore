@@ -6,3 +6,7 @@ coverage/
 .vscode/
 .idea/
 *.log
+
+# Uploads (keep directory structure but ignore files)
+server/uploads/*
+!server/uploads/.gitkeep

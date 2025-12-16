@@ -56,6 +56,12 @@ export interface Book {
 
     // Reviews and Notes
     notes?: string; // User's personal notes and reviews
+    // Audiobookshelf Metadata
+    abs_metadata?: {
+        serverId: number;
+        libraryItemId: string;
+        libraryId: string;
+    };
 }
 
 export interface BookPhoto {

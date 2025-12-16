@@ -1,0 +1,48 @@
+services:
+  # MySQL Database Service
+  db:
+    image: mysql:8.0
+    container_name: bookboss-db
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: bookboss
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    volumes:
+      - ./mysql-data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+
+  # Backend Service (Node.js)
+  backend:
+    build: ./server
+    container_name: bookboss-backend
+    restart: always
+    environment:
+      DB_HOST: db
+      DB_USER: user
+      DB_PASSWORD: password
+      DB_NAME: bookboss
+      JWT_SECRET: your_jwt_secret_change_me_in_prod
+      PORT: 3000
+    depends_on:
+      - db
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./server/uploads:/app/uploads
+
+  # Frontend Service (React + Nginx)
+  frontend:
+    build: ./book-boss-react
+    container_name: bookboss-frontend
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend

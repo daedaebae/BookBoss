@@ -277,6 +277,7 @@ body {
 
 /* Book Grid Redesign */
 .book-grid {
+  flex: 1;
   padding: 30px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -502,19 +503,24 @@ body {
   justify-content: center;
   z-index: 1000;
   backdrop-filter: blur(4px);
-  padding: 20px;
+  padding: 40px;
 }
 
 .modal-content {
   background: var(--glass-bg);
   border-radius: var(--radius);
   border: var(--glass-border);
-  max-width: 800px;
-  width: 100%;
-  max-height: 90vh;
+  max-width: 1100px;
+  /* Increased from 900px */
+  width: 95%;
+  /* Use almost full width on smaller screens */
+  max-height: 85vh;
+  /* slightly reduce max-height to ensure margins */
   overflow-y: auto;
   box-shadow: var(--shadow);
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Mobile: Full-screen modals */
@@ -534,19 +540,26 @@ body {
 }
 
 .modal-header {
-  padding: 20px 24px;
+  padding: 24px 32px;
+  /* Increased horizontal padding */
   border-bottom: var(--glass-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
   position: sticky;
   top: 0;
-  background: var(--glass-bg);
+  background: var(--card-bg);
+  /* Ensure opaque background for sticky header */
   z-index: 10;
+  backdrop-filter: blur(10px);
 }
 
 .modal-body {
-  padding: 24px;
+  padding: 32px;
+  /* Increased from 24px */
+  font-size: 1rem;
+  line-height: 1.6;
+  /* Improve text readability */
 }
 
 .modal-close {
@@ -755,8 +768,8 @@ body {
     transform: translateX(0);
   }
 
-  .main-content {
-    margin-left: 0;
+  .content-area {
+    margin-left: 0 !important;
   }
 
   .mobile-only {
@@ -1483,4 +1496,161 @@ input[type="file"]::file-selector-button:hover {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Server Grid Layout */
+.server-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  padding: 10px 0;
+}
+
+.server-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.server-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.server-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.server-info h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+
+.server-url {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.active {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.status-badge.inactive {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.server-card-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: auto;
+  /* Push to bottom */
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.spinner-small {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.danger {
+  border-color: var(--danger-color) !important;
+  color: var(--danger-color) !important;
+}
+
+.danger:hover {
+  background: rgba(239, 68, 68, 0.1) !important;
+}
+
+/* Mobile Improvements */
+@media (max-width: 480px) {
+  .book-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 10px !important;
+    padding: 15px !important;
+  }
+
+  /* Make checkboxes more visible and larger touch target */
+  .book-checkbox {
+    background: rgba(0, 0, 0, 0.9);
+    padding: 6px;
+    border-radius: 6px;
+    z-index: 50;
+  }
+
+  .book-checkbox input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    opacity: 1;
+  }
+
+  /* Buttons opaque on mobile for better visibility */
+  .secondary-btn,
+  .primary-btn,
+  .icon-btn {
+    opacity: 1 !important;
+    backdrop-filter: blur(10px);
+  }
+
+  /* Adjust top bar to wrap if needed */
+  .top-bar {
+    padding: 10px;
+    height: auto;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  /* Ensure Search isn't squashed */
+  .search-container {
+    min-width: 100%;
+    order: 3;
+    margin-top: 10px;
+  }
+
+  /* Header actions positioning */
+  .header-actions {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    top: auto;
+    z-index: 100;
+  }
 }

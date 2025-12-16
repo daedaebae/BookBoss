@@ -19,8 +19,20 @@ export const settingsService = {
         return response.data;
     },
 
+    // Update ABS server
+    updateAbsServer: async (id: number, serverData: any): Promise<any> => {
+        const response = await apiClient.put(`/audiobookshelf/servers/${id}`, serverData);
+        return response.data;
+    },
+
     // Delete ABS server
     deleteAbsServer: async (id: number): Promise<void> => {
         await apiClient.delete(`/audiobookshelf/servers/${id}`);
+    },
+
+    // Test ABS server connection
+    testAbsServer: async (id: number): Promise<any> => {
+        const response = await apiClient.get(`/audiobookshelf/servers/${id}/status`);
+        return response.data;
     }
 };
