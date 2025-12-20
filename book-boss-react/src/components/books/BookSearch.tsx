@@ -3,23 +3,33 @@ import type { Book } from '../../types/book';
 
 interface BookSearchProps {
     onBookSelect: (book: Partial<Book>) => void;
+    initialQuery?: string;
 }
 
-export const BookSearch: React.FC<BookSearchProps> = ({ onBookSelect }) => {
-    const [query, setQuery] = useState('');
+export const BookSearch: React.FC<BookSearchProps> = ({ onBookSelect, initialQuery = '' }) => {
+    const [query, setQuery] = useState(initialQuery);
     const [results, setResults] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const hasSearchedRef = React.useRef(false);
 
-    const searchBooks = async () => {
-        if (!query.trim()) return;
+    React.useEffect(() => {
+        if (initialQuery && !hasSearchedRef.current) {
+            setQuery(initialQuery);
+            searchBooks(initialQuery);
+            hasSearchedRef.current = true;
+        }
+    }, [initialQuery]);
+
+    const searchBooks = async (searchQuery: string = query) => {
+        if (!searchQuery.trim()) return;
 
         setIsLoading(true);
         setError('');
         setResults([]);
 
         try {
-            const response = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=20`);
+            const response = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(searchQuery)}&limit=20`);
             if (!response.ok) {
                 throw new Error('Failed to fetch results');
             }
@@ -35,7 +45,7 @@ export const BookSearch: React.FC<BookSearchProps> = ({ onBookSelect }) => {
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
-            searchBooks();
+            searchBooks(query);
         }
     };
 
@@ -103,7 +113,7 @@ export const BookSearch: React.FC<BookSearchProps> = ({ onBookSelect }) => {
                 />
                 <button
                     className="primary-btn"
-                    onClick={searchBooks}
+                    onClick={() => searchBooks(query)}
                     disabled={isLoading}
                 >
                     {isLoading ? 'Searching...' : 'Search'}
@@ -122,7 +132,7 @@ export const BookSearch: React.FC<BookSearchProps> = ({ onBookSelect }) => {
                         <div className="search-result-cover">
                             {doc.cover_i ? (
                                 <img
-                                    src={`https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`}
+                                    src={`https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`}
                                     alt={doc.title}
                                 />
                             ) : (

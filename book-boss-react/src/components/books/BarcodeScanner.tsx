@@ -10,6 +10,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
     const [error, setError] = useState<string | null>(null);
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const isScanningRef = useRef<boolean>(false);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         const startScanner = async () => {
@@ -42,6 +43,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
                         // Stop scanning on success to prevent multiple triggers
                         if (isScanningRef.current && scannerRef.current) {
                             scannerRef.current.pause();
+                            if (timeoutRef.current) clearTimeout(timeoutRef.current);
                             onScanSuccess(decodedText);
                         }
                     },
@@ -54,6 +56,17 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
 
                 isScanningRef.current = true;
                 setError(null);
+
+                // Set timeout for 20 seconds
+                timeoutRef.current = setTimeout(() => {
+                    if (isScanningRef.current && scannerRef.current) {
+                        scannerRef.current.stop().then(() => {
+                            scannerRef.current?.clear();
+                            isScanningRef.current = false;
+                        }).catch(console.error);
+                        setError("Scanner timed out. No barcode detected. Please enter ISBN manually.");
+                    }
+                }, 20000);
 
             } catch (err) {
                 console.error("Error starting scanner", err);
@@ -69,6 +82,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
 
         return () => {
             clearTimeout(timer);
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
             if (scannerRef.current && isScanningRef.current) {
                 scannerRef.current.stop().then(() => {
                     scannerRef.current?.clear();

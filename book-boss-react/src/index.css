@@ -1798,8 +1798,8 @@ input[type="file"]::file-selector-button:hover {
 /* BookSearch Results Styles */
 .search-results-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 20px;
   max-height: 500px;
   overflow-y: auto;
   padding-right: 5px;
@@ -1811,10 +1811,15 @@ input[type="file"]::file-selector-button:hover {
   flex-direction: column;
   gap: 8px;
   height: 100%;
+  aspect-ratio: auto !important;
+  /* Override book-card aspect ratio */
+  background: rgba(255, 255, 255, 0.05);
+  /* distinct background */
 }
 
 .search-result-cover {
-  height: 180px;
+  height: 260px;
+  width: 100%;
   background: var(--glass-bg);
   border-radius: 6px;
   overflow: hidden;
@@ -1860,14 +1865,14 @@ input[type="file"]::file-selector-button:hover {
 /* Mobile adjustments for Search Results */
 @media (max-width: 480px) {
   .search-results-grid {
-    grid-template-columns: repeat(3, 1fr);
-    /* Force 3 columns like main grid, or maybe 2 if covers are small? Let's try 3 for consistency */
-    gap: 10px;
+    grid-template-columns: repeat(2, 1fr);
+    /* 2 columns for larger thumbnails */
+    gap: 15px;
   }
 
   .search-result-cover {
-    height: 120px;
-    /* Smaller height for mobile */
+    height: 240px;
+    /* Larger height for mobile */
   }
 
   .search-result-info h4 {
