@@ -77,15 +77,17 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
             cover_url: '', categories: '', publication_date: '', rating: undefined, page_count: undefined
         });
         setActiveTab('search'); // Reset to 'search' tab on close
+        setInitialSearchQuery('');
         onClose();
     };
+
+    const [initialSearchQuery, setInitialSearchQuery] = useState('');
 
     const handleScanSuccess = (decodedText: string) => {
         // Clean ISBN (remove dashes)
         const cleanIsbn = decodedText.replace(/-/g, '').trim();
-        // TODO: Pass this to BookSearch or Manual entry
-        console.log('Scanned ISBN:', cleanIsbn);
-        alert(`Scanned ISBN: ${cleanIsbn}. Please search or enter manually.`);
+        setInitialSearchQuery(cleanIsbn);
+        setActiveTab('search');
     };
 
     const handleBookSelect = (book: Partial<Book>) => {
@@ -167,7 +169,10 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
             </div>
 
             {activeTab === 'search' && (
-                <BookSearch onBookSelect={handleBookSelect} />
+                <BookSearch
+                    onBookSelect={handleBookSelect}
+                    initialQuery={initialSearchQuery}
+                />
             )}
 
             {/* Legacy API tab content removed */}

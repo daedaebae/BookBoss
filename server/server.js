@@ -71,7 +71,7 @@ const authenticateToken = (req, res, next) => {
     if (!token) return res.sendStatus(401); // Unauthorized
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403); // Forbidden (Invalid token)
+        if (err) return res.sendStatus(401); // Unauthorized (Invalid/Expired token)
         req.user = user;
         next();
     });

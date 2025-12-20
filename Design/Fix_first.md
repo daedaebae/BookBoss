@@ -6,9 +6,10 @@ THis document is a collection of tasks that need to be addressed first before wo
 3. [ ] Refactor the codebase with more modern practices and typescript
     - [ ] Modularize everything and relabel for more standardized and intuitive code
 4. [ ] Secure the codebase
-    - [ ] Implement proper authentication and authorization
+    - [x] Implement proper authentication and authorization
     - [ ] Implement proper data encryption
-    - [ ] Scan the codebase for vulnerabilities and rectify them
+    - [x] Scan the codebase for vulnerabilities and rectify them
 3. [ ] Implement proper logging
 4. [ ] Implement proper error handling
 5. [ ] Implement proper debug options
+6. [x] on the book-details modal when I click the stars keep them selected as the rating.
