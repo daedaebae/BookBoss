@@ -215,7 +215,7 @@ app.get('/api/books', (req, res) => {
 // Add a new book (with optional file upload)
 // Handles both metadata and file uploads (book file and cover image)
 // Bulk delete books
-app.post('/api/books/bulk-delete', authenticateToken, (req, res) => {
+app.post('/api/books/bulk-delete', authenticateToken, requireAdmin, (req, res) => {
     const { ids } = req.body;
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ error: 'Invalid or empty IDs array' });
@@ -233,8 +233,18 @@ app.post('/api/books/bulk-delete', authenticateToken, (req, res) => {
     });
 });
 
+// Helper to validate URLs for SSRF protection
+const isValidUrl = (string) => {
+    try {
+        const url = new URL(string);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch (_) {
+        return false;
+    }
+};
+
 // Add a new book
-app.post('/api/books', authenticateToken, upload.fields([{ name: 'file', maxCount: 1 }, { name: 'coverFile', maxCount: 1 }]), async (req, res) => {
+app.post('/api/books', authenticateToken, requireAdmin, upload.fields([{ name: 'file', maxCount: 1 }, { name: 'coverFile', maxCount: 1 }]), async (req, res) => {
     const { title, author, isbn, cover, library, categories, addedAt } = req.body;
     const bookFile = req.files && req.files['file'] ? req.files['file'][0] : null;
     const coverFile = req.files && req.files['coverFile'] ? req.files['coverFile'][0] : null;
@@ -255,30 +265,36 @@ app.post('/api/books', authenticateToken, upload.fields([{ name: 'file', maxCoun
         // Use uploaded cover file
         coverPath = coverFile.path;
     } else if (cover && cover.startsWith('http')) {
-        // Download cover image from URL
-        try {
-            const imageResponse = await axios.get(cover, { responseType: 'arraybuffer' });
-            const imageBuffer = Buffer.from(imageResponse.data, 'binary');
+        // Validate URL to prevent SSRF
+        if (!isValidUrl(cover)) {
+            console.warn('Invalid cover URL blocked:', cover);
+            coverPath = null; // Skip invalid URL
+        } else {
+            // Download cover image from URL
+            try {
+                const imageResponse = await axios.get(cover, { responseType: 'arraybuffer' });
+                const imageBuffer = Buffer.from(imageResponse.data, 'binary');
 
-            // Generate unique filename
-            const hash = crypto.createHash('md5').update(cover).digest('hex');
-            const ext = cover.match(/\.(jpg|jpeg|png|gif|webp)$/i)?.[1] || 'jpg';
-            const filename = `cover_${hash}.${ext}`;
-            const filepath = path.join('uploads', filename);
+                // Generate unique filename
+                const hash = crypto.createHash('md5').update(cover).digest('hex');
+                const ext = cover.match(/\.(jpg|jpeg|png|gif|webp)$/i)?.[1] || 'jpg';
+                const filename = `cover_${hash}.${ext}`;
+                const filepath = path.join('uploads', filename);
 
-            // Ensure uploads directory exists
-            if (!fs.existsSync('uploads')) {
-                fs.mkdirSync('uploads', { recursive: true });
+                // Ensure uploads directory exists
+                if (!fs.existsSync('uploads')) {
+                    fs.mkdirSync('uploads', { recursive: true });
+                }
+
+                // Save image
+                fs.writeFileSync(filepath, imageBuffer);
+                coverPath = filepath;
+                console.log(`Downloaded cover image: ${filepath}`);
+            } catch (error) {
+                console.error('Error downloading cover image:', error.message);
+                // Continue without cover image if download fails
+                coverPath = cover; // Store URL as fallback
             }
-
-            // Save image
-            fs.writeFileSync(filepath, imageBuffer);
-            coverPath = filepath;
-            console.log(`Downloaded cover image: ${filepath}`);
-        } catch (error) {
-            console.error('Error downloading cover image:', error.message);
-            // Continue without cover image if download fails
-            coverPath = cover; // Store URL as fallback
         }
     } else {
         coverPath = cover || null;
@@ -360,7 +376,7 @@ app.post('/api/books', authenticateToken, upload.fields([{ name: 'file', maxCoun
 // Update a book (metadata only)
 // Update a book (metadata only)
 // Allows updating book details including cover image
-app.put('/api/books/:id', authenticateToken, upload.fields([{ name: 'coverFile', maxCount: 1 }]), (req, res) => {
+app.put('/api/books/:id', authenticateToken, requireAdmin, upload.fields([{ name: 'coverFile', maxCount: 1 }]), (req, res) => {
     const { id } = req.params;
     const {
         title, author, isbn, library, categories, cover, format, binding_type, descriptors,
@@ -411,7 +427,7 @@ app.put('/api/books/:id', authenticateToken, upload.fields([{ name: 'coverFile',
 
 // Refresh metadata for all books
 // Downloads cover images and updates metadata for all books in the library
-app.post('/api/books/refresh-metadata', authenticateToken, async (req, res) => {
+app.post('/api/books/refresh-metadata', authenticateToken, requireAdmin, async (req, res) => {
     try {
         // Get all books
         const books = await new Promise((resolve, reject) => {
@@ -482,46 +498,49 @@ app.post('/api/books/refresh-metadata', authenticateToken, async (req, res) => {
                 // So let's download if it's http.
 
                 if (coverUrl && coverUrl.startsWith('http')) {
-                    // Download cover image
-                    console.log(`Downloading cover for: ${book.title}`);
-                    const imageResponse = await axios.get(coverUrl, {
-                        responseType: 'arraybuffer',
-                        timeout: 10000
-                    });
-                    const imageBuffer = Buffer.from(imageResponse.data, 'binary');
+                    if (!isValidUrl(coverUrl)) {
+                        console.warn('Skipping invalid cover URL:', coverUrl);
+                        skipped++;
+                        if (!updated) processed++;
+                    } else {
+                        // Download cover image
+                        console.log(`Downloading cover for: ${book.title}`);
+                        const imageResponse = await axios.get(coverUrl, {
+                            responseType: 'arraybuffer',
+                            timeout: 10000
+                        });
+                        const imageBuffer = Buffer.from(imageResponse.data, 'binary');
 
-                    // Generate unique filename
-                    const hash = crypto.createHash('md5').update(coverUrl).digest('hex');
-                    const ext = coverUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)?.[1] || 'jpg';
-                    const filename = `cover_${hash}.${ext}`;
-                    const filepath = path.join('uploads', filename);
+                        // Generate unique filename
+                        const hash = crypto.createHash('md5').update(coverUrl).digest('hex');
+                        const ext = coverUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)?.[1] || 'jpg';
+                        const filename = `cover_${hash}.${ext}`;
+                        const filepath = path.join('uploads', filename);
 
-                    // Ensure uploads directory exists
-                    if (!fs.existsSync('uploads')) {
-                        fs.mkdirSync('uploads', { recursive: true });
+                        // Ensure uploads directory exists
+                        if (!fs.existsSync('uploads')) {
+                            fs.mkdirSync('uploads', { recursive: true });
+                        }
+
+                        // Save image
+                        fs.writeFileSync(filepath, imageBuffer);
+
+                        // Update database with local path
+                        await new Promise((resolve, reject) => {
+                            db.query(
+                                'UPDATE books SET cover_image_path = ? WHERE id = ?',
+                                [filepath, book.id],
+                                (err) => {
+                                    if (err) reject(err);
+                                    else resolve();
+                                }
+                            );
+                        });
+
+                        downloaded++;
+                        if (!updated) processed++; // Only increment if not already counted as updated
+                        console.log(`Downloaded cover: ${book.title}`);
                     }
-
-                    // Save image
-                    fs.writeFileSync(filepath, imageBuffer);
-
-                    // Update database with local path
-                    await new Promise((resolve, reject) => {
-                        db.query(
-                            'UPDATE books SET cover_image_path = ? WHERE id = ?',
-                            [filepath, book.id],
-                            (err) => {
-                                if (err) reject(err);
-                                else resolve();
-                            }
-                        );
-                    });
-
-                    downloaded++;
-                    if (!updated) processed++; // Only increment if not already counted as updated
-                    console.log(`Downloaded cover: ${book.title}`);
-                } else {
-                    skipped++;
-                    if (!updated) processed++;
                 }
 
                 if (updated) processed++;
@@ -629,7 +648,7 @@ app.post('/api/login', async (req, res) => {
 // Delete a book
 // Delete a book
 // Removes book metadata from database (Note: File deletion not yet implemented)
-app.delete('/api/books/:id', authenticateToken, (req, res) => {
+app.delete('/api/books/:id', authenticateToken, requireAdmin, (req, res) => {
     const { id } = req.params;
     // In a real app, we should also delete the file from 'uploads/'
     const query = 'DELETE FROM books WHERE id = ? OR isbn = ?';
@@ -643,7 +662,7 @@ app.delete('/api/books/:id', authenticateToken, (req, res) => {
 });
 
 // Bulk delete books
-app.delete('/api/books/bulk', authenticateToken, (req, res) => {
+app.delete('/api/books/bulk', authenticateToken, requireAdmin, (req, res) => {
     const { ids } = req.body;
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ error: 'Invalid or empty ids array' });
@@ -662,7 +681,7 @@ app.delete('/api/books/bulk', authenticateToken, (req, res) => {
 });
 
 // Bulk update books
-app.patch('/api/books/bulk', authenticateToken, (req, res) => {
+app.patch('/api/books/bulk', authenticateToken, requireAdmin, (req, res) => {
     const { ids, updates } = req.body;
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ error: 'Invalid or empty ids array' });
@@ -734,7 +753,7 @@ app.get('/api/books/:bookId/photos', authenticateToken, (req, res) => {
 });
 
 // Upload a new photo for a book
-app.post('/api/books/:bookId/photos', authenticateToken, upload.single('photo'), async (req, res) => {
+app.post('/api/books/:bookId/photos', authenticateToken, requireAdmin, upload.single('photo'), async (req, res) => {
     const { bookId } = req.params;
     const { photo_type, description, tags } = req.body;
 
@@ -772,7 +791,7 @@ app.post('/api/books/:bookId/photos', authenticateToken, upload.single('photo'),
 });
 
 // Delete a photo
-app.delete('/api/photos/:photoId', authenticateToken, (req, res) => {
+app.delete('/api/photos/:photoId', authenticateToken, requireAdmin, (req, res) => {
     const { photoId } = req.params;
 
     // First get the photo path to delete the file
@@ -807,7 +826,7 @@ app.delete('/api/photos/:photoId', authenticateToken, (req, res) => {
 });
 
 // Update photo metadata
-app.put('/api/photos/:photoId', authenticateToken, (req, res) => {
+app.put('/api/photos/:photoId', authenticateToken, requireAdmin, (req, res) => {
     const { photoId } = req.params;
     const { photo_type, description, tags } = req.body;
 
@@ -981,7 +1000,7 @@ app.get('/api/admin/backup', authenticateToken, requireAdmin, async (req, res) =
 
 // Public Registration Endpoint
 // Public Registration Endpoint
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', authenticateToken, requireAdmin, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) {
         return res.status(400).json({ error: 'Username and password are required' });
@@ -1807,7 +1826,7 @@ app.get('/api/settings', authenticateToken, (req, res) => {
 
 // Update settings (bulk or single)
 // Update settings (bulk or single)
-app.post('/api/settings', authenticateToken, (req, res) => {
+app.post('/api/settings', authenticateToken, requireAdmin, (req, res) => {
     const settings = req.body; // Expecting object { key: value, key2: value2 }
 
     if (!settings || Object.keys(settings).length === 0) {
@@ -1861,7 +1880,7 @@ app.get('/api/audiobookshelf/servers', authenticateToken, (req, res) => {
 // Authenticates with the ABS server and stores the connection details
 // Add ABS server
 // Authenticates with the ABS server and stores the connection details
-app.post('/api/audiobookshelf/servers', authenticateToken, async (req, res) => {
+app.post('/api/audiobookshelf/servers', authenticateToken, requireAdmin, async (req, res) => {
     const userId = req.user.id;
     const { server_name, server_url, api_key } = req.body;
 
@@ -1892,7 +1911,7 @@ app.post('/api/audiobookshelf/servers', authenticateToken, async (req, res) => {
 
 
 // Update ABS server
-app.put('/api/audiobookshelf/servers/:id', authenticateToken, async (req, res) => {
+app.put('/api/audiobookshelf/servers/:id', authenticateToken, requireAdmin, async (req, res) => {
     const userId = req.user.id;
     const serverId = req.params.id;
     const { server_name, server_url, api_key, is_active } = req.body;
@@ -2034,7 +2053,7 @@ const downloadImage = async (url, token, filepath) => {
 };
 
 // Import book from ABS
-app.post('/api/books/import/abs', authenticateToken, async (req, res) => {
+app.post('/api/books/import/abs', authenticateToken, requireAdmin, async (req, res) => {
     const userId = req.user.id;
     const { absItem, serverId, libraryId } = req.body;
 
@@ -2127,7 +2146,7 @@ app.post('/api/books/import/abs', authenticateToken, async (req, res) => {
 });
 
 // Link existing book to ABS
-app.post('/api/books/:id/link/abs', authenticateToken, async (req, res) => {
+app.post('/api/books/:id/link/abs', authenticateToken, requireAdmin, async (req, res) => {
     const bookId = req.params.id;
     const { serverId, libraryItemId, libraryId } = req.body;
 
@@ -2153,7 +2172,7 @@ app.post('/api/books/:id/link/abs', authenticateToken, async (req, res) => {
 });
 
 // Sync/Bulk Import from ABS
-app.post('/api/audiobookshelf/sync', authenticateToken, async (req, res) => {
+app.post('/api/audiobookshelf/sync', authenticateToken, requireAdmin, async (req, res) => {
     const userId = req.user.id;
     const { serverId, debug } = req.body;
 
@@ -2391,7 +2410,7 @@ app.post('/api/audiobookshelf/sync', authenticateToken, async (req, res) => {
 });
 
 // Unlink book
-app.delete('/api/books/:id/link/abs', authenticateToken, async (req, res) => {
+app.delete('/api/books/:id/link/abs', authenticateToken, requireAdmin, async (req, res) => {
     const bookId = req.params.id;
     try {
         await db.promise().query('DELETE FROM abs_book_mappings WHERE book_id = ?', [bookId]);

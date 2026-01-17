@@ -1,5 +1,14 @@
 # Planned Features
 
+## Security & Stability
+- [x] **Security Hardening**
+  - [x] Restrict book modifications to Admin users
+  - [x] Admin-only registration
+  - [x] SSRF Prevention for URL downloads
+  - [x] Secret management via .env
+  - [x] **Instructions provided for testing and confirmation**: See [Security Verification Instructions](./security_verification.md)
+
+
 - [x] **Force Login on Load**
   - Show a greeting on initial page load.
   - Force the user to successfully log in before accessing anything on the server (protect all routes/views).

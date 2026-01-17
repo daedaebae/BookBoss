@@ -4,8 +4,8 @@ const bcrypt = require('bcryptjs');
 // Explicit credentials from docker-compose.yml
 const db = mysql.createConnection({
     host: 'localhost',
-    user: 'root',
-    password: 'rootpassword', // Matches MYSQL_ROOT_PASSWORD in docker-compose.yml
+    user: process.env.MYSQL_USER || 'root',
+    password: process.env.MYSQL_PASSWORD || 'rootpassword',
     database: 'bookboss',
     port: 3307 // Mapped port
 });
