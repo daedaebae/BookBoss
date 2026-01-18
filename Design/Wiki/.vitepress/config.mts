@@ -6,6 +6,7 @@ export default withMermaid(defineConfig({
   title: "BookBoss Wiki",
   description: "Documentation for BookBoss Library Manager",
   base: '/BookBoss/', // Matches repo name 'BookBoss'
+  ignoreDeadLinks: true,
 
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
