@@ -4,6 +4,10 @@ Welcome to the design documentation for **BookBoss**, a personal library managem
 
 ## 📂 Documentation
 
+-   [**Getting Started (Run Locally)**](./Getting-Started.md)
+    -   Instructions for Docker and manual setup.
+
+
 -   [**System Architecture**](./System_Architecture.md)
     -   High-level overview of the React + Node.js + MySQL stack.
     -   Component interaction diagrams.
