@@ -15,10 +15,12 @@ services:
     ports:
       - "3307:3306"
 
-  # Backend Service (Node.js)
-  backend:
-    build: ./server
-    container_name: bookboss-backend
+  # Combined App Service (Backend + Frontend)
+  app:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: bookboss-app
     restart: always
     environment:
       DB_HOST: db
@@ -30,19 +32,7 @@ services:
     depends_on:
       - db
     ports:
+      - "80:3000"
       - "3000:3000"
     volumes:
       - ./server/uploads:/app/uploads
-
-  # Frontend Service (React + Nginx)
-  frontend:
-    build: ./book-boss-react
-    container_name: bookboss-frontend
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./certs:/etc/nginx/certs:ro
-    depends_on:
-      - backend

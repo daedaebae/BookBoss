@@ -53,7 +53,7 @@ graph TD
 ### Frontend (Client)
 -   **Technology**: React 18, TypeScript, Vite.
 -   **Responsibility**: Handles user interaction, state management (Auth, Theme), and rendering.
--   **Deployment**: Static assets served via Nginx or Node.js static middleware.
+-   **Deployment**: Built as static assets and served by the Node.js backend (Single Container).
 
 ### Backend (Server)
 -   **Technology**: Node.js, Express.

@@ -35,17 +35,19 @@ Before running the application, you must configure the sensitive environment var
 
 ## Option 1: Running with Docker (Recommended)
 
-This method spins up the Database, Backend (API), and Frontend (Nginx/React) in containers.
+This method spins up the Database and the Combined App (Backend + Frontend) in containers.
 
 1.  **Build and Start**:
     Execute from the project root:
     ```bash
+    # Important: If you had previous volumes, wipe them to ensure clean DB credentials
+    docker-compose down -v
     docker-compose up -d --build
     ```
 
 2.  **Access the Application**:
-    -   **Frontend**: [http://localhost](http://localhost) (Port 80)
-    -   **Backend API**: [http://localhost:3000](http://localhost:3000)
+    -   **Web App**: [http://localhost](http://localhost) (Served by Node.js on port 80)
+    -   **API**: [http://localhost/api](http://localhost/api) (or :3000)
     -   **Database**: Port 3307 (Mapped to host)
 
 3.  **Viewing Logs**:
@@ -111,8 +113,8 @@ Authentication is active by default. You need an Admin user to access the system
     
     **Using Docker**:
     ```bash
-    # Execute inside the backend container
-    docker exec -it bookboss-backend node create_docker_admin.js
+    # Execute inside the app container
+    docker exec -it bookboss-app node create_docker_admin.js
     ```
     
     **Manual Run**:

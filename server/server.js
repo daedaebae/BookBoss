@@ -1859,6 +1859,21 @@ app.post('/api/settings', authenticateToken, requireAdmin, (req, res) => {
     });
 });
 
+// Serve static files from the React frontend app
+const publicPath = path.join(__dirname, 'public');
+if (fs.existsSync(publicPath)) {
+    app.use(express.static(publicPath));
+    console.log(`Serving static files from ${publicPath}`);
+
+    // The "catchall" handler: for any request that doesn't
+    // match one above, send back React's index.html file.
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(publicPath, 'index.html'));
+    });
+} else {
+    console.warn('Frontend build not found in public/ directory. API only mode.');
+}
+
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });

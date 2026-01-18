@@ -2,12 +2,18 @@ const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
 
 // Explicit credentials from docker-compose.yml
+// Determine connection details
+// If DB_HOST is set (e.g. 'db' in Docker), use it and default port 3306.
+// Otherwise assume localhost and mapped port 3307.
+const host = process.env.DB_HOST || 'localhost';
+const port = host === 'localhost' ? 3307 : 3306;
+
 const db = mysql.createConnection({
-    host: 'localhost',
+    host: host,
     user: process.env.MYSQL_USER || 'root',
     password: process.env.MYSQL_PASSWORD || 'rootpassword',
     database: 'bookboss',
-    port: 3307 // Mapped port
+    port: port
 });
 
 db.connect(async err => {
