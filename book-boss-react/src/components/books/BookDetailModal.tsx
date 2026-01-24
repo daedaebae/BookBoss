@@ -480,9 +480,9 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
                                 </button>
 
                                 <button
-                                    className="danger-btn"
+                                    className="secondary-btn"
                                     onClick={() => onDelete(book)}
-                                    style={{ flex: 1 }}
+                                    style={{ flex: 1, borderColor: 'var(--danger-color)', color: 'var(--danger-color)' }}
                                 >
                                     🗑️ Delete
                                 </button>

@@ -31,7 +31,7 @@ interface SidebarProps {
     isVisible?: boolean;
     user?: any;
     onLogout?: () => void;
-    onThemeToggle?: () => void;
+
     onSettingsClick?: () => void;
 }
 
@@ -48,7 +48,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     isVisible = true,
     user,
     onLogout,
-    onThemeToggle,
     onSettingsClick
 }) => {
     const isActive = (type: string, value?: string) => {
@@ -71,22 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
 
             {/* Show Sidebar Button - Visible when sidebar is hidden */}
-            {!isVisible && onToggleSidebar && (
-                <button
-                    className="secondary-btn small"
-                    onClick={onToggleSidebar}
-                    title="Show Sidebar"
-                    style={{
-                        position: 'fixed',
-                        top: '20px',
-                        left: '20px',
-                        zIndex: 100,
-                        padding: '8px 12px'
-                    }}
-                >
-                    ▶ Filters
-                </button>
-            )}
+            {/* Show Sidebar Button removed - moved to Library top bar */}
 
             <aside className={`sidebar ${isMobileOpen ? 'open' : ''}`} style={{ display: isVisible ? 'block' : 'none' }}>
                 {/* Sidebar Header with Hide Button */}
@@ -276,12 +260,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <span className="sidebar-label">Settings</span>
                             </button>
                         )}
-                        {onThemeToggle && (
-                            <button className="sidebar-item" onClick={() => { onThemeToggle(); onMobileClose?.(); }}>
-                                <span className="sidebar-icon">🌓</span>
-                                <span className="sidebar-label">Toggle Theme</span>
-                            </button>
-                        )}
+
                         {onLogout && (
                             <button className="sidebar-item" onClick={onLogout}>
                                 <span className="sidebar-icon">🚪</span>

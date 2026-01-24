@@ -8,14 +8,13 @@ The easiest way to run BookBoss is with Docker.
 
 1.  **Prerequisites**:
     *   Install [Docker Desktop](https://www.docker.com/products/docker-desktop/).
-    *   Add `127.0.0.1 durf.local` to your `/etc/hosts` file.
+    *   Add `127.0.0.1 bookboss.local` to your `/etc/hosts` file.
 2.  **Run**:
     ```bash
     docker compose up --build -d
     ```
 3.  **Access**:
-    -   **Frontend**: https://durf.local (or https://localhost)
-        -   *Note*: Accept the self-signed certificate warning in your browser.
+    - The application will be available at `https://bookboss.local` (or `https://localhost` with a warning).      -   *Note*: Accept the self-signed certificate warning in your browser.
     -   **Backend**: http://localhost:3000 (API)
     -   **Database**: Port 3306 (internal), 3307 (external)
 

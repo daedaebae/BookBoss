@@ -320,7 +320,7 @@ export const Library: React.FC = () => {
                 isVisible={isSidebarVisible}
                 user={user}
                 onLogout={logout}
-                onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+
                 onSettingsClick={() => setIsSettingsModalOpen(true)}
             />
 
@@ -343,6 +343,21 @@ export const Library: React.FC = () => {
                         >
                             ☰
                         </button>
+
+                        {/* Desktop Sidebar Toggle */}
+                        {!isSidebarVisible && (
+                            <button
+                                className="secondary-btn small desktop-only"
+                                onClick={() => setIsSidebarVisible(!isSidebarVisible)}
+                                title="Show Menu"
+                                style={{
+                                    padding: '8px 12px',
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >
+                                ▶ Menu
+                            </button>
+                        )}
 
                         <div className="search-container" style={{ flex: 1 }}>
                             <input
@@ -367,13 +382,16 @@ export const Library: React.FC = () => {
                         <select
                             value={filters.sortBy}
                             onChange={(e) => setFilters((prev) => ({ ...prev, sortBy: e.target.value as BookFilters['sortBy'] }))}
+                            className="secondary-btn small"
                             style={{
-                                padding: '8px 12px',
-                                borderRadius: '8px',
-                                border: '1px solid var(--glass-border)',
-                                background: 'var(--glass-bg)',
-                                color: 'var(--text-primary)',
-                                maxWidth: '150px'
+                                paddingRight: '30px', // Space for dropdown arrow
+                                appearance: 'none',   // Remove default arrow
+                                backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b5cf6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'right 8px center',
+                                backgroundSize: '16px',
+                                color: 'var(--accent-color)',
+                                borderColor: 'var(--accent-color)'
                             }}
                         >
                             <option value="added_desc">Recent</option>
@@ -401,6 +419,24 @@ export const Library: React.FC = () => {
                             title="Refresh Metadata"
                         >
                             🔄
+                        </button>
+
+                        {/* Theme Toggle Button */}
+                        <button
+                            className="secondary-btn"
+                            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                            style={{
+                                padding: '10px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: '50%',
+                                width: '42px',
+                                height: '42px'
+                            }}
+                            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+                        >
+                            {theme === 'dark' ? '☀️' : '🌙'}
                         </button>
 
                         {/* Add Book Button */}

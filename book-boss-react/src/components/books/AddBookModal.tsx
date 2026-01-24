@@ -285,7 +285,16 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
                             <input
                                 type="text"
                                 value={formData.isbn}
-                                onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setFormData({ ...formData, isbn: val });
+                                    // Basic auto-populate trigger if length seems right (10 or 13)
+                                    if (val.length === 10 || val.length === 13) {
+                                        // Optional: Could trigger a lookup here or just suggest switching tabs
+                                        // For now, we update the search query so if they switch tabs it's ready
+                                        setInitialSearchQuery(val);
+                                    }
+                                }}
                             />
                         </div>
                         <div className="form-group">

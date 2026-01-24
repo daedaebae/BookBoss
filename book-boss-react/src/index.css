@@ -230,6 +230,10 @@ body {
   display: none;
 }
 
+.desktop-only {
+  display: block;
+}
+
 .search-container {
   width: 100%;
   max-width: 600px;
@@ -914,6 +918,10 @@ body {
 
   .mobile-only {
     display: block;
+  }
+
+  .desktop-only {
+    display: none !important;
   }
 }
 

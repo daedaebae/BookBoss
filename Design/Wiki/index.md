@@ -32,6 +32,5 @@ Welcome to the design documentation for **BookBoss**, a personal library managem
 If you find BookBoss useful, consider supporting its development:
 
 -   [**Patreon**](https://www.patreon.com/cw/durfy)
--   [**Ko-fi**](https://ko-fi.com/durfy)
+-   [**Ko-fi**](https://bookboss.local)
 -   [**Buy Me a Coffee**](https://buymeacoffee.com/durf)
-

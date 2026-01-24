@@ -7,3 +7,6 @@ docker-compose.yml
 dist
 build
 .DS_Store
+
+.env
+server/.env

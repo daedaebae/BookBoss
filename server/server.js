@@ -29,13 +29,14 @@ const port = process.env.PORT || 3000;
 
 // Security Middleware
 app.use(helmet({
+    contentSecurityPolicy: false, // Disable CSP to allow React scripts to load (Vite)
     crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow cross-origin for images
 }));
 
 
 // Middleware - Enhanced CORS Configuration
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:8080'],
+    origin: true, // Allow any origin for local network access
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Range'],
@@ -131,23 +132,47 @@ const upload = multer({ storage: storage });
 
 // Database Connection
 // Database Connection
-const db = mysql.createPool({
+const dbConfig = {
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME || 'bookboss',
+    port: process.env.DB_PORT || 3306,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
-});
+};
+
+const db = mysql.createPool(dbConfig);
+
+// Keep-alive / Connection check
+const checkDbConnection = (retries = 5, delay = 5000) => {
+    db.getConnection((err, connection) => {
+        if (err) {
+            console.error(`Database connection failed: ${err.message}. Retries left: ${retries}`);
+            if (retries > 0) {
+                setTimeout(() => checkDbConnection(retries - 1, delay), delay);
+            } else {
+                console.error('Fatal: Could not connect to database after multiple attempts. Exiting.');
+                process.exit(1);
+            }
+        } else {
+            console.log('Successfully connected to the database.');
+            connection.release();
+        }
+    });
+};
+
+// Start connection check
+checkDbConnection();
 
 if (!process.env.DB_PASSWORD) {
     console.warn('WARNING: DB_PASSWORD environment variable is not set. Database connection may fail.');
 }
 
-// Pool events (optional logging)
+// Pool events
 db.on('connection', (connection) => {
-    console.log('DB Connection established');
+    // console.log('DB Connection established');
 });
 
 
@@ -1874,8 +1899,8 @@ if (fs.existsSync(publicPath)) {
     console.warn('Frontend build not found in public/ directory. API only mode.');
 }
 
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server running on port ${port} and listening on all interfaces (0.0.0.0)`);
 });
 
 // --- Audiobookshelf Integration ---

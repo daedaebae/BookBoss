@@ -31,8 +31,9 @@ graph TD
         AuthMW --> Controllers
     end
 
-    subgraph Data ["Data Layer"]
+    subgraph Infrastructure ["Infrastructure"]
         DB[(MySQL Database)]
+        Backup[Backup Service (Sidecar)]
         FS[File System / Uploads]
     end
 
@@ -43,6 +44,7 @@ graph TD
 
     API_Client -- "JSON / HTTP" --> Router
     Controllers -- "SQL" --> DB
+    Backup -- "Dump (Cron)" --> DB
     Controllers -- "Read/Write" --> FS
     Controllers -- "Fetch Metadata" --> GB
     Controllers -- "Sync / Auth" --> ABS
@@ -53,7 +55,9 @@ graph TD
 ### Frontend (Client)
 -   **Technology**: React 18, TypeScript, Vite.
 -   **Responsibility**: Handles user interaction, state management (Auth, Theme), and rendering.
--   **Deployment**: Built as static assets and served by the Node.js backend (Single Container).
+-   **Deployment**:
+    -   **Production**: Built as static assets and served by the Node.js backend (Single Container).
+    -   **Development**: Hybrid Setup (Vite Dev Server + Local Backend + Docker Database).
 
 ### Backend (Server)
 -   **Technology**: Node.js, Express.
@@ -62,11 +66,16 @@ graph TD
     -   Handles Authentication (JWT/Session Tokens).
     -   Manages business logic (Book CRUD, User management).
     -   Integrates with external APIs.
--   **Security**: Validates tokens, sanitizes inputs.
+-   **Security**: Validates tokens, sanitizes inputs. Runs as non-root user `node`.
 
 ### Database
--   **Technology**: MySQL.
+-   **Technology**: MySQL 8.
 -   **Responsibility**: Stores persistent data including Users, Books, Loans, Shelves, and Settings.
+-   **Limits**: Configured with resource limits (CPU/RAM) in Docker Compose.
+
+### Backup Service
+-   **Technology**: Alpine Linux + Mysql-client (Sidecar Container).
+-   **Responsibility**: Performs daily automated `mysqldump` backups of the database to a persistent volume. Retains backups for 7 days.
 
 ### External Integrations
 -   **Google Books API**: Used for fetching book metadata (cover, title, author, etc.) by ISBN.

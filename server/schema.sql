@@ -54,10 +54,86 @@ CREATE TABLE IF NOT EXISTS book_photos (
 );
 
 -- Insert default admin user if not exists (password: admin)
-INSERT IGNORE INTO users (username, password, is_admin) VALUES ('admin', 'admin', TRUE);
+INSERT IGNORE INTO users (username, password, is_admin) VALUES ('admin', '$2b$12$4yY/5Cpxenb2XSSN12umfOyZKt4LaFoGd.ZorV6QQ2Fk8VzVp3XHa', TRUE);
 
 -- Insert default settings if not exists
 INSERT IGNORE INTO settings (`key`, value) VALUES 
 ('app_title', 'BookBoss'),
 ('theme', 'light'),
 ('allow_registration', 'true');
+
+-- Shelves Support
+CREATE TABLE IF NOT EXISTS shelves (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    user_id INT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS shelf_books (
+    shelf_id INT NOT NULL,
+    book_id INT NOT NULL,
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (shelf_id, book_id),
+    FOREIGN KEY (shelf_id) REFERENCES shelves(id) ON DELETE CASCADE,
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+);
+
+-- User Reading Progress & Status
+CREATE TABLE IF NOT EXISTS user_books (
+    user_id INT NOT NULL,
+    book_id INT NOT NULL,
+    status VARCHAR(50) DEFAULT 'Not Started', -- 'Not Started', 'Reading', 'Completed', 'DnF'
+    progress INT DEFAULT 0, -- Page number or percentage?
+    rating INT,
+    notes TEXT,
+    last_read TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, book_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+);
+
+-- Audiobookshelf Integration
+CREATE TABLE IF NOT EXISTS audiobookshelf_servers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    server_name VARCHAR(255) NOT NULL,
+    server_url VARCHAR(500) NOT NULL,
+    api_token TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS abs_book_mappings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    book_id INT NOT NULL,
+    abs_server_id INT NOT NULL,
+    abs_library_item_id VARCHAR(255) NOT NULL,
+    abs_library_id VARCHAR(255),
+    last_synced DATETIME,
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
+    FOREIGN KEY (abs_server_id) REFERENCES audiobookshelf_servers(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_mapping (book_id, abs_server_id)
+);
+
+CREATE TABLE IF NOT EXISTS abs_listening_progress (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    book_id INT NOT NULL,
+    abs_server_id INT NOT NULL,
+    `current_time` DECIMAL(10,2),
+    `duration` DECIMAL(10,2),
+    `progress` DECIMAL(5,4),
+    is_finished BOOLEAN DEFAULT false,
+    last_update DATETIME,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
+    FOREIGN KEY (abs_server_id) REFERENCES audiobookshelf_servers(id) ON DELETE CASCADE
+);
+
+

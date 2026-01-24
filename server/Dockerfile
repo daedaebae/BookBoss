@@ -18,10 +18,17 @@ COPY server/package*.json ./
 RUN npm install
 
 # Copy backend source
+# Copy backend source
 COPY server/ .
 
+# Secure uploads directory and permissions
+RUN mkdir -p uploads && chown -R node:node /app
+
+# Switch to non-root user
+USER node
+
 # Copy built frontend assets from Stage 1 to 'public' folder in backend
-COPY --from=frontend-builder /app/frontend/dist ./public
+COPY --chown=node:node --from=frontend-builder /app/frontend/dist ./public
 
 # Expose API port (and now frontend port)
 EXPOSE 3000

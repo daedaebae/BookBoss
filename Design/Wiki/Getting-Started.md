@@ -1,4 +1,4 @@
-# Getting Started with BookBoss
+# Walkthrough & Getting Started
 
 This guide provides instructions on how to set up and run the BookBoss application locally.
 
@@ -40,8 +40,9 @@ This method spins up the Database and the Combined App (Backend + Frontend) in c
 1.  **Build and Start**:
     Execute from the project root:
     ```bash
-    # Important: If you had previous volumes, wipe them to ensure clean DB credentials
-    docker-compose down -v
+    # Important: To reset the database (required if tables are missing), you must delete the local data folder:
+    docker-compose down
+    sudo rm -rf mysql-data
     docker-compose up -d --build
     ```
 
@@ -60,49 +61,48 @@ This method spins up the Database and the Combined App (Backend + Frontend) in c
     docker-compose down
     ```
 
-## Option 2: Running Manually (Development)
+## Option 2: Hybrid Development (Recommended for Code Editing)
 
-If you want to develop on the code, running services individually is often better.
+This is the preferred method for developing on the code. You run the database in Docker, but the Backend and Frontend run locally on your machine for hot-reloading.
 
-### 1. Database
-Start a MySQL instance. You can use the Docker container just for the DB:
+### 1. Database (Docker)
+Start *only* the database service:
 ```bash
-docker-compose up -d db
+sudo docker-compose up -d db
 ```
-*Wait for it to initialize.*
+*Creates a MySQL instance on port 3307.*
 
-### 2. Backend
+### 2. Backend (Terminal 1)
+Leave this terminal running!
 1.  Navigate to `server/`:
     ```bash
     cd server
     ```
-2.  Install dependencies:
+2.  Install dependencies (once):
     ```bash
     npm install
     ```
 3.  Start the server:
     ```bash
-    # Ensure you have your .env variables exported or use a package like dotenv-cli
-    node --env-file=../.env server.js 
-    # OR if you have .env in server/ directory:
     npm start
     ```
-    The server runs on **http://localhost:3000**.
+    *Connects to localhost:3307. API runs on **http://localhost:3000**.*
 
-### 3. Frontend
+### 3. Frontend (Terminal 2)
+Open a new terminal window.
 1.  Navigate to `book-boss-react/`:
     ```bash
     cd book-boss-react
     ```
-2.  Install dependencies:
+2.  Install dependencies (once):
     ```bash
     npm install
     ```
-3.  Start the dev server:
+3.  Start the Vite dev server:
     ```bash
     npm run dev
     ```
-    The frontend runs on **http://localhost:5173**.
+    *Client runs on **http://localhost:5173**.*
 
 ## First Time Login
 

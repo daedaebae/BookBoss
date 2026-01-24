@@ -3,7 +3,6 @@ services:
   db:
     image: mysql:8.0
     container_name: bookboss-db
-    command: --default-authentication-plugin=mysql_native_password
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -11,16 +10,21 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
-      - ./mysql-data:/var/lib/mysql
+      - ./server/schema.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "3307:3306"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
 
-  # Combined App Service (Backend + Frontend)
-  app:
+  # Backend API Service
+  backend:
     build:
       context: .
       dockerfile: server/Dockerfile
-    container_name: bookboss-app
+    container_name: bookboss-backend
     restart: always
     environment:
       DB_HOST: db
@@ -32,7 +36,61 @@ services:
     depends_on:
       - db
     ports:
-      - "80:3000"
       - "3000:3000"
     volumes:
       - ./server/uploads:/app/uploads
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # Frontend Web Service (Nginx)
+  web:
+    build:
+      context: ./book-boss-react
+      dockerfile: Dockerfile
+    container_name: bookboss-web
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # Backup Service (Sidecar)
+  backup:
+    image: alpine:latest
+    container_name: bookboss-backup
+    restart: always
+    depends_on:
+      - db
+    volumes:
+      - ./backups:/backups
+    environment:
+      MYSQL_HOST: db
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: bookboss
+    command: >
+      sh -c "apk add --no-cache mysql-client &&
+      echo 'Starting Backup Service...';
+      while true; do
+        echo 'Starting backup at $(date)...';
+        mysqldump -h db -u $${MYSQL_USER} -p$${MYSQL_PASSWORD} bookboss > /backups/backup_$(date +%Y-%m-%d_%H%M%S).sql 2>/dev/null;
+        if [ $? -eq 0 ]; then
+             echo 'Backup successful';
+             find /backups -name 'backup_*.sql' -mtime +7 -delete;
+        else
+             echo 'Backup failed';
+        fi;
+        echo 'Sleeping for 24h...';
+        sleep 86400;
+      done"

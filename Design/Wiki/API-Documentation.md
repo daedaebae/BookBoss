@@ -614,6 +614,104 @@ Upload a custom book cover image.
 
 ---
 
+### Audiobookshelf Integration
+
+#### GET /api/audiobookshelf/servers
+List configured Audiobookshelf servers.
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "server_name": "My ABS",
+    "server_url": "https://abs.example.com",
+    "is_active": 1,
+    "created_at": "2024-01-01T00:00:00Z"
+  }
+]
+```
+
+---
+
+#### POST /api/audiobookshelf/servers
+Add a new Audiobookshelf server connection.
+
+**Request Body:**
+```json
+{
+  "server_name": "My ABS",
+  "server_url": "https://abs.example.com",
+  "api_key": "your_api_token"
+}
+```
+
+---
+
+#### GET /api/audiobookshelf/search
+Search across all connected ABS servers.
+
+**Query Parameters:**
+- `q`: Search query
+
+**Response:**
+```json
+{
+  "results": [
+    {
+      "id": "item_id",
+      "name": "Book Title",
+      "media": {
+        "metadata": { "title": "...", "authorName": "...", "coverPath": "..." }
+      },
+      "_server": { "id": 1, "name": "My ABS" },
+      "_library": { "id": "lib_id", "name": "Audiobooks" }
+    }
+  ]
+}
+```
+
+---
+
+#### POST /api/books/import/abs
+Import a book directly from an ABS item.
+
+**Request Body:**
+```json
+{
+  "absItem": { ... }, // Item object from search
+  "serverId": 1,
+  "libraryId": "lib_id"
+}
+```
+
+---
+
+#### POST /api/books/:id/link/abs
+Link an existing book to an ABS item.
+
+**Request Body:**
+```json
+{
+  "serverId": 1,
+  "libraryItemId": "item_id",
+  "libraryId": "lib_id"
+}
+```
+
+---
+
+#### POST /api/audiobookshelf/sync
+Trigger a bulk sync from a specific ABS server.
+
+**Request Body:**
+```json
+{
+  "serverId": 1,
+  "debug": false
+}
+```
+
 ## Error Codes
 
 | Status Code | Description |
