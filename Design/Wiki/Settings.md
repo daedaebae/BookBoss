@@ -14,9 +14,9 @@ These settings are specific to the logged-in user and are stored in the browser 
 - **Default View**: Set the preferred library layout (Grid vs. List - planned).
 - **Books Per Page**: Control pagination size.
 
-### Profile
-- **Username**: Update display name.
-- **Email**: Update contact email.
+### Profile & Privacy
+- **Library Name**: Set a custom name for your library (visible to others if public).
+- **Privacy Settings**: Toggle public sharing of your library.
 - **Password**: Change login password.
 
 ### Export

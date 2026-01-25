@@ -20,31 +20,6 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
                     <button
                         className="close-modal-btn"
                         onClick={onClose}
-                        style={{
-                            fontSize: '1.5rem',
-                            fontWeight: 'bold',
-                            padding: '4px 12px',
-                            background: 'var(--card-bg)',
-                            color: 'var(--text-secondary)',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s ease',
-                            width: '36px',
-                            height: '36px',
-                            marginLeft: 'auto'
-                        }}
-                        onMouseOver={(e) => {
-                            e.currentTarget.style.background = 'var(--bg-secondary)';
-                            e.currentTarget.style.color = 'var(--text-primary)';
-                        }}
-                        onMouseOut={(e) => {
-                            e.currentTarget.style.background = 'var(--card-bg)';
-                            e.currentTarget.style.color = 'var(--text-secondary)';
-                        }}
                     >
                         ×
                     </button>

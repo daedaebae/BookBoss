@@ -12,6 +12,12 @@
   --glass-border: 1px solid rgba(255, 255, 255, 0.1);
   --glass-bg: rgba(30, 41, 59, 0.7);
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --icon-color: #e2e8f0;
+  /* New variable for icon color */
+
+  /* Default Gradient (Purple) */
+  --title-gradient-start: #c084fc;
+  --title-gradient-end: #6366f1;
 
   --font-family: 'Outfit', sans-serif;
   --radius: 12px;
@@ -23,38 +29,94 @@
   --sidebar-bg: #ffffff;
   --card-bg: rgba(255, 255, 255, 0.95);
   --text-primary: #020617;
-  --text-secondary: #334155;
+  --text-secondary: #475569;
+  /* Darker secondary text for better contrast */
   --accent-color: #4f46e5;
   --accent-hover: #4338ca;
   --glass-border: 1px solid rgba(0, 0, 0, 0.1);
   --glass-bg: rgba(255, 255, 255, 0.95);
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+  --icon-color: #1e293b;
+  /* Dark icon color for light theme */
+  --title-gradient-start: #818cf8;
+  --title-gradient-end: #4f46e5;
 }
 
 /* Accent Themes */
 .theme-purple {
   --accent-color: #8b5cf6;
   --accent-hover: #7c3aed;
+  --title-gradient-start: #c084fc;
+  --title-gradient-end: #6366f1;
 }
 
 .theme-blue {
   --accent-color: #3b82f6;
   --accent-hover: #2563eb;
+  --title-gradient-start: #60a5fa;
+  --title-gradient-end: #2563eb;
 }
 
 .theme-green {
   --accent-color: #22c55e;
   --accent-hover: #16a34a;
+  --title-gradient-start: #4ade80;
+  --title-gradient-end: #16a34a;
 }
 
 .theme-orange {
   --accent-color: #f97316;
   --accent-hover: #ea580c;
+  --title-gradient-start: #fb923c;
+  --title-gradient-end: #ea580c;
 }
 
 .theme-pink {
   --accent-color: #ec4899;
   --accent-hover: #db2777;
+  --title-gradient-start: #f472b6;
+  --title-gradient-end: #db2777;
+}
+
+/* New Themes */
+.theme-midnight {
+  --accent-color: #6366f1;
+  --accent-hover: #4f46e5;
+  --bg-color: #020617;
+  --sidebar-bg: #0f172a;
+  --title-gradient-start: #818cf8;
+  --title-gradient-end: #4f46e5;
+}
+
+.theme-forest {
+  --accent-color: #10b981;
+  --accent-hover: #059669;
+  --title-gradient-start: #34d399;
+  --title-gradient-end: #059669;
+  /* Dark green tint for backgrounds could be added here if full theme support existed, 
+       but we mostly swap accents. */
+}
+
+.theme-sunset {
+  --accent-color: #f43f5e;
+  --accent-hover: #e11d48;
+  --title-gradient-start: #fb7185;
+  --title-gradient-end: #e11d48;
+}
+
+.theme-ocean {
+  --accent-color: #06b6d4;
+  --accent-hover: #0891b2;
+  --title-gradient-start: #22d3ee;
+  --title-gradient-end: #0891b2;
+}
+
+.sidebar-icon {
+  font-size: 1.2rem;
+  margin-right: 12px;
+  color: var(--icon-color);
+  /* Use the new variable */
+  opacity: 0.9;
 }
 
 /* Toggle Switch */
@@ -113,6 +175,10 @@ input:checked+.slider:before {
   display: none !important;
 }
 
+html {
+  font-size: 105%;
+}
+
 body {
   font-family: var(--font-family);
   background-color: var(--bg-color);
@@ -164,7 +230,8 @@ body {
 }
 
 .nav-section h3 {
-  font-size: 0.75rem;
+  font-size: 0.9rem;
+  /* Increased from 0.75rem */
   text-transform: uppercase;
   color: var(--text-secondary);
   margin-bottom: 12px;
@@ -180,6 +247,8 @@ body {
   color: var(--text-secondary);
   transition: all 0.2s;
   margin-bottom: 4px;
+  font-size: 1.1rem;
+  /* Added/Increased font size */
 }
 
 .nav-item:hover,
@@ -583,9 +652,30 @@ body {
 .modal-body {
   padding: 32px;
   /* Increased from 24px */
-  font-size: 1rem;
+  font-size: 1.2rem;
+  /* Increased from 1.15rem */
   line-height: 1.6;
   /* Improve text readability */
+}
+
+.modal-content button,
+.modal-footer button,
+.form-group button {
+  padding: 6px 14px;
+  /* Reduced from 8px 16px */
+  font-size: 0.85rem;
+  /* Reduced from 0.9rem */
+  height: auto;
+  min-height: 32px;
+  /* Reduced min-height */
+}
+
+/* Ensure close button stays appropriately sized */
+.close-modal-btn {
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  font-size: 1.5rem !important;
 }
 
 .modal-close {

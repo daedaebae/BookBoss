@@ -34,7 +34,8 @@ CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL, -- In a real app, hash this!
-    is_admin BOOLEAN DEFAULT FALSE
+    is_admin BOOLEAN DEFAULT FALSE,
+    privacy_settings JSON DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS settings (

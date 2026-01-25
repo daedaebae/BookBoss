@@ -2,9 +2,10 @@ import React from 'react';
 import { type Shelf } from '../../types/shelf';
 
 export interface SidebarFilter {
-    type: 'all' | 'status' | 'format' | 'shelf' | 'series' | 'loaned';
+    type: 'all' | 'status' | 'format' | 'shelf' | 'series' | 'loaned' | 'user';
     value?: string;
     shelfId?: number;
+    userId?: number;
 }
 
 interface SidebarProps {
@@ -33,6 +34,8 @@ interface SidebarProps {
     onLogout?: () => void;
 
     onSettingsClick?: () => void;
+    // New prop for user libraries
+    publicLibraries?: { id: number; username: string; library_name?: string }[];
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -48,9 +51,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     isVisible = true,
     user,
     onLogout,
-    onSettingsClick
+    onSettingsClick,
+    publicLibraries = []
 }) => {
-    const isActive = (type: string, value?: string) => {
+    const isActive = (type: string, value?: string | number) => {
+        if (type === 'user') return activeFilter.type === 'user' && activeFilter.userId === value;
         return activeFilter.type === type && activeFilter.value === value;
     };
 
@@ -69,18 +74,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 />
             )}
 
-            {/* Show Sidebar Button - Visible when sidebar is hidden */}
-            {/* Show Sidebar Button removed - moved to Library top bar */}
-
-            <aside className={`sidebar ${isMobileOpen ? 'open' : ''}`} style={{ display: isVisible ? 'block' : 'none' }}>
-                {/* Sidebar Header with Hide Button */}
+            <aside className={`sidebar ${isMobileOpen ? 'open' : ''}`} style={{ display: isVisible ? 'flex' : 'none' }}>
+                {/* Sidebar Header */}
                 <div className="sidebar-header" style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'start'
                 }}>
                     <div>
-                        <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, background: 'linear-gradient(to right, #c084fc, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>BookBoss</h2>
+                        <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, background: 'linear-gradient(to right, var(--title-gradient-start), var(--title-gradient-end))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                            BookBoss {import.meta.env.DEV && <span style={{ fontSize: '0.8rem', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '1px' }}>(Dev Mode)</span>}
+                        </h2>
                         {user && (
                             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
                                 {user.username}
@@ -107,9 +111,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             onClick={() => handleFilterClick({ type: 'all' })}
                         >
                             <span className="sidebar-icon">📚</span>
-                            <span className="sidebar-label">All Books</span>
+                            <span className="sidebar-label">My Library</span>
                             <span className="sidebar-count">{bookCounts.total}</span>
                         </button>
+                    </div>
+
+                    {/* Libraries Section (New) */}
+                    <div className="sidebar-section">
+                        <div className="sidebar-section-title">Shared Libraries</div>
+                        {publicLibraries.length > 0 ? (
+                            publicLibraries.map(lib => (
+                                <button
+                                    key={lib.id}
+                                    className={`sidebar-item ${isActive('user', lib.id) ? 'active' : ''}`}
+                                    onClick={() => handleFilterClick({ type: 'user', userId: lib.id })}
+                                >
+                                    <span className="sidebar-icon">👤</span>
+                                    <span className="sidebar-label">{lib.library_name || `${lib.username}'s Library`}</span>
+                                </button>
+                            ))
+                        ) : (
+                            <div style={{ padding: '4px 12px', fontSize: '0.8rem', opacity: 0.6 }}>No shared libraries</div>
+                        )}
                     </div>
 
                     {/* Reading Status */}
@@ -211,8 +234,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             <span>Shelves</span>
                             <button
                                 onClick={(e) => { e.stopPropagation(); onManageShelves(); }}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }}
-                                title="Manage Shelves"
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '1.4rem',
+                                    padding: '0 4px',
+                                    color: 'var(--accent-color)',
+                                    fontWeight: 'bold',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    lineHeight: 1
+                                }}
+                                title="Create Shelf"
                             >
                                 +
                             </button>
@@ -229,9 +264,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 </button>
                             ))
                         ) : (
-                            <div style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                                No shelves created
-                            </div>
+                            <button
+                                onClick={onManageShelves}
+                                style={{
+                                    width: '100%',
+                                    textAlign: 'left',
+                                    padding: '8px 12px',
+                                    background: 'none',
+                                    border: '1px dashed var(--glass-border)',
+                                    borderRadius: '8px',
+                                    color: 'var(--accent-color)',
+                                    cursor: 'pointer',
+                                    fontSize: '0.9rem',
+                                    marginTop: '8px'
+                                }}
+                            >
+                                + Create new shelf
+                            </button>
                         )}
                     </div>
 

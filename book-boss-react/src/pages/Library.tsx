@@ -8,6 +8,7 @@ import { EpubReaderModal } from '../components/books/EpubReaderModal';
 import { BookDetailModal } from '../components/books/BookDetailModal';
 import { Sidebar, type SidebarFilter } from '../components/layout/Sidebar';
 import { Toast } from '../components/common/Toast';
+import { ConfirmationModal } from '../components/common/ConfirmationModal';
 import { SettingsModal } from '../components/settings/SettingsModal';
 import { ShelfManagerModal } from '../components/shelves/ShelfManagerModal';
 import { UpdateProgressModal } from '../components/books/UpdateProgressModal';
@@ -53,11 +54,30 @@ export const Library: React.FC = () => {
     const [selectedBooks, setSelectedBooks] = useState<Set<number>>(new Set());
     const [bulkMode, setBulkMode] = useState(false);
 
-    // Fetch books and shelves on mount
+    // Confirmation Modal State
+    const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; isDanger?: boolean }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+    });
+
+    const openConfirm = (title: string, message: string, onConfirm: () => void, isDanger = false) => {
+        setConfirmModal({ isOpen: true, title, message, onConfirm, isDanger });
+    };
+
+    const [publicLibraries, setPublicLibraries] = useState<{ id: number; username: string; library_name?: string }[]>([]);
+
+    // Fetch shelves and public libs on mount
+    useEffect(() => {
+        loadShelves();
+        loadPublicLibraries();
+    }, []);
+
+    // Fetch books when switching libraries (user filter)
     useEffect(() => {
         loadBooks();
-        loadShelves();
-    }, []);
+    }, [sidebarFilter.type, sidebarFilter.userId]);
 
     // Apply filters whenever books, filters, or sidebar filter change
     useEffect(() => {
@@ -66,14 +86,31 @@ export const Library: React.FC = () => {
 
 
 
+    const loadPublicLibraries = async () => {
+        try {
+            const libs = await bookService.getPublicUsers();
+            setPublicLibraries(libs);
+        } catch (err) {
+            console.error('Error loading public libraries:', err);
+        }
+    };
+
     const loadBooks = async () => {
         try {
             setIsLoading(true);
             setError(null);
+
+            const targetUserId = sidebarFilter.type === 'user' ? sidebarFilter.userId : undefined;
+
             // Fetch books and user progress in parallel
             const [booksData, userBooksData] = await Promise.all([
-                bookService.getBooks(),
-                bookService.getUserBooks().catch(() => []) // Silently fail if auth error
+                bookService.getBooks(targetUserId),
+                // Only fetch user progress if viewing my own library or if we support tracking on others
+                // For now, let's keep user status for my own interaction with these books if possible,
+                // BUT the server returns books I don't own. 
+                // Getting user_books for these IDs might fail if I don't have a tailored endpoint.
+                // getUserBooks returns *all* my user_books. We can match by ID.
+                bookService.getUserBooks().catch(() => [])
             ]);
 
             // Merge user progress into books
@@ -92,7 +129,7 @@ export const Library: React.FC = () => {
 
             setBooks(mergedBooks);
         } catch (err) {
-            setError('Failed to load books. Please try again.');
+            setError('Failed to load books. Please try again. ' + (err as any).message);
             console.error('Error loading books:', err);
         } finally {
             setIsLoading(false);
@@ -194,16 +231,21 @@ export const Library: React.FC = () => {
     };
 
     const handleDelete = async (book: Book) => {
-        if (window.confirm(`Are you sure you want to delete "${book.title}"?`)) {
-            try {
-                await bookService.deleteBook(book.id);
-                loadBooks();
-                showToast('Book deleted successfully!', 'success');
-            } catch (error) {
-                console.error('Error deleting book:', error);
-                showToast('Failed to delete book', 'error');
-            }
-        }
+        openConfirm(
+            'Delete Book',
+            `Are you sure you want to delete "${book.title}"?`,
+            async () => {
+                try {
+                    await bookService.deleteBook(book.id);
+                    loadBooks();
+                    showToast('Book deleted successfully!', 'success');
+                } catch (error) {
+                    console.error('Error deleting book:', error);
+                    showToast('Failed to delete book', 'error');
+                }
+            },
+            true
+        );
     };
 
     const handleRead = (book: Book) => {
@@ -228,18 +270,24 @@ export const Library: React.FC = () => {
 
     const handleBulkDelete = async () => {
         if (selectedBooks.size === 0) return;
-        if (window.confirm(`Delete ${selectedBooks.size} selected books?`)) {
-            try {
-                await bookService.bulkDeleteBooks(Array.from(selectedBooks));
-                loadBooks();
-                setSelectedBooks(new Set());
-                setBulkMode(false);
-                showToast(`${selectedBooks.size} books deleted successfully!`, 'success');
-            } catch (error) {
-                console.error('Error deleting books:', error);
-                showToast('Failed to delete some books', 'error');
-            }
-        }
+
+        openConfirm(
+            'Bulk Delete',
+            `Delete ${selectedBooks.size} selected books?`,
+            async () => {
+                try {
+                    await bookService.bulkDeleteBooks(Array.from(selectedBooks));
+                    loadBooks();
+                    setSelectedBooks(new Set());
+                    setBulkMode(false);
+                    showToast(`${selectedBooks.size} books deleted successfully!`, 'success');
+                } catch (error) {
+                    console.error('Error deleting books:', error);
+                    showToast('Failed to delete some books', 'error');
+                }
+            },
+            true
+        );
     };
 
     const handleBulkUpdateShelf = async (shelf: string) => {
@@ -322,6 +370,7 @@ export const Library: React.FC = () => {
                 onLogout={logout}
 
                 onSettingsClick={() => setIsSettingsModalOpen(true)}
+                publicLibraries={publicLibraries}
             />
 
             <div className="content-area" style={{ marginLeft: isSidebarVisible ? 'var(--sidebar-width)' : '0', minHeight: '100vh', transition: 'margin-left 0.3s ease' }}>
@@ -402,24 +451,6 @@ export const Library: React.FC = () => {
                             <option value="page_count_desc">Length</option>
                             <option value="pub_date_desc">Published</option>
                         </select>
-
-                        {/* Refresh Metadata Button */}
-                        <button
-                            className="secondary-btn"
-                            onClick={() => setIsMetadataRefreshOpen(true)}
-                            style={{
-                                padding: '10px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: '50%',
-                                width: '42px',
-                                height: '42px'
-                            }}
-                            title="Refresh Metadata"
-                        >
-                            🔄
-                        </button>
 
                         {/* Theme Toggle Button */}
                         <button
@@ -545,6 +576,7 @@ export const Library: React.FC = () => {
                 <SettingsModal
                     isOpen={isSettingsModalOpen}
                     onClose={() => setIsSettingsModalOpen(false)}
+                    onSettingsChange={loadPublicLibraries}
                 />
 
                 <ShelfManagerModal
@@ -579,6 +611,15 @@ export const Library: React.FC = () => {
                     type={toast.type}
                     isVisible={toast.isVisible}
                     onClose={() => setToast({ ...toast, isVisible: false })}
+                />
+
+                <ConfirmationModal
+                    isOpen={confirmModal.isOpen}
+                    onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                    onConfirm={confirmModal.onConfirm}
+                    title={confirmModal.title}
+                    message={confirmModal.message}
+                    isDanger={confirmModal.isDanger}
                 />
             </div>
         </>

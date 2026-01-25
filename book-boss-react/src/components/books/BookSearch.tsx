@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Book } from '../../types/book';
+import { bookService } from '../../services/bookService';
 
 interface BookSearchProps {
     onBookSelect: (book: Partial<Book>) => void;
@@ -29,12 +30,9 @@ export const BookSearch: React.FC<BookSearchProps> = ({ onBookSelect, initialQue
         setResults([]);
 
         try {
-            const response = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(searchQuery)}&limit=20`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch results');
-            }
-            const data = await response.json();
-            setResults(data.docs || []);
+            // Use backend proxy to avoid CORS and get consistent results
+            const data = await bookService.searchOnline(searchQuery);
+            setResults(data.items || []);
         } catch (err) {
             console.error(err);
             setError('Failed to search books. Please try again.');
@@ -49,59 +47,104 @@ export const BookSearch: React.FC<BookSearchProps> = ({ onBookSelect, initialQue
         }
     };
 
-    const handleAddBook = async (doc: any) => {
-        setIsLoading(true);
-        try {
-            // Fetch detailed work info for description
-            let description = '';
-            if (doc.key) {
-                try {
-                    const workRes = await fetch(`https://openlibrary.org${doc.key}.json`);
-                    if (workRes.ok) {
-                        const workData = await workRes.json();
-                        description = typeof workData.description === 'string'
-                            ? workData.description
-                            : workData.description?.value || '';
-                    }
-                } catch (e) {
-                    console.error('Failed to fetch work details', e);
-                }
-            }
+    // Editions state
+    const [editions, setEditions] = useState<any[]>([]);
+    const [isFetchingEditions, setIsFetchingEditions] = useState(false);
+    const [selectedWorkId, setSelectedWorkId] = useState<string | null>(null);
 
-            const coverId = doc.cover_i;
-            const book: Partial<Book> = {
-                title: doc.title,
-                author: doc.author_name ? doc.author_name.join(', ') : 'Unknown Author',
-                isbn: doc.isbn ? doc.isbn[0] : '',
-                cover_url: coverId ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : undefined,
-                categories: doc.subject ? doc.subject.slice(0, 5) : [],
-                publication_date: doc.first_publish_year ? String(doc.first_publish_year) : undefined,
-                publisher: doc.publisher ? doc.publisher[0] : undefined,
-                page_count: doc.number_of_pages_median || undefined,
-                description: description,
-                library: 'Main Library',
-                format: 'Physical',
-                binding_type: 'Paperback',
-                status: 'Not Started',
-                added_at: new Date().toISOString()
-            };
-            onBookSelect(book);
-        } catch (error) {
-            console.error('Error preparing book details:', error);
-            // Fallback to basic details
-            const coverId = doc.cover_i;
-            onBookSelect({
-                title: doc.title,
-                author: doc.author_name ? doc.author_name.join(', ') : 'Unknown Author',
-                cover_url: coverId ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : undefined,
-            });
-        } finally {
-            setIsLoading(false);
+    const handleAddBook = async (item: any) => {
+        // If it's a Google Book result (id usually alphanumeric without slashes) or looks specific, add directly
+        // If it's an OpenLibrary WORK (id starts with /works/), fetch editions.
+        // Google Books IDs don't start with /works/. OL keys do.
+        if (item.id.toString().startsWith('/works/')) {
+            await fetchEditions(item.id, item.volumeInfo.title);
+            return;
         }
+
+        // Function to map item to book
+        selectEdition(item);
+    };
+
+    const fetchEditions = async (workKey: string, title: string) => {
+        setSelectedWorkId(workKey);
+        setIsFetchingEditions(true);
+        setEditions([]); // Clear previous
+
+        try {
+            // We need a proxy endpoint for editions too to avoid CORS?
+            // Or we can use the same search endpoint with a designated query if we update backend?
+            // Actually, backend needs an endpoint for editions.
+            // Let's defer to backend implementation or use existing search with a trick?
+            // Better: Add /api/search/editions?work=... to backend.
+            const response = await bookService.getEditions(workKey);
+            setEditions(response.entries || []);
+        } catch (error) {
+            console.error('Failed to fetch editions:', error);
+            // Fallback to adding the work itself as a generic book
+            selectEdition({ id: workKey, volumeInfo: { title, authors: ['Unknown'] } }); // Minimal fallback
+            setError('Could not load editions. Added as generic work.');
+        } finally {
+            setIsFetchingEditions(false);
+        }
+    };
+
+    const selectEdition = (item: any, isEdition = false) => {
+        // Map info
+        const volumeInfo = isEdition ? {
+            title: item.title,
+            authors: item.authors ? item.authors.map((a: any) => a.name || 'Unknown') : [], // OL editions author format might vary
+            description: item.description ? (typeof item.description === 'string' ? item.description : item.description.value) : '',
+            publisher: item.publishers ? item.publishers[0] : '',
+            publishedDate: item.publish_date,
+            pageCount: item.number_of_pages,
+            categories: item.subjects || [],
+            language: '', // OL often misses this in editions
+            imageLinks: item.covers ? {
+                thumbnail: `https://covers.openlibrary.org/b/id/${item.covers[0]}-M.jpg`
+            } : null,
+            industryIdentifiers: item.isbn_13 ? [{ type: 'ISBN_13', identifier: item.isbn_13[0] }] :
+                (item.isbn_10 ? [{ type: 'ISBN_10', identifier: item.isbn_10[0] }] : [])
+        } : item.volumeInfo;
+
+        // ... existing mapping logic ...
+        // I will copy the previous logic here but adapted
+
+        let coverUrl = undefined;
+        if (volumeInfo.imageLinks) {
+            coverUrl = volumeInfo.imageLinks.thumbnail || volumeInfo.imageLinks.smallThumbnail;
+            if (coverUrl && coverUrl.startsWith('http://')) {
+                coverUrl = coverUrl.replace('http://', 'https://');
+            }
+        }
+
+        const book: Partial<Book> = {
+            title: volumeInfo.title,
+            author: Array.isArray(volumeInfo.authors) ? volumeInfo.authors.join(', ') : (volumeInfo.authors || 'Unknown'),
+            description: volumeInfo.description || '',
+            publisher: volumeInfo.publisher,
+            publication_date: volumeInfo.publishedDate,
+            page_count: volumeInfo.pageCount,
+            categories: volumeInfo.categories || [],
+            language: volumeInfo.language || 'en',
+            rating: volumeInfo.averageRating,
+            cover_url: coverUrl,
+            isbn: volumeInfo.industryIdentifiers?.find((id: any) => id.type === 'ISBN_13')?.identifier ||
+                volumeInfo.industryIdentifiers?.find((id: any) => id.type === 'ISBN_10')?.identifier ||
+                (volumeInfo.industryIdentifiers?.[0]?.identifier) || '',
+            library: 'Main Library',
+            format: 'Physical',
+            binding_type: 'Paperback',
+            status: 'Not Started',
+            added_at: new Date().toISOString()
+        };
+
+        onBookSelect(book);
+        setSelectedWorkId(null); // Close modal/list
     };
 
     return (
         <div className="book-search">
+            {/* ... Existing Search Bar ... */}
             <div className="search-bar" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                 <input
                     type="text"
@@ -120,51 +163,72 @@ export const BookSearch: React.FC<BookSearchProps> = ({ onBookSelect, initialQue
                 </button>
             </div>
 
-            {error && (
-                <div style={{ color: 'var(--danger-color)', textAlign: 'center', marginBottom: '20px' }}>
-                    {error}
+            {error && <div style={{ color: 'var(--danger-color)', textAlign: 'center', marginBottom: '20px' }}>{error}</div>}
+
+            {/* Work Results */}
+            {!selectedWorkId && (
+                <div className="search-results-grid">
+                    {results.map((item) => {
+                        const info = item.volumeInfo;
+                        const cover = info.imageLinks?.thumbnail || info.imageLinks?.smallThumbnail;
+                        const isWork = item.id.toString().startsWith('/works/');
+
+                        return (
+                            <div key={item.id} className="book-card search-result-card">
+                                <div className="search-result-cover">
+                                    {cover ? <img src={cover.replace('http://', 'https://')} alt={info.title} /> : <span style={{ fontSize: '2rem' }}>📚</span>}
+                                </div>
+                                <div className="search-result-info">
+                                    <h4 title={info.title}>{info.title}</h4>
+                                    <p className="search-result-author">{info.authors ? info.authors[0] : 'Unknown'}</p>
+                                    {info.publishedDate && <p className="search-result-year">{info.publishedDate.substring(0, 4)}</p>}
+                                    {isWork && <span className="badge" style={{ background: 'var(--accent-color)', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', marginTop: '4px', display: 'inline-block' }}>Multiple Editions</span>}
+                                </div>
+                                <button className="secondary-btn small" onClick={() => handleAddBook(item)}>
+                                    {isWork ? 'Select Edition' : '+ Add'}
+                                </button>
+                            </div>
+                        );
+                    })}
                 </div>
             )}
 
-            <div className="search-results-grid">
-                {results.map((doc, index) => (
-                    <div key={doc.key || index} className="book-card search-result-card">
-                        <div className="search-result-cover">
-                            {doc.cover_i ? (
-                                <img
-                                    src={`https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`}
-                                    alt={doc.title}
-                                />
-                            ) : (
-                                <span style={{ fontSize: '2rem' }}>📚</span>
-                            )}
-                        </div>
-                        <div className="search-result-info">
-                            <h4 title={doc.title}>
-                                {doc.title}
-                            </h4>
-                            <p className="search-result-author">
-                                {doc.author_name ? doc.author_name[0] : 'Unknown'}
-                            </p>
-                            {doc.first_publish_year && (
-                                <p className="search-result-year">
-                                    {doc.first_publish_year}
-                                </p>
-                            )}
-                        </div>
-                        <button
-                            className="secondary-btn small"
-                            onClick={() => handleAddBook(doc)}
-                        >
-                            + Add
-                        </button>
+            {/* Edition Selection View */}
+            {selectedWorkId && (
+                <div className="editions-view">
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '15px' }}>
+                        <button className="secondary-btn small" onClick={() => setSelectedWorkId(null)}>← Back to Results</button>
+                        <h3 style={{ marginLeft: '15px', marginBottom: 0 }}>Select an Edition</h3>
                     </div>
-                ))}
-            </div>
 
-            {!isLoading && results.length === 0 && query && !error && (
-                <div style={{ textAlign: 'center', color: 'var(--text-secondary)', marginTop: '20px' }}>
-                    No results found.
+                    {isFetchingEditions ? (
+                        <div style={{ textAlign: 'center', padding: '40px' }}>Loading editions...</div>
+                    ) : (
+                        <div className="search-results-grid">
+                            {editions.map((edition: any) => {
+                                const hasCover = edition.covers && edition.covers.length > 0;
+                                const coverUrl = hasCover ? `https://covers.openlibrary.org/b/id/${edition.covers[0]}-M.jpg` : null;
+
+                                return (
+                                    <div key={edition.key} className="book-card search-result-card" style={{ border: '1px solid var(--accent-color)' }}>
+                                        <div className="search-result-cover">
+                                            {coverUrl ? <img src={coverUrl} alt={edition.title} /> : <span style={{ fontSize: '2rem' }}>📖</span>}
+                                        </div>
+                                        <div className="search-result-info">
+                                            <h4>{edition.title}</h4>
+                                            <p>{edition.publishers ? edition.publishers[0] : 'Unknown Publisher'}</p>
+                                            <p>{edition.publish_date}</p>
+                                            {edition.isbn_13 && <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>ISBN: {edition.isbn_13[0]}</p>}
+                                        </div>
+                                        <button className="primary-btn small" onClick={() => selectEdition(edition, true)}>
+                                            Select This
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                            {editions.length === 0 && <p>No specific editions found. <button onClick={() => selectEdition({ id: selectedWorkId, volumeInfo: { title: 'Unknown', authors: [] } })}>Add Generic</button></p>}
+                        </div>
+                    )}
                 </div>
             )}
         </div>

@@ -158,6 +158,62 @@ const checkDbConnection = (retries = 5, delay = 5000) => {
             }
         } else {
             console.log('Successfully connected to the database.');
+
+            // Ensure ABS tables exist
+            const createAbsServersTable = `
+                CREATE TABLE IF NOT EXISTS audiobookshelf_servers (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    server_name VARCHAR(255) NOT NULL,
+                    server_url VARCHAR(500) NOT NULL,
+                    api_token TEXT,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            `;
+            const createAbsMappingsTable = `
+                CREATE TABLE IF NOT EXISTS abs_book_mappings (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    book_id INT NOT NULL,
+                    abs_server_id INT NOT NULL,
+                    abs_library_item_id VARCHAR(255) NOT NULL,
+                    abs_library_id VARCHAR(255) NOT NULL,
+                    last_synced TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
+                    FOREIGN KEY (abs_server_id) REFERENCES audiobookshelf_servers(id) ON DELETE CASCADE,
+                    UNIQUE KEY unique_book_mapping (book_id, abs_server_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            `;
+
+            connection.query(createAbsServersTable, (err) => {
+                if (err) console.error('Failed to init audiobookshelf_servers:', err.message);
+                else console.log('Verified audiobookshelf_servers table');
+            });
+            connection.query(createAbsMappingsTable, (err) => {
+                if (err) console.error('Failed to init abs_book_mappings:', err.message);
+                else console.log('Verified abs_book_mappings table');
+            });
+
+            // Ensure owner_id column exists
+            connection.query("SHOW COLUMNS FROM books LIKE 'owner_id'", (err, results) => {
+                if (!err && results.length === 0) {
+                    console.log('Adding owner_id column to books...');
+                    connection.query("ALTER TABLE books ADD COLUMN owner_id INT", (err) => {
+                        if (!err) {
+                            // Default all existing books to admin (id: 1)
+                            connection.query("UPDATE books SET owner_id = 1 WHERE owner_id IS NULL");
+                            // Add FK
+                            connection.query("ALTER TABLE books ADD CONSTRAINT fk_book_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE", (err) => {
+                                if (err) console.log("Note: FK creation skipped or failed: " + err.message);
+                            });
+                        } else {
+                            console.error('Failed to add owner_id:', err.message);
+                        }
+                    });
+                }
+            });
+
             connection.release();
         }
     });
@@ -178,61 +234,97 @@ db.on('connection', (connection) => {
 
 // --- API Endpoints ---
 
-// Get all books
-// --- API Endpoints ---
-
-// Get all books (public access for testing)
-// Modified to include shelf_ids and reading status for the current user if logged in (via token check optional or if we assume this is mostly auth'd)
-// Since this is public for now, we won't join user_books unless we have a user context.
-// But the frontend sends token. So we should use authenticateToken if we want user specific data.
-// However, the route definition is `app.get('/api/books', ...)` without `authenticateToken`.
-// Let's keep it public but try to parse user if header exists? Or just leave it generic and fetch user data separately.
-// The plan was to fetch reading progress via `/api/user/books`.
-// So we just need `shelf_ids`.
-app.get('/api/books', (req, res) => {
-    // We use a LEFT JOIN to get shelf_ids and ABS mapping.
-    // Since we also join shelf_books, let's keep it robust.
+// Get Public User Libraries
+app.get('/api/users/public', authenticateToken, (req, res) => {
+    // Return users who have set share_library = true
+    // Privacy settings are stored in JSON column `privacy_settings`
     const query = `
-        SELECT b.*,
-        (SELECT JSON_ARRAYAGG(shelf_id) FROM shelf_books WHERE book_id = b.id) as shelf_ids,
-        abm.abs_server_id, abm.abs_library_item_id, abm.abs_library_id
-        FROM books b
-        LEFT JOIN abs_book_mappings abm ON b.id = abm.book_id
-        ORDER BY b.added_at DESC
+        SELECT id, username,
+        JSON_UNQUOTE(JSON_EXTRACT(privacy_settings, '$.library_name')) as library_name
+        FROM users 
+        WHERE JSON_EXTRACT(privacy_settings, '$.share_library') = true
+        OR id = ?
     `;
-
-    db.query(query, (err, results) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ error: err.message });
-        }
-        // Parse JSON categories and shelf_ids
-        const books = results.map(book => {
-            const b = {
-                ...book,
-                categories: typeof book.categories === 'string' ? JSON.parse(book.categories || '[]') : (book.categories || []),
-                descriptors: typeof book.descriptors === 'string' ? JSON.parse(book.descriptors || '[]') : (book.descriptors || []),
-                shelf_ids: typeof book.shelf_ids === 'string' ? JSON.parse(book.shelf_ids || '[]') : (book.shelf_ids || []),
-            };
-
-            // Structure ABS info
-            if (book.abs_server_id) {
-                b.abs_metadata = {
-                    serverId: book.abs_server_id,
-                    libraryItemId: book.abs_library_item_id,
-                    libraryId: book.abs_library_id
-                };
-            }
-
-            // Clean up flat fields to avoid pollution (optional)
-            delete b.abs_server_id;
-            delete b.abs_library_item_id;
-            delete b.abs_library_id;
-
-            return b;
-        });
-        res.json(books);
+    db.query(query, [req.user.id], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(results);
     });
+});
+
+// Get all books (Filtered by User)
+app.get('/api/books', authenticateToken, (req, res) => {
+    const requesterId = req.user.id;
+    const targetUserId = req.query.userId ? parseInt(req.query.userId) : requesterId;
+
+    // Logic:
+    // 1. If target == requester: Allow.
+    // 2. If target != requester: Check target's privacy setting.
+    // 3. Admin override? Maybe.
+
+    const fetchBooks = () => {
+        // We use a LEFT JOIN to get shelf_ids and ABS mapping.
+        const query = `
+            SELECT b.*,
+            (SELECT JSON_ARRAYAGG(shelf_id) FROM shelf_books WHERE book_id = b.id) as shelf_ids,
+            abm.abs_server_id, abm.abs_library_item_id, abm.abs_library_id
+            FROM books b
+            LEFT JOIN abs_book_mappings abm ON b.id = abm.book_id
+            WHERE b.owner_id = ?
+            ORDER BY b.added_at DESC
+        `;
+
+        db.query(query, [targetUserId], (err, results) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ error: err.message });
+            }
+            // Parse JSON categories and shelf_ids
+            const books = results.map(book => {
+                const b = {
+                    ...book,
+                    categories: typeof book.categories === 'string' ? JSON.parse(book.categories || '[]') : (book.categories || []),
+                    descriptors: typeof book.descriptors === 'string' ? JSON.parse(book.descriptors || '[]') : (book.descriptors || []),
+                    shelf_ids: typeof book.shelf_ids === 'string' ? JSON.parse(book.shelf_ids || '[]') : (book.shelf_ids || []),
+                };
+
+                // Structure ABS info
+                if (book.abs_server_id) {
+                    b.abs_metadata = {
+                        serverId: book.abs_server_id,
+                        libraryItemId: book.abs_library_item_id,
+                        libraryId: book.abs_library_id
+                    };
+                }
+
+                delete b.abs_server_id;
+                delete b.abs_library_item_id;
+                delete b.abs_library_id;
+
+                return b;
+            });
+            res.json(books);
+        });
+    };
+
+    // Check permissions if accessing another user's library
+    if (targetUserId !== requesterId && !req.user.isAdmin) {
+        db.query('SELECT privacy_settings FROM users WHERE id = ?', [targetUserId], (err, results) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (results.length === 0) return res.status(404).json({ error: 'User not found' });
+
+            const settings = results[0].privacy_settings; // MySQL driver might return this as object if JSON type?
+            // Usually mysql2 returns JSON column as object automatically if configured, but let's be safe
+            const privacy = typeof settings === 'string' ? JSON.parse(settings || '{}') : (settings || {});
+
+            if (privacy.share_library) {
+                fetchBooks();
+            } else {
+                return res.status(403).json({ error: 'This library is private.' });
+            }
+        });
+    } else {
+        fetchBooks();
+    }
 });
 
 // Add a new book (with optional file upload)
@@ -450,152 +542,251 @@ app.put('/api/books/:id', authenticateToken, requireAdmin, upload.fields([{ name
     });
 });
 
-// Refresh metadata for all books
-// Downloads cover images and updates metadata for all books in the library
-app.post('/api/books/refresh-metadata', authenticateToken, requireAdmin, async (req, res) => {
+// --- Job System ---
+const jobManager = {
+    jobs: new Map(),
+    nextId: 1,
+
+    createJob(type, description) {
+        const id = this.nextId++;
+        const job = {
+            id,
+            type,
+            description,
+            status: 'running', // running, completed, failed
+            progress: 0,
+            total: 0,
+            processed: 0,
+            result: null,
+            startTime: new Date(),
+            updates: [] // Log of simple string updates
+        };
+        this.jobs.set(id, job);
+        return job;
+    },
+
+    getJob(id) {
+        return this.jobs.get(id);
+    },
+
+    getAllJobs() {
+        return Array.from(this.jobs.values()).sort((a, b) => b.startTime - a.startTime);
+    },
+
+    updateJob(id, updates) {
+        const job = this.jobs.get(id);
+        if (!job) return;
+        Object.assign(job, updates);
+        if (updates.message) {
+            job.updates.push({ time: new Date(), message: updates.message });
+            // Keep log size sane
+            if (job.updates.length > 50) job.updates.shift();
+        }
+    },
+
+    completeJob(id, result = null) {
+        const job = this.jobs.get(id);
+        if (!job) return;
+        job.status = 'completed';
+        job.progress = 100;
+        job.result = result;
+        job.endTime = new Date();
+    },
+
+    failJob(id, error) {
+        const job = this.jobs.get(id);
+        if (!job) return;
+        job.status = 'failed';
+        job.error = error;
+        job.endTime = new Date();
+    },
+
+    // Cleanup old jobs
+    cleanup() {
+        const now = new Date();
+        for (const [id, job] of this.jobs.entries()) {
+            if (job.status !== 'running' && job.endTime) {
+                const diffMs = now - job.endTime;
+                // Remove jobs older than 1 hour
+                if (diffMs > 1000 * 60 * 60) {
+                    this.jobs.delete(id);
+                }
+            }
+        }
+    }
+};
+
+// Periodic cleanup
+setInterval(() => jobManager.cleanup(), 1000 * 60 * 15);
+
+// --- Job Routes ---
+app.get('/api/jobs', authenticateToken, (req, res) => {
+    // Return only active jobs or recent completed ones
+    const jobs = jobManager.getAllJobs();
+    res.json(jobs);
+});
+
+// --- Online Search Proxy ---
+// --- Online Search Proxy ---
+app.get('/api/search/online', authenticateToken, async (req, res) => {
+    const { q } = req.query;
+    if (!q) return res.status(400).json({ error: 'Query required' });
+
+    let results = { kind: 'books#volumes', totalItems: 0, items: [] };
+    let googleFailed = false;
+
+    // 1. Try Google Books
     try {
-        // Get all books
-        const books = await new Promise((resolve, reject) => {
-            db.query('SELECT * FROM books', (err, results) => {
-                if (err) reject(err);
-                else resolve(results);
+        console.log(`[Search] Proxying Google Books search for: ${q}`);
+        const response = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=20`);
+        if (response.data.items) {
+            return res.json(response.data);
+        }
+    } catch (error) {
+        console.warn('[Search] Google Books failed (likely rate limit 429):', error.message);
+        googleFailed = true;
+    }
+
+    // 2. Fallback to OpenLibrary
+    try {
+        console.log(`[Search] Fallback to OpenLibrary for: ${q}`);
+        // Search API: https://openlibrary.org/search.json?q=the+lord+of+the+rings
+        const olResponse = await axios.get(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=20`);
+
+        if (olResponse.data && olResponse.data.docs) {
+            // Map OpenLibrary docs to Google Books volumeInfo format
+            results.items = olResponse.data.docs.map(doc => ({
+                id: doc.key, // Use OL key as ID
+                volumeInfo: {
+                    title: doc.title,
+                    authors: doc.author_name || [],
+                    description: doc.first_sentence ? doc.first_sentence[0] : (doc.subject ? `Subjects: ${doc.subject.slice(0, 5).join(', ')}` : ''),
+                    publishedDate: doc.first_publish_year ? doc.first_publish_year.toString() : null,
+                    pageCount: doc.number_of_pages_median || null,
+                    publisher: doc.publisher ? doc.publisher[0] : null,
+                    categories: doc.subject ? doc.subject.slice(0, 3) : [],
+                    imageLinks: doc.cover_i ? {
+                        thumbnail: `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`,
+                        smallThumbnail: `https://covers.openlibrary.org/b/id/${doc.cover_i}-S.jpg`
+                    } : null,
+                    industryIdentifiers: doc.isbn ? doc.isbn.map(isbn => ({ type: 'ISBN', identifier: isbn })) : []
+                }
+            }));
+            results.totalItems = olResponse.data.numFound;
+        }
+
+        res.json(results);
+
+    } catch (error) {
+        console.error('[Search] All providers failed:', error.message);
+        res.status(503).json({ error: 'Search services unavailable. Please try again later.' });
+    }
+});
+
+// Get Editions from OpenLibrary
+app.get('/api/search/editions', authenticateToken, async (req, res) => {
+    const { workId } = req.query; // e.g. /works/OL123W
+    if (!workId) return res.status(400).json({ error: 'Work ID required' });
+
+    try {
+        console.log(`[Editions] Fetching editions for: ${workId}`);
+        const response = await axios.get(`https://openlibrary.org${workId}/editions.json?limit=50`); // Limit to 50
+        res.json(response.data);
+    } catch (error) {
+        console.error('[Editions] Fetch failed:', error.message);
+        res.status(500).json({ error: 'Failed to fetch editions' });
+    }
+});
+
+
+// All Books Metadata Refresh (Bulk)
+app.post('/api/books/refresh-metadata', authenticateToken, requireAdmin, async (req, res) => {
+    // Start a job
+    const job = jobManager.createJob('metadata_refresh', 'Refreshing Library Metadata');
+
+    // Respond immediately with job info
+    res.json({ success: true, message: 'Metadata refresh started', jobId: job.id });
+
+    // Run in background
+    (async () => {
+        try {
+            const books = await new Promise((resolve, reject) => {
+                db.query('SELECT * FROM books', (err, results) => {
+                    if (err) reject(err);
+                    else resolve(results);
+                });
             });
-        });
 
-        const total = books.length;
-        let processed = 0;
-        let downloaded = 0;
-        let skipped = 0;
-        let failed = 0;
+            const total = books.length;
+            jobManager.updateJob(job.id, { total, processed: 0, message: `Found ${total} books to verify.` });
 
-        console.log(`Starting metadata refresh for ${total} books...`);
+            let updatedCount = 0;
 
-        for (const book of books) {
-            try {
-                let updated = false;
-                let coverUrl = book.cover_url;
+            for (let i = 0; i < total; i++) {
+                const book = books[i];
+                const progress = Math.round(((i + 1) / total) * 100);
 
-                // 1. Fetch Metadata if ISBN exists
-                if (book.isbn) {
-                    console.log(`Fetching metadata for: ${book.title} (ISBN: ${book.isbn})`);
-                    try {
-                        const googleBooksResponse = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=isbn:${book.isbn}`);
-                        if (googleBooksResponse.data.items && googleBooksResponse.data.items.length > 0) {
-                            const volumeInfo = googleBooksResponse.data.items[0].volumeInfo;
+                jobManager.updateJob(job.id, {
+                    processed: i + 1,
+                    progress,
+                    message: `Checking: ${book.title}`
+                });
 
-                            // Prepare updates
-                            const newTitle = volumeInfo.title || book.title;
-                            const newAuthor = volumeInfo.authors ? volumeInfo.authors.join(', ') : book.author;
-                            const newPageCount = volumeInfo.pageCount || book.page_count;
-                            const newPubDate = volumeInfo.publishedDate || book.publication_date;
-                            const newCategories = volumeInfo.categories ? JSON.stringify(volumeInfo.categories) : book.categories;
-                            const newCoverUrl = volumeInfo.imageLinks ? (volumeInfo.imageLinks.thumbnail || volumeInfo.imageLinks.smallThumbnail) : book.cover_url;
+                if (!book.isbn) continue;
 
-                            // Update DB
+                // Simple refresh logic (similar to single book but simplified for bulk to avoid rate limits)
+                // We'll add a small delay to be nice to APIs
+                await new Promise(r => setTimeout(r, 500));
+
+                try {
+                    const cleanIsbn = book.isbn.replace(/-/g, '').trim();
+                    const googleBooksResponse = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}`);
+
+                    if (googleBooksResponse.data.items && googleBooksResponse.data.items.length > 0) {
+                        const volumeInfo = googleBooksResponse.data.items[0].volumeInfo;
+
+                        // Check if we actually have *better* data? 
+                        // For bulk, let's just fill MISSING data to be safe, or overwrite if specific policy.
+                        // Impl Plan said "Downloads cover images and updates metadata".
+                        // Let's stick to the previous aggressive update logic but wrapped in try/catch
+
+                        const newTitle = volumeInfo.title || book.title;
+                        const newAuthor = volumeInfo.authors ? volumeInfo.authors.join(', ') : book.author;
+                        const newPageCount = volumeInfo.pageCount || book.page_count;
+                        const newPubDate = volumeInfo.publishedDate || book.publication_date;
+                        const newCategories = volumeInfo.categories ? JSON.stringify(volumeInfo.categories) : book.categories;
+                        // const newCoverUrl = ... we probably shouldn't bulk overwrite covers unless missing?
+                        // The previous code DID overwrite covers. Let's respect that.
+                        let newCoverUrl = book.cover_url;
+                        if (volumeInfo.imageLinks) {
+                            newCoverUrl = volumeInfo.imageLinks.thumbnail || volumeInfo.imageLinks.smallThumbnail || book.cover_url;
+                        }
+
+                        if (newTitle !== book.title || newPageCount !== book.page_count || newCoverUrl !== book.cover_url) {
                             await new Promise((resolve, reject) => {
                                 db.query(
                                     'UPDATE books SET title = ?, author = ?, page_count = ?, publication_date = ?, categories = ?, cover_url = ? WHERE id = ?',
                                     [newTitle, newAuthor, newPageCount, newPubDate, newCategories, newCoverUrl, book.id],
-                                    (err) => {
-                                        if (err) reject(err);
-                                        else resolve();
-                                    }
+                                    (err) => err ? reject(err) : resolve()
                                 );
                             });
-
-                            coverUrl = newCoverUrl; // Update local var for next step
-                            updated = true;
-                            console.log(`Updated metadata for: ${book.title}`);
-                        } else {
-                            console.log(`No metadata found for ISBN: ${book.isbn}`);
+                            updatedCount++;
                         }
-                    } catch (apiError) {
-                        console.error(`API Error for ${book.title}:`, apiError.message);
                     }
+                } catch (err) {
+                    console.warn(`[Bulk Refresh] Failed for ${book.title}:`, err.message);
                 }
-
-                // 2. Download cover image (using potentially updated URL)
-                // Skip if no cover URL or already has local cover (unless we just updated it, then we might want to re-download? 
-                // For now, let's only download if it's a remote URL and we don't have a local path OR if we just updated the URL)
-
-                // Logic: If we have a coverUrl that starts with http, we should try to download it.
-                // If we already have a local path, we might skip, BUT if we just updated the metadata, we might have a BETTER cover now.
-                // So let's download if it's http.
-
-                if (coverUrl && coverUrl.startsWith('http')) {
-                    if (!isValidUrl(coverUrl)) {
-                        console.warn('Skipping invalid cover URL:', coverUrl);
-                        skipped++;
-                        if (!updated) processed++;
-                    } else {
-                        // Download cover image
-                        console.log(`Downloading cover for: ${book.title}`);
-                        const imageResponse = await axios.get(coverUrl, {
-                            responseType: 'arraybuffer',
-                            timeout: 10000
-                        });
-                        const imageBuffer = Buffer.from(imageResponse.data, 'binary');
-
-                        // Generate unique filename
-                        const hash = crypto.createHash('md5').update(coverUrl).digest('hex');
-                        const ext = coverUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)?.[1] || 'jpg';
-                        const filename = `cover_${hash}.${ext}`;
-                        const filepath = path.join('uploads', filename);
-
-                        // Ensure uploads directory exists
-                        if (!fs.existsSync('uploads')) {
-                            fs.mkdirSync('uploads', { recursive: true });
-                        }
-
-                        // Save image
-                        fs.writeFileSync(filepath, imageBuffer);
-
-                        // Update database with local path
-                        await new Promise((resolve, reject) => {
-                            db.query(
-                                'UPDATE books SET cover_image_path = ? WHERE id = ?',
-                                [filepath, book.id],
-                                (err) => {
-                                    if (err) reject(err);
-                                    else resolve();
-                                }
-                            );
-                        });
-
-                        downloaded++;
-                        if (!updated) processed++; // Only increment if not already counted as updated
-                        console.log(`Downloaded cover: ${book.title}`);
-                    }
-                }
-
-                if (updated) processed++;
-
-            } catch (error) {
-                console.error(`Error processing ${book.title}:`, error.message);
-                failed++;
-                processed++;
             }
+
+            jobManager.completeJob(job.id, { updated: updatedCount });
+
+        } catch (error) {
+            console.error('[Bulk Refresh] Critical Error:', error);
+            jobManager.failJob(job.id, error.message);
         }
-
-        const message = `Metadata refresh complete! Downloaded: ${downloaded}, Skipped: ${skipped}, Failed: ${failed}`;
-        console.log(message);
-
-        res.json({
-            success: true,
-            message,
-            processed: total,
-            downloaded,
-            skipped,
-            failed
-        });
-    } catch (error) {
-        console.error('Metadata refresh error:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
+    })();
 });
+
 
 // Download book file
 // Download book file
@@ -1181,6 +1372,162 @@ app.put('/api/loans/:id/return', authenticateToken, (req, res) => {
     });
 });
 
+// Download book file
+app.get('/api/books/:id/download', authenticateToken, (req, res) => {
+    const { id } = req.params;
+
+    db.query('SELECT file_path, format, title FROM books WHERE id = ?', [id], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (results.length === 0) return res.status(404).json({ error: 'Book not found' });
+
+        const book = results[0];
+        if (!book.file_path) return res.status(404).json({ error: 'No file available for this book' });
+
+        res.download(book.file_path, `${book.title}.${book.format.toLowerCase()}`);
+    });
+});
+
+// Refresh metadata for a SINGLE book
+app.post('/api/books/:id/refresh-metadata', authenticateToken, requireAdmin, async (req, res) => {
+    const { id } = req.params;
+
+    // Send immediate response
+    res.json({
+        success: true,
+        message: 'Metadata refresh started in background. Check back in a few moments.'
+    });
+
+    // Run logic in background
+    (async () => {
+        try {
+            console.log(`[Background] Starting metadata refresh for book ID: ${id}`);
+
+            // Get the book
+            const book = await new Promise((resolve, reject) => {
+                db.query('SELECT * FROM books WHERE id = ?', [id], (err, results) => {
+                    if (err) reject(err);
+                    else resolve(results[0]);
+                });
+            });
+
+            if (!book || !book.isbn) {
+                console.log(`[Background] Book ${id} has no ISBN or not found. Skipping.`);
+                return;
+            }
+
+            const cleanIsbn = book.isbn.replace(/-/g, '').trim();
+            let updated = false;
+            let coverUrl = book.cover_url;
+            let newTitle = book.title;
+            let newAuthor = book.author;
+            let newPageCount = book.page_count;
+            let newPubDate = book.publication_date;
+            let newCategories = book.categories;
+            let newDescription = book.description;
+
+            console.log(`[Background] Fetching metadata for: ${book.title} (ISBN: ${cleanIsbn})`);
+
+            // 1. Try Google Books
+            try {
+                const googleBooksResponse = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}`);
+                if (googleBooksResponse.data.items && googleBooksResponse.data.items.length > 0) {
+                    const volumeInfo = googleBooksResponse.data.items[0].volumeInfo;
+
+                    newTitle = volumeInfo.title || newTitle;
+                    newAuthor = volumeInfo.authors ? volumeInfo.authors.join(', ') : newAuthor;
+                    newPageCount = volumeInfo.pageCount || newPageCount;
+                    newPubDate = volumeInfo.publishedDate || newPubDate;
+                    newCategories = volumeInfo.categories ? JSON.stringify(volumeInfo.categories) : newCategories;
+                    newDescription = volumeInfo.description || newDescription;
+
+                    if (volumeInfo.imageLinks) {
+                        coverUrl = volumeInfo.imageLinks.thumbnail || volumeInfo.imageLinks.smallThumbnail;
+                    }
+                    updated = true;
+                    console.log(`[Background] Found metadata via Google Books for ${cleanIsbn}`);
+                }
+            } catch (googleError) {
+                console.warn(`[Background] Google Books API failed for ${cleanIsbn}:`, googleError.message);
+            }
+
+            // 2. Try OpenLibrary if not updated or missing key fields
+            if (!updated) {
+                try {
+                    const olResponse = await axios.get(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanIsbn}&jscmd=data&format=json`);
+                    const olKey = `ISBN:${cleanIsbn}`;
+                    if (olResponse.data && olResponse.data[olKey]) {
+                        const data = olResponse.data[olKey];
+
+                        newTitle = data.title || newTitle;
+                        newAuthor = data.authors ? data.authors.map(a => a.name).join(', ') : newAuthor;
+                        newPageCount = data.number_of_pages || newPageCount;
+                        newPubDate = data.publish_date || newPubDate;
+                        // Categories from subjects
+                        if (data.subjects) {
+                            newCategories = JSON.stringify(data.subjects.map(s => s.name).slice(0, 5));
+                        }
+
+                        if (data.cover && data.cover.large) {
+                            coverUrl = data.cover.large;
+                        } else if (data.cover && data.cover.medium) {
+                            coverUrl = data.cover.medium;
+                        }
+
+                        updated = true;
+                        console.log(`[Background] Found metadata via OpenLibrary for ${cleanIsbn}`);
+                    }
+                } catch (olError) {
+                    console.warn(`[Background] OpenLibrary API failed for ${cleanIsbn}:`, olError.message);
+                }
+            }
+
+            if (updated) {
+                // Update DB Metadata
+                await new Promise((resolve, reject) => {
+                    db.query(
+                        'UPDATE books SET title = ?, author = ?, page_count = ?, publication_date = ?, categories = ?, description = ?, cover_url = ? WHERE id = ?',
+                        [newTitle, newAuthor, newPageCount, newPubDate, newCategories, newDescription, coverUrl, book.id],
+                        (err) => {
+                            if (err) reject(err);
+                            else resolve();
+                        }
+                    );
+                });
+                console.log(`[Background] DB updated for book ID ${id}`);
+
+                // 3. Download Cover Image (if HTTP URL and updated)
+                const isValidUrl = (s) => { try { new URL(s); return true; } catch (e) { return false; } };
+                if (coverUrl && coverUrl.startsWith('http') && isValidUrl(coverUrl)) {
+                    try {
+                        const imageResponse = await axios.get(coverUrl, { responseType: 'arraybuffer', timeout: 10000 });
+                        const imageBuffer = Buffer.from(imageResponse.data, 'binary');
+                        const hash = crypto.createHash('md5').update(coverUrl).digest('hex');
+                        const ext = coverUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)?.[1] || 'jpg';
+                        const filename = `cover_${hash}.${ext}`;
+                        const filepath = path.join('uploads', filename);
+
+                        if (!fs.existsSync('uploads')) fs.mkdirSync('uploads', { recursive: true });
+                        fs.writeFileSync(filepath, imageBuffer);
+
+                        await new Promise((resolve, reject) => {
+                            db.query('UPDATE books SET cover_image_path = ? WHERE id = ?', [filepath, book.id], (err) => {
+                                if (err) reject(err); else resolve();
+                            });
+                        });
+                        console.log(`[Background] Cover image downloaded for book ID ${id}`);
+                    } catch (imgError) {
+                        console.error(`[Background] Error downloading cover for ${id}:`, imgError.message);
+                    }
+                }
+            } else {
+                console.log(`[Background] No metadata found for book ID ${id}`);
+            }
+
+        } catch (error) {
+            console.error(`[Background] Error refreshing metadata for book ID ${id}:`, error);
+        }
+    })();
+});
 // --- User Profile/Privacy APIs ---
 
 app.get('/api/users/profile', authenticateToken, (req, res) => {
@@ -1190,8 +1537,13 @@ app.get('/api/users/profile', authenticateToken, (req, res) => {
         if (results.length === 0) return res.status(404).json({ error: 'User not found' });
 
         const user = results[0];
-        if (typeof user.privacy_settings === 'string') {
-            user.privacy_settings = JSON.parse(user.privacy_settings || '{}');
+        try {
+            if (typeof user.privacy_settings === 'string') {
+                user.privacy_settings = JSON.parse(user.privacy_settings || '{}');
+            }
+        } catch (e) {
+            console.error('Failed to parse privacy_settings:', e);
+            user.privacy_settings = {};
         }
         res.json(user);
     });
@@ -1200,9 +1552,27 @@ app.get('/api/users/profile', authenticateToken, (req, res) => {
 app.put('/api/users/profile', authenticateToken, (req, res) => {
     const userId = req.user.id;
     const { privacy_settings } = req.body;
-    db.query('UPDATE users SET privacy_settings = ? WHERE id = ?', [JSON.stringify(privacy_settings), userId], (err, result) => {
-        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
-        res.json({ message: 'Profile updated' });
+    db.query('SELECT privacy_settings FROM users WHERE id = ?', [userId], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        let currentSettings = {};
+        try {
+            if (results[0] && results[0].privacy_settings) {
+                // Check if it's already an object or string
+                currentSettings = typeof results[0].privacy_settings === 'string'
+                    ? JSON.parse(results[0].privacy_settings)
+                    : results[0].privacy_settings;
+            }
+        } catch (e) {
+            console.error('Failed to parse current settings:', e);
+        }
+
+        const updatedSettings = { ...currentSettings, ...privacy_settings };
+
+        db.query('UPDATE users SET privacy_settings = ? WHERE id = ?', [JSON.stringify(updatedSettings), userId], (updateErr) => {
+            if (updateErr) { console.error(updateErr); return res.status(500).json({ error: updateErr.message }); }
+            res.json({ message: 'Profile updated', privacy_settings: updatedSettings });
+        });
     });
 });
 
@@ -1884,12 +2254,70 @@ app.post('/api/settings', authenticateToken, requireAdmin, (req, res) => {
     });
 });
 
+// --- Admin Debug & Library Management ---
+
+// Generate Dummy Data (Debug)
+app.post('/api/admin/debug/generate-data', authenticateToken, requireAdmin, (req, res) => {
+    console.log('[Debug] Triggering dataset generation...');
+    const command = 'node generate_large_dataset.js';
+    exec(command, { cwd: __dirname }, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`[Debug] Dataset generation failed: ${error.message}`);
+            return res.status(500).json({ error: 'Generation failed', details: stderr || error.message });
+        }
+        console.log(`[Debug] Dataset generated:\n${stdout}`);
+        res.json({ success: true, message: 'Dataset generated successfully. Log out and back in to see changes.' });
+    });
+});
+
+// Get All Library Stats for Management
+app.get('/api/admin/libraries', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const [results] = await db.query(`
+            SELECT 
+                u.id, 
+                u.username, 
+                COUNT(b.id) as book_count,
+                COUNT(s.id) as shelf_count
+            FROM users u
+            LEFT JOIN books b ON b.owner_id = u.id
+            LEFT JOIN shelves s ON s.user_id = u.id
+            GROUP BY u.id
+        `);
+        res.json(results);
+    } catch (error) {
+        console.error('Failed to fetch library stats:', error);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// Wipe User Library
+app.delete('/api/admin/libraries/:userId/wipe', authenticateToken, requireAdmin, async (req, res) => {
+    const { userId } = req.params;
+    if (!userId) return res.status(400).json({ error: 'User ID required' });
+
+    try {
+        await db.query('DELETE FROM books WHERE owner_id = ?', [userId]);
+        await db.query('DELETE FROM shelves WHERE user_id = ?', [userId]);
+        await db.query('DELETE FROM user_books WHERE user_id = ?', [userId]);
+
+        const [user] = await db.query('SELECT username FROM users WHERE id = ?', [userId]);
+        console.log(`[Admin] Wiped library for user ${user[0]?.username || userId}`);
+
+        res.json({ success: true, message: 'User library wiped.' });
+    } catch (error) {
+        console.error('Failed to wipe library:', error);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
 // Serve static files from the React frontend app
 const publicPath = path.join(__dirname, 'public');
 if (fs.existsSync(publicPath)) {
     app.use(express.static(publicPath));
     console.log(`Serving static files from ${publicPath}`);
 
+    // Serve React App (Catch-All)
     // The "catchall" handler: for any request that doesn't
     // match one above, send back React's index.html file.
     app.get('*', (req, res) => {

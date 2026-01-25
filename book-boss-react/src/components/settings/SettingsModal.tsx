@@ -1,22 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
+import { Toast } from '../common/Toast';
+import { ConfirmationModal } from '../common/ConfirmationModal';
 import LogViewerModal from '../common/LogViewerModal';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { exportService } from '../../services/exportService';
 import { userService } from '../../services/userService';
 import { settingsService } from '../../services/settingsService';
-import { bookService } from '../../services/bookService';
 import { absService } from '../../services/absService';
+import { MetadataRefreshModal } from '../books/MetadataRefreshModal';
 
 interface SettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
+    onSettingsChange?: () => void;
 }
 
 type SettingsTab = 'general' | 'profile' | 'filters' | 'export' | 'users' | 'audiobookshelf' | 'backup';
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSettingsChange }) => {
     const { user } = useAuth();
     const { setAccentColor: setGlobalAccentColor } = useTheme();
     const [activeTab, setActiveTab] = useState<SettingsTab>('general');
@@ -33,13 +36,86 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     // Profile settings
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [privacySettings, setPrivacySettings] = useState({
+    const [privacySettings, setPrivacySettings] = useState<{
+        share_library: boolean;
+        library_name?: string;
+        share_shelves: boolean;
+        share_progress: boolean;
+    }>({
+        share_library: false,
+        library_name: '',
         share_shelves: false,
         share_progress: false
     });
 
+    // ... (inside render, profile tab)
+
+    <div style={{ marginBottom: '30px', paddingBottom: '20px', borderBottom: '1px solid var(--glass-border)' }}>
+        <h4>Privacy Settings</h4>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '15px' }}>
+            Control what you share with other users on this server.
+        </p>
+
+        <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label style={{ marginBottom: 0, fontWeight: 600 }}>Share my library</label>
+            <input
+                type="checkbox"
+                checked={privacySettings.share_library}
+                onChange={(e) => updatePrivacySettings({ ...privacySettings, share_library: e.target.checked })}
+                style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+            />
+        </div>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
+            If disabled, your library is completely hidden from other users.
+        </p>
+
+        <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: privacySettings.share_library ? 1 : 0.5 }}>
+            <label style={{ marginBottom: 0 }}>Share my shelves with other users</label>
+            <input
+                type="checkbox"
+                checked={privacySettings.share_shelves}
+                disabled={!privacySettings.share_library}
+                onChange={(e) => updatePrivacySettings({ ...privacySettings, share_shelves: e.target.checked })}
+                style={{ width: '20px', height: '20px', cursor: privacySettings.share_library ? 'pointer' : 'not-allowed' }}
+            />
+        </div>
+        <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: privacySettings.share_library ? 1 : 0.5 }}>
+            <label style={{ marginBottom: 0 }}>Share my reading progress and status</label>
+            <input
+                type="checkbox"
+                checked={privacySettings.share_progress}
+                disabled={!privacySettings.share_library}
+                onChange={(e) => updatePrivacySettings({ ...privacySettings, share_progress: e.target.checked })}
+                style={{ width: '20px', height: '20px', cursor: privacySettings.share_library ? 'pointer' : 'not-allowed' }}
+            />
+        </div>
+    </div>
+
     // Filter settings
     const [defaultSort, setDefaultSort] = useState('added_desc');
+
+    // Toast State
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; isVisible: boolean }>({
+        message: '',
+        type: 'info',
+        isVisible: false
+    });
+
+    const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+        setToast({ message, type, isVisible: true });
+    };
+
+    // Confirmation Modal State
+    const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; isDanger?: boolean }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+    });
+
+    const openConfirm = (title: string, message: string, onConfirm: () => void, isDanger = false) => {
+        setConfirmModal({ isOpen: true, title, message, onConfirm, isDanger });
+    };
 
 
 
@@ -68,7 +144,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const handleConnectServer = async () => {
         // Validation: Name and URL always required. API Key required for new, optional for edit.
         if (!newServerName || !newServerUrl || (!isEditingServer && !newServerApiKey)) {
-            alert('Please fill in all required fields');
+            showToast('Please fill in all required fields', 'error');
             return;
         }
 
@@ -87,13 +163,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                     server_url: newServerUrl,
                     api_key: newServerApiKey
                 });
-                alert('Server connected successfully!');
+                showToast('Server connected successfully!', 'success');
             }
             closeServerForm();
             fetchAbsServers();
         } catch (error: any) {
             console.error('Failed to save server:', error);
-            alert(`Failed to connect: ${error.message || 'Unknown error'}`);
+            showToast(`Failed to connect: ${error.message || 'Unknown error'}`, 'error');
         }
     };
 
@@ -103,27 +179,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         try {
             const result = await settingsService.testAbsServer(server.id);
             if (result.status === 'connected') {
-                alert(`Connection Successful!\nUser: ${result.info.username}`);
+                showToast(`Connection Successful! User: ${result.info.username}`, 'success');
             } else {
-                alert('Connection Failed');
+                showToast('Connection Failed', 'error');
             }
         } catch (error: any) {
             console.error('Test failed:', error);
-            alert(`Test Failed: ${error.response?.data?.error || error.message}`);
+            showToast(`Test Failed: ${error.response?.data?.error || error.message}`, 'error');
         }
     };
 
     const handleDeleteServer = async (server: any) => {
-        if (!confirm(`Are you sure you want to remove "${server.server_name}"?`)) return;
-
-        try {
-            await settingsService.deleteAbsServer(server.id);
-            alert('Server removed');
-            fetchAbsServers();
-        } catch (error: any) {
-            console.error('Delete failed:', error);
-            alert('Failed to remove server');
-        }
+        openConfirm(
+            'Remove Server',
+            `Are you sure you want to remove "${server.server_name}"?`,
+            async () => {
+                try {
+                    await settingsService.deleteAbsServer(server.id);
+                    showToast('Server removed', 'success');
+                    fetchAbsServers();
+                } catch (error: any) {
+                    console.error('Delete failed:', error);
+                    showToast('Failed to remove server', 'error');
+                }
+            },
+            true
+        );
     };
 
     const startEditServer = (server: any) => {
@@ -146,34 +227,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
 
     const handleSync = async (server: any) => {
-        if (!confirm(`Sync entire library from "${server.server_name}"? This might take a minute.`)) return;
+        openConfirm(
+            'Sync Library',
+            `Sync entire library from "${server.server_name}"? This might take a minute.`,
+            async () => {
+                setSyncingServerId(server.id);
+                try {
+                    const result = await absService.syncLibrary(server.id, '', debugMode);
 
-        setSyncingServerId(server.id);
-        try {
-            const result = await absService.syncLibrary(server.id, '', debugMode);
-
-            if (debugMode && result.logs) {
-                setLogs(result.logs);
-                setShowLogs(true);
-            } else {
-                alert(`Sync Complete!\nImported: ${result.stats.imported}\nLinked: ${result.stats.linked}\nSkipped: ${result.stats.skipped}\nErrors: ${result.stats.errors}`);
+                    if (debugMode && result.logs) {
+                        setLogs(result.logs);
+                        setShowLogs(true);
+                    } else {
+                        showToast(`Sync Complete! Imported: ${result.stats.imported}, Linked: ${result.stats.linked}, Skipped: ${result.stats.skipped}, Errors: ${result.stats.errors}`, 'success');
+                    }
+                } catch (error: any) {
+                    console.error('Sync failed:', error);
+                    if (debugMode && error.response?.data?.logs) {
+                        setLogs(error.response.data.logs);
+                        setShowLogs(true);
+                    }
+                    showToast(`Sync Failed: ${error.response?.data?.error || error.message}`, 'error');
+                } finally {
+                    setSyncingServerId(null);
+                }
             }
-        } catch (error: any) {
-            console.error('Sync failed:', error);
-            if (debugMode && error.response?.data?.logs) {
-                setLogs(error.response.data.logs);
-                setShowLogs(true);
-            }
-            alert(`Sync Failed: ${error.response?.data?.error || error.message}`);
-        } finally {
-            setSyncingServerId(null);
-        }
+        );
     };
 
-    // Metadata refresh
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [refreshProgress, setRefreshProgress] = useState(0);
-    const [refreshStatus, setRefreshStatus] = useState('');
+    // Metadata refresh state
+    const [isMetadataRefreshOpen, setIsMetadataRefreshOpen] = useState(false);
 
     // Backup & Restore
     const [backupStatus, setBackupStatus] = useState('');
@@ -224,28 +307,45 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         }
     };
 
-    const saveSettings = async () => {
+    const updateGeneralSettings = async (updates: { accent_color?: string; allow_registration?: string }) => {
         try {
-            const response = await fetch('/api/settings', {
+            await fetch('/api/settings', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
                 },
                 body: JSON.stringify({
-                    accent_color: accentColor,
-                    allow_registration: allowRegistration.toString()
+                    accent_color: updates.accent_color !== undefined ? updates.accent_color : accentColor,
+                    allow_registration: updates.allow_registration !== undefined ? updates.allow_registration : allowRegistration.toString()
                 })
             });
-            if (response.ok) {
-                setGlobalAccentColor(accentColor);
-                localStorage.setItem('bookboss_debug_mode', String(debugMode));
-                alert('Settings saved successfully!');
+
+            if (updates.accent_color) {
+                setGlobalAccentColor(updates.accent_color);
             }
+            // Optional: show a small toast or indicator
         } catch (error) {
             console.error('Failed to save settings:', error);
-            alert('Failed to save settings');
         }
+    };
+
+    const handleAccentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newVal = e.target.value;
+        setAccentColor(newVal);
+        updateGeneralSettings({ accent_color: newVal });
+    };
+
+    const handleRegistrationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newVal = e.target.checked;
+        setAllowRegistration(newVal);
+        updateGeneralSettings({ allow_registration: newVal.toString() });
+    };
+
+    const handleDebugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newVal = e.target.checked;
+        setDebugMode(newVal);
+        localStorage.setItem('bookboss_debug_mode', String(newVal));
     };
 
     /**
@@ -254,19 +354,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
      */
     const fetchUsers = async () => {
         try {
-            const data = await userService.getUsers();
-            setUsers(data);
+            // Use Admin Libraries endpoint to get stats + users
+            const token = localStorage.getItem('bookboss_token');
+            const response = await fetch('/api/admin/libraries', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            setUsers(Array.isArray(data) ? data : []);
             setUsersError(null);
         } catch (error) {
             console.error('Failed to fetch users:', error);
             setUsersError('Failed to load users.');
+            setUsers([]);
         }
     };
 
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newUsername || !newUserPassword) {
-            alert('Username and password required');
+            showToast('Username and password required', 'error');
             return;
         }
         try {
@@ -311,7 +417,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
             await userService.updateUser(editingUser.id, body);
 
-            alert('User updated successfully!');
+            showToast('User updated successfully!', 'success');
             setEditingUser(null);
             setShowAddUser(false);
             setNewUsername('');
@@ -320,7 +426,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             fetchUsers();
         } catch (error) {
             console.error('Failed to update user:', error);
-            alert('Failed to update user');
+            showToast('Failed to update user', 'error');
         }
     };
 
@@ -336,12 +442,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         if (!userToDelete) return;
         try {
             await userService.deleteUser(userToDelete.id);
-            alert('User deleted successfully');
+            showToast('User deleted successfully', 'success');
             setUserToDelete(null);
             fetchUsers();
         } catch (error) {
             console.error('Failed to delete user:', error);
-            alert('Failed to delete user');
+            showToast('Failed to delete user', 'error');
         } finally {
             setUserToDelete(null);
         }
@@ -350,92 +456,72 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const fetchAbsServers = async () => {
         try {
             const data = await settingsService.getAbsServers();
-            setAbsServers(data);
+            setAbsServers(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Failed to fetch ABS servers:', error);
+            setAbsServers([]);
         }
     };
 
     const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault();
         if (newPassword !== confirmPassword) {
-            alert('Passwords do not match');
+            showToast('Passwords do not match', 'error');
             return;
         }
         if (!user) return;
 
         try {
             await userService.updateProfile({ password: newPassword });
-            alert('Password updated successfully');
+            showToast('Password updated successfully', 'success');
             setNewPassword('');
             setConfirmPassword('');
         } catch (error) {
             console.error('Failed to update password:', error);
-            alert('Failed to update password');
+            showToast('Failed to update password', 'error');
         }
     };
 
-    const savePrivacySettings = async () => {
+    const updatePrivacySettings = async (newSettings: any) => {
+        setPrivacySettings(newSettings);
         try {
-            await userService.updateProfile({ privacy_settings: privacySettings });
-            alert('Privacy settings saved!');
+            await userService.updateProfile({ privacy_settings: newSettings });
+            if (onSettingsChange) {
+                console.log('Refreshing settings/libraries via callback...');
+                onSettingsChange();
+            }
         } catch (error) {
             console.error('Failed to save privacy settings:', error);
-            alert('Failed to save privacy settings');
         }
     };
 
-    const saveFilterPreferences = () => {
-        localStorage.setItem('bookboss_sort', defaultSort);
-        alert('Preferences saved');
+    const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const val = e.target.value;
+        setDefaultSort(val);
+        localStorage.setItem('bookboss_sort', val);
     };
 
-    const handleMetadataRefresh = async () => {
-        if (!confirm('This will refresh metadata and download cover images for all books. This may take a while. Continue?')) {
-            return;
-        }
 
-        setIsRefreshing(true);
-        setRefreshProgress(10);
-        setRefreshStatus('Starting metadata refresh...');
-
-        try {
-            const result = await bookService.refreshMetadata();
-            setRefreshProgress(100);
-            setRefreshStatus(result.message || 'Completed!');
-            alert(`Metadata refresh completed!`);
-        } catch (error: any) {
-            console.error('Metadata refresh error:', error);
-            setRefreshStatus(`Error: ${error.message}`);
-            alert(`Failed to refresh metadata: ${error.message}`);
-        } finally {
-            setTimeout(() => {
-                setIsRefreshing(false);
-                setRefreshProgress(0);
-                setRefreshStatus('');
-            }, 3000);
-        }
-    };
 
 
 
     const handleExportCSV = async () => {
         try {
             await exportService.exportCSV();
-            alert('Library exported as CSV!');
+            showToast('Library exported as CSV!', 'success');
         } catch (error) {
             console.error('Export failed:', error);
-            alert('Failed to export library as CSV');
+            showToast('Failed to export library as CSV', 'error');
         }
     };
 
     const handleExportJSON = async () => {
         try {
             await exportService.exportJSON();
-            alert('Library exported as JSON!');
+            showToast('Library exported as JSON!', 'success');
         } catch (error) {
             console.error('Export failed:', error);
-            alert('Failed to export library as JSON');
+            showToast('Failed to export library as JSON', 'error');
         }
     };
 
@@ -454,23 +540,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         const file = event.target.files?.[0];
         if (!file) return;
 
-        if (!confirm('WARNING: Restoring from a backup will OVERWRITE all current data. This action cannot be undone. Are you sure you want to proceed?')) {
-            return;
-        }
+        openConfirm(
+            'Restore Database',
+            'WARNING: Restoring from a backup will OVERWRITE all current data. This action cannot be undone. Are you sure you want to proceed?',
+            async () => {
+                setIsRestoring(true);
+                setBackupStatus('Restoring database... please wait.');
 
-        setIsRestoring(true);
-        setBackupStatus('Restoring database... please wait.');
-
-        try {
-            await exportService.restoreBackup(file);
-            setBackupStatus('Database restored successfully! Please refresh the page.');
-            setTimeout(() => window.location.reload(), 2000);
-        } catch (error: any) {
-            console.error('Restore failed:', error);
-            setBackupStatus(`Restore failed: ${error.message}. Please check the file and try again.`);
-        } finally {
-            setIsRestoring(false);
-        }
+                try {
+                    await exportService.restoreBackup(file);
+                    setBackupStatus('Database restored successfully! Please refresh the page.');
+                    showToast('Database restored successfully!', 'success');
+                    setTimeout(() => window.location.reload(), 2000);
+                } catch (error: any) {
+                    console.error('Restore failed:', error);
+                    setBackupStatus(`Restore failed: ${error.message}. Please check the file and try again.`);
+                    showToast(`Restore failed: ${error.message}`, 'error');
+                } finally {
+                    setIsRestoring(false);
+                }
+            },
+            true
+        );
     };
 
     const tabs = [
@@ -486,7 +577,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const visibleTabs = tabs.filter(tab => !tab.adminOnly || user?.is_admin);
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Settings">
+        <Modal isOpen={isOpen} onClose={onClose} title="Settings (Dev Mode)">
             <div style={{ display: 'flex', gap: '20px', minHeight: '500px' }}>
                 {/* Sidebar */}
                 <aside style={{
@@ -515,6 +606,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                             {tab.label}
                         </button>
                     ))}
+                    {user?.is_admin && debugMode && (
+                        <button
+                            onClick={() => setActiveTab('debug' as any)}
+                            style={{
+                                display: 'block',
+                                width: '100%',
+                                padding: '12px',
+                                marginBottom: '8px',
+                                background: activeTab === ('debug' as any) ? 'var(--glass-bg)' : 'transparent',
+                                border: activeTab === ('debug' as any) ? '1px dashed var(--danger-color)' : '1px solid transparent',
+                                borderRadius: '8px',
+                                color: 'var(--danger-color)',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                marginTop: '20px'
+                            }}
+                        >
+                            🐞 Debug Menu
+                        </button>
+                    )}
                 </aside>
 
                 {/* Content */}
@@ -523,47 +635,67 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                         <div>
                             <h3>General Settings</h3>
                             <div className="form-group">
-                                <label>Accent Color</label>
-                                <select value={accentColor} onChange={(e) => setAccentColor(e.target.value)}>
-                                    <option value="theme-purple">Purple</option>
+                                <label>Accent Color / Theme</label>
+                                <select value={accentColor} onChange={handleAccentChange}>
+                                    <option value="theme-purple">Purple (Default)</option>
                                     <option value="theme-blue">Blue</option>
                                     <option value="theme-green">Green</option>
                                     <option value="theme-orange">Orange</option>
                                     <option value="theme-pink">Pink</option>
+                                    <option value="theme-midnight">Midnight</option>
+                                    <option value="theme-forest">Forest</option>
+                                    <option value="theme-sunset">Sunset</option>
+                                    <option value="theme-ocean">Ocean</option>
                                 </select>
                             </div>
-                            <div className="form-group">
-                                <label>
-                                    <input
-                                        type="checkbox"
-                                        checked={allowRegistration}
-                                        onChange={(e) => setAllowRegistration(e.target.checked)}
-                                    />
-                                    {' '}Allow Public Registration
-                                </label>
+                            <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <label style={{ marginBottom: 0 }}>Allow Public Registration</label>
+                                <input
+                                    type="checkbox"
+                                    checked={allowRegistration}
+                                    onChange={handleRegistrationChange}
+                                    style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                                />
                             </div>
                             <div className="form-group">
                                 <label>Library Maintenance</label>
-                                <button
-                                    className="secondary-btn"
-                                    onClick={handleMetadataRefresh}
-                                    disabled={isRefreshing}
-                                    style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}
-                                >
-                                    {isRefreshing ? (
-                                        <>
-                                            <span className="loader"></span>
-                                            {refreshStatus || 'Refreshing...'}
-                                        </>
-                                    ) : (
-                                        'Sync Metadata & Covers'
-                                    )}
-                                </button>
-                                {isRefreshing && (
-                                    <div style={{ marginTop: '10px', width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
-                                        <div style={{ width: `${refreshProgress}%`, height: '100%', background: 'var(--accent-color)', transition: 'width 0.3s' }}></div>
+
+                                {privacySettings.share_library && (
+                                    <div className="form-group" style={{ marginBottom: '20px', padding: '10px', background: 'var(--glass-bg)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                                        <label style={{ fontSize: '0.9rem', marginBottom: '8px' }}>Library Name (Public)</label>
+                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                            <input
+                                                type="text"
+                                                value={privacySettings.library_name || ''}
+                                                placeholder={`${user?.username}'s Library`}
+                                                onChange={(e) => setPrivacySettings({ ...privacySettings, library_name: e.target.value })}
+                                                onBlur={(e) => updatePrivacySettings({ ...privacySettings, library_name: e.target.value })}
+                                                style={{ flex: 1 }}
+                                            />
+                                        </div>
+                                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                            Controls the name shown in the sidebar for users you share with.
+                                        </p>
                                     </div>
                                 )}
+                                <button
+                                    className="secondary-btn"
+                                    onClick={() => setIsMetadataRefreshOpen(true)}
+                                    style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginBottom: '10px' }}
+                                >
+                                    🔄 Sync Metadata & Covers
+                                </button>
+
+                                <button
+                                    className="secondary-btn"
+                                    onClick={() => setActiveTab('users')}
+                                    style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}
+                                >
+                                    👥 Manage User Libraries
+                                </button>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '5px' }}>
+                                    View usage stats and wipe libraries in the Users tab.
+                                </p>
                             </div>
                             <div className="form-group">
                                 <label>System Backup</label>
@@ -576,24 +708,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                 </button>
                                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '5px' }}>
                                     Downloads a SQL dump of the database.
+                                    <br />
+                                    <span style={{ color: 'var(--accent-color)', opacity: 0.8 }}>
+                                        ℹ️ Automated backups run daily at 03:00 AM (local time).
+                                    </span>
                                 </p>
                             </div>
 
                             <div className="form-group">
-                                <label>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <label style={{ marginBottom: 0 }}>Enable Debug Mode</label>
                                     <input
                                         type="checkbox"
                                         checked={debugMode}
-                                        onChange={(e) => setDebugMode(e.target.checked)}
+                                        onChange={handleDebugChange}
+                                        style={{ width: '20px', height: '20px', cursor: 'pointer' }}
                                     />
-                                    {' '} Enable Debug Mode
-                                </label>
+                                </div>
                                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '5px' }}>
                                     Show detailed logs for actions like Sync.
                                 </p>
                             </div>
-
-                            <button className="primary-btn" onClick={saveSettings}>Save Changes</button>
                         </div>
                     )}
 
@@ -606,27 +741,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '15px' }}>
                                     Control what you share with other users on this server.
                                 </p>
-                                <div className="form-group">
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 'normal', cursor: 'pointer' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={privacySettings.share_shelves}
-                                            onChange={(e) => setPrivacySettings({ ...privacySettings, share_shelves: e.target.checked })}
-                                        />
-                                        Share my shelves with other users
-                                    </label>
+
+                                <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <label style={{ marginBottom: 0, fontWeight: 600 }}>Share my library</label>
+                                    <input
+                                        type="checkbox"
+                                        checked={privacySettings.share_library}
+                                        onChange={(e) => updatePrivacySettings({ ...privacySettings, share_library: e.target.checked })}
+                                        style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                                    />
                                 </div>
-                                <div className="form-group">
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 'normal', cursor: 'pointer' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={privacySettings.share_progress}
-                                            onChange={(e) => setPrivacySettings({ ...privacySettings, share_progress: e.target.checked })}
-                                        />
-                                        Share my reading progress and status
-                                    </label>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
+                                    If disabled, your library is completely hidden from other users.
+                                </p>
+
+                                <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: privacySettings.share_library ? 1 : 0.5 }}>
+                                    <label style={{ marginBottom: 0 }}>Share my shelves with other users</label>
+                                    <input
+                                        type="checkbox"
+                                        checked={privacySettings.share_shelves}
+                                        disabled={!privacySettings.share_library}
+                                        onChange={(e) => updatePrivacySettings({ ...privacySettings, share_shelves: e.target.checked })}
+                                        style={{ width: '20px', height: '20px', cursor: privacySettings.share_library ? 'pointer' : 'not-allowed' }}
+                                    />
                                 </div>
-                                <button className="primary-btn small" onClick={savePrivacySettings}>Save Privacy Settings</button>
+                                <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: privacySettings.share_library ? 1 : 0.5 }}>
+                                    <label style={{ marginBottom: 0 }}>Share my reading progress and status</label>
+                                    <input
+                                        type="checkbox"
+                                        checked={privacySettings.share_progress}
+                                        disabled={!privacySettings.share_library}
+                                        onChange={(e) => updatePrivacySettings({ ...privacySettings, share_progress: e.target.checked })}
+                                        style={{ width: '20px', height: '20px', cursor: privacySettings.share_library ? 'pointer' : 'not-allowed' }}
+                                    />
+                                </div>
                             </div>
 
                             <h4>Change Password</h4>
@@ -659,14 +807,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                             <h3>Library Defaults</h3>
                             <div className="form-group">
                                 <label>Default Sort Order</label>
-                                <select value={defaultSort} onChange={(e) => setDefaultSort(e.target.value)}>
+                                <select value={defaultSort} onChange={handleSortChange}>
                                     <option value="added_desc">Date Added (Newest First)</option>
                                     <option value="added_asc">Date Added (Oldest First)</option>
                                     <option value="title_asc">Title (A-Z)</option>
                                     <option value="author_asc">Author (A-Z)</option>
                                 </select>
                             </div>
-                            <button className="primary-btn" onClick={saveFilterPreferences}>Save Preferences</button>
                         </div>
                     )}
 
@@ -690,10 +837,53 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                         </div>
                     )}
 
+                    {activeTab === ('debug' as any) && user?.is_admin && (
+                        <div>
+                            <h3 style={{ color: 'var(--danger-color)' }}>🐞 Debug Menu</h3>
+                            <div className="alert alert-warning">
+                                <strong>Warning:</strong> These actions are destructive and intended for development only.
+                            </div>
+
+                            <div className="form-group">
+                                <label>Dataset Generation</label>
+                                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                                    Wipe the entire database and generate a fresh large dataset with 5 test users and ~30 rich book records.
+                                </p>
+                                <button
+                                    className="primary-btn"
+                                    onClick={async () => {
+                                        openConfirm('Generate Dummy Data', 'This will WIPE ALL DATA and replace it with test data. Are you sure?', async () => {
+                                            try {
+                                                const token = localStorage.getItem('bookboss_token');
+                                                const res = await fetch('/api/admin/debug/generate-data', {
+                                                    method: 'POST',
+                                                    headers: { 'Authorization': `Bearer ${token}` }
+                                                });
+                                                const data = await res.json();
+                                                if (data.success) {
+                                                    alert(data.message);
+                                                    window.location.reload();
+                                                } else {
+                                                    alert('Error: ' + data.error);
+                                                }
+                                            } catch (err) {
+                                                console.error(err);
+                                                alert('Failed to trigger generation');
+                                            }
+                                        }, true);
+                                    }}
+                                    style={{ background: 'var(--danger-color)', width: '100%' }}
+                                >
+                                    ⚠️ Reset & Generate Dummy Data
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {activeTab === 'users' && user?.is_admin && (
                         <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                                <h3>User Management</h3>
+                                <h3>User & Library Management</h3>
                                 {!showAddUser && (
                                     <button className="secondary-btn small" onClick={() => {
                                         setEditingUser(null);
@@ -761,150 +951,170 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                     </div>
                                 )}
                                 {!usersError && users.length === 0 && <p style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>No users found.</p>}
-                                {users.map(userItem => (
-                                    <div key={userItem.id} style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        padding: '12px',
-                                        marginBottom: '8px',
-                                        background: 'var(--glass-bg)',
-                                        borderRadius: '8px',
-                                        border: userItem.id === user?.id ? '1px solid var(--accent-color)' : 'none'
-                                    }}>
-                                        <div>
-                                            <span style={{ fontWeight: 500 }}>{userItem.username}</span>
-                                            {userItem.id === user?.id && <span style={{ marginLeft: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>(You)</span>}
-                                            {!!userItem.is_admin && <span style={{
-                                                marginLeft: '10px',
-                                                padding: '2px 8px',
-                                                background: 'var(--accent-color)',
-                                                borderRadius: '4px',
-                                                fontSize: '0.8rem'
-                                            }}>Admin</span>}
+                                <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                        <tr>
+                                            <th style={{ textAlign: 'left', padding: '10px' }}>Username</th>
+                                            <th style={{ textAlign: 'left', padding: '10px' }}>Role</th>
+                                            <th style={{ textAlign: 'right', padding: '10px' }}>Library Stats</th>
+                                            <th style={{ textAlign: 'right', padding: '10px' }}>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {users.map((u: any) => (
+                                            <tr key={u.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                                                <td style={{ padding: '10px' }}>{u.username}</td>
+                                                <td style={{ padding: '10px' }}>{u.is_admin ? <span className="badge">Admin</span> : 'User'}</td>
+                                                <td style={{ padding: '10px', textAlign: 'right' }}>
+                                                    {/* We need to fetch stats separately or enhance fetchUsers endpoint.
+                                                    For now, let's fetch stats on mount and map them.
+                                                    OR just add a "Load Stats" info?
+                                                    Let's assume I updated the backend fetchLibraries endpoint to return everything.
+                                                    Actually I added `GET /api/admin/libraries` which returns users + counts.
+                                                    I should swap `userService.getUsers()` with `fetch('/api/admin/libraries')` for admins in this modal to get richer data.
+                                                 */}
+                                                    {u.book_count !== undefined ? `${u.book_count} Books` : <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Run Sync</span>}
+                                                </td>
+                                                <td style={{ padding: '10px', textAlign: 'right' }}>
+                                                    <button className="icon-btn" onClick={() => startEditingUser(u)} title="Edit User">✏️</button>
+                                                    {!u.is_admin && (
+                                                        <>
+                                                            <button
+                                                                className="icon-btn"
+                                                                onClick={async () => {
+                                                                    openConfirm('Wipe Library', `Delete all books and shelves for ${u.username}?`, async () => {
+                                                                        try {
+                                                                            const token = localStorage.getItem('bookboss_token');
+                                                                            await fetch(`/api/admin/libraries/${u.id}/wipe`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+                                                                            showToast('Library wiped', 'success');
+                                                                            fetchUsers(); // Refresh
+                                                                        } catch (e) { console.error(e); showToast('Failed', 'error'); }
+                                                                    }, true);
+                                                                }}
+                                                                title="Wipe Library"
+                                                                style={{ color: 'var(--danger-color)' }}
+                                                            >
+                                                                🗑️ Lib
+                                                            </button>
+                                                            <button
+                                                                className="icon-btn"
+                                                                onClick={() => { setUserToDelete(u); openConfirm('Delete User', `Delete ${u.username}?`, deleteUser, true); }}
+                                                                title="Delete User"
+                                                                style={{ color: 'var(--danger-color)' }}
+                                                            >
+                                                                ❌ User
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )
+                    }
+
+                    {
+                        activeTab === 'audiobookshelf' && user?.is_admin && (
+                            <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                    <h3>Audiobookshelf Servers</h3>
+                                    {!showAddServer && (
+                                        <button className="secondary-btn small" onClick={() => { closeServerForm(); setShowAddServer(true); }}>
+                                            + Add Server
+                                        </button>
+                                    )}
+                                </div>
+
+                                {showAddServer && (
+                                    <div style={{ marginBottom: '20px', padding: '15px', background: 'var(--glass-bg)', borderRadius: '8px' }}>
+                                        <h4>{isEditingServer ? 'Edit Server' : 'Connect New Server'}</h4>
+                                        <div className="form-group">
+                                            <label>Server Name</label>
+                                            <input
+                                                type="text"
+                                                placeholder="My Audiobooks"
+                                                value={newServerName}
+                                                onChange={(e) => setNewServerName(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Server URL</label>
+                                            <input
+                                                type="url"
+                                                placeholder="http://localhost:13378"
+                                                value={newServerUrl}
+                                                onChange={(e) => setNewServerUrl(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>API Key {isEditingServer && <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--text-secondary)' }}>(Leave blank to keep unchanged)</span>}</label>
+                                            <input
+                                                type="password"
+                                                placeholder={isEditingServer ? "Enter new API Key to update" : "Paste API Key here"}
+                                                value={newServerApiKey}
+                                                onChange={(e) => setNewServerApiKey(e.target.value)}
+                                            />
                                         </div>
                                         <div style={{ display: 'flex', gap: '10px' }}>
-                                            <button
-                                                className="secondary-btn small"
-                                                onClick={() => startEditingUser(userItem)}
-                                                title="Edit User"
-                                            >
-                                                ✏️ Edit
-                                            </button>
-                                            {userItem.id !== user?.id && (
-                                                <button
-                                                    className="secondary-btn small"
-                                                    onClick={() => setUserToDelete(userItem)}
-                                                    title="Delete User"
-                                                    style={{ color: 'var(--danger-color)', borderColor: 'var(--danger-color)' }}
-                                                >
-                                                    🗑️ Delete
-                                                </button>
-                                            )}
+                                            <button className="primary-btn small" onClick={handleConnectServer}>{isEditingServer ? 'Update' : 'Connect'}</button>
+                                            <button className="secondary-btn small" onClick={closeServerForm}>Cancel</button>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === 'audiobookshelf' && user?.is_admin && (
-                        <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                                <h3>Audiobookshelf Servers</h3>
-                                {!showAddServer && (
-                                    <button className="secondary-btn small" onClick={() => { closeServerForm(); setShowAddServer(true); }}>
-                                        + Add Server
-                                    </button>
                                 )}
-                            </div>
 
-                            {showAddServer && (
-                                <div style={{ marginBottom: '20px', padding: '15px', background: 'var(--glass-bg)', borderRadius: '8px' }}>
-                                    <h4>{isEditingServer ? 'Edit Server' : 'Connect New Server'}</h4>
-                                    <div className="form-group">
-                                        <label>Server Name</label>
-                                        <input
-                                            type="text"
-                                            placeholder="My Audiobooks"
-                                            value={newServerName}
-                                            onChange={(e) => setNewServerName(e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Server URL</label>
-                                        <input
-                                            type="url"
-                                            placeholder="http://localhost:13378"
-                                            value={newServerUrl}
-                                            onChange={(e) => setNewServerUrl(e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>API Key {isEditingServer && <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--text-secondary)' }}>(Leave blank to keep unchanged)</span>}</label>
-                                        <input
-                                            type="password"
-                                            placeholder={isEditingServer ? "Enter new API Key to update" : "Paste API Key here"}
-                                            value={newServerApiKey}
-                                            onChange={(e) => setNewServerApiKey(e.target.value)}
-                                        />
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '10px' }}>
-                                        <button className="primary-btn small" onClick={handleConnectServer}>{isEditingServer ? 'Update' : 'Connect'}</button>
-                                        <button className="secondary-btn small" onClick={closeServerForm}>Cancel</button>
-                                    </div>
+                                <div className="server-grid">
+                                    {absServers.length === 0 ? (
+                                        <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '20px', gridColumn: '1 / -1' }}>
+                                            No servers connected.
+                                        </p>
+                                    ) : (
+                                        absServers.map(server => (
+                                            <div key={server.id} className="server-card">
+                                                <div className="server-card-header">
+                                                    <div className="server-info">
+                                                        <h4>{server.server_name}</h4>
+                                                        <span className="server-url">{server.server_url}</span>
+                                                    </div>
+                                                    <div className={`status-badge ${server.is_active ? 'active' : 'inactive'}`}>
+                                                        {server.is_active ? 'Active' : 'Inactive'}
+                                                    </div>
+                                                </div>
+
+                                                <div className="server-card-actions">
+                                                    <button
+                                                        onClick={() => handleSync(server)}
+                                                        className="secondary-btn small"
+                                                        disabled={syncingServerId === server.id}
+                                                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                                                    >
+                                                        {syncingServerId === server.id ? (
+                                                            <>
+                                                                <span className="spinner-small"></span> Syncing...
+                                                            </>
+                                                        ) : (
+                                                            'Sync'
+                                                        )}
+                                                    </button>
+                                                    <button onClick={() => handleTestServer(server)} className="secondary-btn small">
+                                                        Test
+                                                    </button>
+                                                    <button onClick={() => startEditServer(server)} className="secondary-btn small">
+                                                        Edit
+                                                    </button>
+                                                    <button onClick={() => handleDeleteServer(server)} className="secondary-btn small danger">
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
-                            )}
-
-                            <div className="server-grid">
-                                {absServers.length === 0 ? (
-                                    <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '20px', gridColumn: '1 / -1' }}>
-                                        No servers connected.
-                                    </p>
-                                ) : (
-                                    absServers.map(server => (
-                                        <div key={server.id} className="server-card">
-                                            <div className="server-card-header">
-                                                <div className="server-info">
-                                                    <h4>{server.server_name}</h4>
-                                                    <span className="server-url">{server.server_url}</span>
-                                                </div>
-                                                <div className={`status-badge ${server.is_active ? 'active' : 'inactive'}`}>
-                                                    {server.is_active ? 'Active' : 'Inactive'}
-                                                </div>
-                                            </div>
-
-                                            <div className="server-card-actions">
-                                                <button
-                                                    onClick={() => handleSync(server)}
-                                                    className="secondary-btn small"
-                                                    disabled={syncingServerId === server.id}
-                                                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                                                >
-                                                    {syncingServerId === server.id ? (
-                                                        <>
-                                                            <span className="spinner-small"></span> Syncing...
-                                                        </>
-                                                    ) : (
-                                                        'Sync'
-                                                    )}
-                                                </button>
-                                                <button onClick={() => handleTestServer(server)} className="secondary-btn small">
-                                                    Test
-                                                </button>
-                                                <button onClick={() => startEditServer(server)} className="secondary-btn small">
-                                                    Edit
-                                                </button>
-                                                <button onClick={() => handleDeleteServer(server)} className="secondary-btn small danger">
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
                             </div>
-                        </div>
-                    )}
+                        )
+                    }
 
                     {
                         activeTab === 'backup' && user?.is_admin && (
@@ -1027,6 +1237,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 isOpen={showLogs}
                 onClose={() => setShowLogs(false)}
                 logs={logs}
+            />
+
+            <Toast
+                message={toast.message}
+                type={toast.type}
+                isVisible={toast.isVisible}
+                onClose={() => setToast({ ...toast, isVisible: false })}
+            />
+
+            <ConfirmationModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                onConfirm={confirmModal.onConfirm}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                isDanger={confirmModal.isDanger}
+            />
+
+            <MetadataRefreshModal
+                isOpen={isMetadataRefreshOpen}
+                onClose={() => setIsMetadataRefreshOpen(false)}
             />
         </Modal >
     );

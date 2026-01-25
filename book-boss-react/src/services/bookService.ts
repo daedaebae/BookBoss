@@ -3,8 +3,14 @@ import { type Book } from '../types/book';
 
 export const bookService = {
     // Get all books
-    getBooks: async (): Promise<Book[]> => {
-        const response = await apiClient.get<Book[]>('/books');
+    getBooks: async (userId?: number): Promise<Book[]> => {
+        const query = userId ? `?userId=${userId}` : '';
+        const response = await apiClient.get<Book[]>(`/books${query}`);
+        return response.data;
+    },
+
+    getPublicUsers: async (): Promise<{ id: number; username: string; library_name?: string }[]> => {
+        const response = await apiClient.get('/users/public');
         return response.data;
     },
 
@@ -65,6 +71,12 @@ export const bookService = {
         return response.data;
     },
 
+    // Refresh Metadata for a Single Book
+    refreshBookMetadata: async (id: number): Promise<{ success: boolean; message: string; changes?: Record<string, { old: any; new: any }> }> => {
+        const response = await apiClient.post(`/books/${id}/refresh-metadata`);
+        return response.data;
+    },
+
     // Update Reading Progress
     updateProgress: async (bookId: number, status: string, progress: number, rating: number): Promise<void> => {
         await apiClient.post(`/user/books/${bookId}`, { status, progress, rating });
@@ -73,6 +85,26 @@ export const bookService = {
     // Get User Reading Progress
     getUserBooks: async (): Promise<any[]> => {
         const response = await apiClient.get<any[]>('/user/books');
+        return response.data;
+    },
+
+    // Search Online (Backend Proxy)
+    searchOnline: async (query: string): Promise<any> => {
+        const response = await apiClient.get(`/search/online?q=${encodeURIComponent(query)}`);
+        return response.data;
+    },
+
+    // Get Editions (for OpenLibrary Works)
+    getEditions: async (workKey: string): Promise<any> => {
+        // key format: /works/OL123W
+        // We pass it to backend to avoid CORS
+        const response = await apiClient.get(`/search/editions?workId=${encodeURIComponent(workKey)}`);
+        return response.data;
+    },
+
+    // Get Active Jobs
+    getJobs: async (): Promise<any[]> => {
+        const response = await apiClient.get('/jobs');
         return response.data;
     }
 };

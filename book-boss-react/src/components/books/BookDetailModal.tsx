@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
+import { Toast } from '../common/Toast';
+import { ConfirmationModal } from '../common/ConfirmationModal';
 import { type Book } from '../../types/book';
 import { type Shelf } from '../../types/shelf';
 import { getSafeCoverUrl } from '../../utils/coverUrlGuard';
 import { PhotoGalleryModal } from '../photos/PhotoGalleryModal';
+import { MetadataDiffModal } from './MetadataDiffModal';
 import { StarRating } from '../common/StarRating';
 import { absService, type AbsSearchResult } from '../../services/absService';
 import { bookService } from '../../services/bookService';
@@ -34,6 +37,31 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
     const [showShelfSelect, setShowShelfSelect] = useState(false);
     const [showPhotoGallery, setShowPhotoGallery] = useState(false);
     const [localRating, setLocalRating] = useState<number | undefined>(undefined);
+    const [isSyncingMetadata, setIsSyncingMetadata] = useState(false);
+    const [metadataChanges, setMetadataChanges] = useState<Record<string, { old: any; new: any }> | null>(null);
+
+    // Toast State
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; isVisible: boolean }>({
+        message: '',
+        type: 'info',
+        isVisible: false
+    });
+
+    const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+        setToast({ message, type, isVisible: true });
+    };
+
+    // Confirmation Modal State
+    const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; isDanger?: boolean }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+    });
+
+    const openConfirm = (title: string, message: string, onConfirm: () => void, isDanger = false) => {
+        setConfirmModal({ isOpen: true, title, message, onConfirm, isDanger });
+    };
 
     const handleRatingChange = async (newRating: number) => {
         if (!book) return;
@@ -83,13 +111,45 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
 
     const handleUnlink = async () => {
         if (!book) return;
-        if (!window.confirm('Are you sure you want to unlink from Audiobookshelf?')) return;
-        try {
-            await absService.unlinkBook(book.id);
-            onClose(); // Force close to refresh
-        } catch (error) {
-            console.error('Unlink Error:', error);
-        }
+        openConfirm(
+            'Unlink Book',
+            'Are you sure you want to unlink from Audiobookshelf?',
+            async () => {
+                try {
+                    await absService.unlinkBook(book.id);
+                    onClose();
+                } catch (error) {
+                    console.error('Unlink Error:', error);
+                }
+            },
+            true
+        );
+    };
+
+    const handleSyncMetadata = async () => {
+        if (!book) return;
+
+        openConfirm(
+            'Refresh Metadata',
+            'Refresh metadata from online sources? This might overwrite title, author, and cover.',
+            async () => {
+                setIsSyncingMetadata(true);
+                try {
+                    const result = await bookService.refreshBookMetadata(book.id);
+                    if (result.success && result.changes && Object.keys(result.changes).length > 0) {
+                        setMetadataChanges(result.changes);
+                        // We do NOT close the modal yet, so user can see context or just handle diff modal
+                    } else {
+                        showToast(result.message || 'No new metadata found.', 'info');
+                    }
+                } catch (error) {
+                    console.error('Metadata Refresh Error:', error);
+                    showToast('Failed to refresh metadata', 'error');
+                } finally {
+                    setIsSyncingMetadata(false);
+                }
+            }
+        );
     };
 
     if (!book) return null;
@@ -150,12 +210,12 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
 
                         <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '10px 20px', fontSize: '0.95rem', color: 'var(--text-secondary)', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                             {/* Dynamically show fields only if they have non-zero/non-empty data */}
-                            {book.isbn && book.isbn !== '0' && (
+                            {((book.isbn && book.isbn !== '0') || false) && (
                                 <>
                                     <strong>ISBN:</strong> <span>{book.isbn}</span>
                                 </>
                             )}
-                            {book.series_index !== undefined && book.series_index !== 0 && (
+                            {((book.series_index !== undefined && book.series_index !== null && book.series_index !== 0) || false) && (
                                 <>
                                     <strong>Series Index:</strong> <span>{book.series_index}</span>
                                 </>
@@ -247,7 +307,7 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
                         )}
 
                         {/* Loan Info */}
-                        {book.is_loaned && (
+                        {!!book.is_loaned && (
                             <div style={{
                                 padding: '15px',
                                 background: 'rgba(255, 255, 255, 0.05)',
@@ -487,20 +547,64 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
                                     🗑️ Delete
                                 </button>
                             </div>
+
+                            <div style={{ marginTop: '10px' }}>
+                                <button
+                                    className="secondary-btn"
+                                    onClick={handleSyncMetadata}
+                                    disabled={isSyncingMetadata}
+                                    style={{ width: '100%', fontSize: '0.9rem', padding: '8px' }}
+                                >
+                                    {isSyncingMetadata ? 'Refreshing...' : '🔄 Refresh Metadata'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </Modal>
 
             {/* Photo Gallery Modal */}
-            {book && (
-                <PhotoGalleryModal
-                    isOpen={showPhotoGallery}
-                    onClose={() => setShowPhotoGallery(false)}
-                    bookId={book.id}
-                    bookTitle={book.title}
-                />
-            )}
+            {
+                book && (
+                    <PhotoGalleryModal
+                        isOpen={showPhotoGallery}
+                        onClose={() => setShowPhotoGallery(false)}
+                        bookId={book.id}
+                        bookTitle={book.title}
+                        coverUrl={coverUrl}
+                    />
+                )
+
+            }
+
+            {
+                book && metadataChanges && (
+                    <MetadataDiffModal
+                        isOpen={!!metadataChanges}
+                        onClose={() => {
+                            setMetadataChanges(null);
+                            onClose(); // Close book detail as well to force refresh or just let user re-open
+                        }}
+                        changes={metadataChanges}
+                    />
+                )
+            }
+
+            <ConfirmationModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                onConfirm={confirmModal.onConfirm}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                isDanger={confirmModal.isDanger}
+            />
+
+            <Toast
+                message={toast.message}
+                type={toast.type}
+                isVisible={toast.isVisible}
+                onClose={() => setToast({ ...toast, isVisible: false })}
+            />
         </>
     );
 };

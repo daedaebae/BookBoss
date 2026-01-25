@@ -1,4 +1,6 @@
 export interface PrivacySettings {
+    share_library: boolean;
+    library_name?: string;
     share_shelves: boolean;
     share_progress: boolean;
 }

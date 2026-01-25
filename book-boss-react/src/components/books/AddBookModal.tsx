@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
+import { Toast } from '../common/Toast';
 import { BarcodeScanner } from './BarcodeScanner';
 import { BookSearch } from './BookSearch';
 import { type Book } from '../../types/book';
@@ -20,6 +21,17 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
     const [activeTab, setActiveTab] = useState<Tab>('search'); // Default to search for better UX? Or keep manual. Let's stick to manual default for now, or maybe 'search' as requested in features.
     // Actually, let's make 'search' the default if that's the new primary way.
     // But for now, let's just add the tab.
+
+    // Toast State
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; isVisible: boolean }>({
+        message: '',
+        type: 'info',
+        isVisible: false
+    });
+
+    const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+        setToast({ message, type, isVisible: true });
+    };
 
     // Manual entry form
     const [formData, setFormData] = useState<Partial<Book>>({
@@ -65,7 +77,7 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
             handleClose();
         } catch (error) {
             console.error('Error adding book:', error);
-            alert('Failed to add book. Please check the console for details.');
+            showToast('Failed to add book. Please try again.', 'error');
         }
     };
 
@@ -100,8 +112,13 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
             cover_url: book.cover_url || '',
             categories: Array.isArray(book.categories) ? book.categories.join(', ') : (book.categories || ''),
             publication_date: book.publication_date || '',
-            rating: book.rating,
-            page_count: book.page_count,
+            publisher: book.publisher || '',
+            rating: book.rating || undefined,
+            page_count: book.page_count || undefined,
+            description: book.description || '',
+            language: book.language || 'en',
+            series: book.series || '',
+            format: book.format || 'Physical'
         }));
 
         // Switch to manual tab to review/edit before saving
@@ -233,6 +250,7 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
                     <BarcodeScanner
                         onScanSuccess={handleScanSuccess}
                         onScanFailure={(err) => console.log(err)}
+                        onSwitchToManual={() => setActiveTab('manual')}
                     />
                 </div>
             )}
@@ -430,6 +448,14 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
                     </form>
                 </div>
             )}
+
+
+            <Toast
+                message={toast.message}
+                type={toast.type}
+                isVisible={toast.isVisible}
+                onClose={() => setToast({ ...toast, isVisible: false })}
+            />
         </Modal>
     );
 };

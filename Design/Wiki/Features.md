@@ -41,6 +41,11 @@ This document outlines the features of BookBoss, categorized by functionality.
 -   **Settings**: Configure application title, theme, and registration policies.
 -   **Backup & Restore**: Create full database backups and restore from SQL files.
 -   **Export**: Export the entire library to CSV or JSON formats.
+-   **Debug Tools**: Admin tools to reset the database, generate test data, and view logs.
+
+### User Privacy
+-   **Library Visibility**: Toggle public visibility of your library.
+-   **Custom Library Name**: Set a custom display name for your library in the public directory.
 
 ### Integrations
 -   **Audiobookshelf**: Connect to an external Audiobookshelf server to sync audiobook data.

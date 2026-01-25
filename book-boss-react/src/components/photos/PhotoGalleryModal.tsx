@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
+import { ConfirmationModal } from '../common/ConfirmationModal';
+import { Toast } from '../common/Toast';
 import { type BookPhoto } from '../../types/book';
 import { photoService } from '../../services/photoService';
 import { PhotoUpload } from './PhotoUpload';
@@ -9,6 +11,7 @@ interface PhotoGalleryModalProps {
     onClose: () => void;
     bookId: number;
     bookTitle: string;
+    coverUrl?: string;
 }
 
 /**
@@ -19,12 +22,31 @@ export const PhotoGalleryModal: React.FC<PhotoGalleryModalProps> = ({
     isOpen,
     onClose,
     bookId,
-    bookTitle
+    bookTitle,
+    coverUrl
 }) => {
     const [photos, setPhotos] = useState<BookPhoto[]>([]);
     const [selectedPhoto, setSelectedPhoto] = useState<BookPhoto | null>(null);
     const [showUpload, setShowUpload] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Toast State
+    const [toast, setToast] = useState({ message: '', type: 'info' as 'success' | 'error' | 'info', isVisible: false });
+    const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+        setToast({ message, type, isVisible: true });
+    };
+
+    // Confirmation Modal State
+    const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; isDanger?: boolean }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+    });
+
+    const openConfirm = (title: string, message: string, onConfirm: () => void, isDanger = false) => {
+        setConfirmModal({ isOpen: true, title, message, onConfirm, isDanger });
+    };
 
     useEffect(() => {
         if (isOpen) {
@@ -44,22 +66,47 @@ export const PhotoGalleryModal: React.FC<PhotoGalleryModalProps> = ({
         }
     };
 
+    const getDisplayedPhotos = () => {
+        const displayPhotos = [...photos];
+        if (coverUrl) {
+            // Create a pseudo-photo for the cover
+            const coverPhoto: BookPhoto = {
+                id: -1, // Use negative ID for the main cover
+                book_id: bookId,
+                photo_path: coverUrl,
+                photo_type: 'cover',
+                description: 'Main Book Cover',
+                uploaded_at: new Date().toISOString()
+            };
+            displayPhotos.unshift(coverPhoto);
+        }
+        return displayPhotos;
+    };
+
+    const displayedPhotos = getDisplayedPhotos();
+
     const handlePhotoUploaded = () => {
         loadPhotos();
         setShowUpload(false);
     };
 
     const handleDeletePhoto = async (photoId: number) => {
-        if (window.confirm('Are you sure you want to delete this photo?')) {
-            try {
-                await photoService.deletePhoto(photoId);
-                loadPhotos();
-                setSelectedPhoto(null);
-            } catch (error) {
-                console.error('Error deleting photo:', error);
-                alert('Failed to delete photo');
-            }
-        }
+        openConfirm(
+            'Delete Photo',
+            'Are you sure you want to delete this photo?',
+            async () => {
+                try {
+                    await photoService.deletePhoto(photoId);
+                    loadPhotos();
+                    setSelectedPhoto(null);
+                    showToast('Photo deleted successfully', 'success');
+                } catch (error) {
+                    console.error('Error deleting photo:', error);
+                    showToast('Failed to delete photo', 'error');
+                }
+            },
+            true
+        );
     };
 
     const getPhotoTypeIcon = (type?: string) => {
@@ -83,7 +130,7 @@ export const PhotoGalleryModal: React.FC<PhotoGalleryModalProps> = ({
                     marginBottom: '20px'
                 }}>
                     <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>
-                        {photos.length} {photos.length === 1 ? 'Photo' : 'Photos'}
+                        {displayedPhotos.length} {displayedPhotos.length === 1 ? 'Photo' : 'Photos'}
                     </h3>
                     <button
                         onClick={() => setShowUpload(!showUpload)}
@@ -105,7 +152,7 @@ export const PhotoGalleryModal: React.FC<PhotoGalleryModalProps> = ({
                             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
                                 Loading photos...
                             </div>
-                        ) : photos.length === 0 ? (
+                        ) : displayedPhotos.length === 0 ? (
                             <div style={{
                                 textAlign: 'center',
                                 padding: '60px 20px',
@@ -122,7 +169,7 @@ export const PhotoGalleryModal: React.FC<PhotoGalleryModalProps> = ({
                                 gap: '15px',
                                 marginBottom: '20px'
                             }}>
-                                {photos.map((photo) => (
+                                {displayedPhotos.map((photo) => (
                                     <div
                                         key={photo.id}
                                         onClick={() => setSelectedPhoto(photo)}
@@ -139,7 +186,7 @@ export const PhotoGalleryModal: React.FC<PhotoGalleryModalProps> = ({
                                         onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                                     >
                                         <img
-                                            src={`http://localhost:3000${photo.photo_path}`}
+                                            src={photo.photo_path.startsWith('http') ? photo.photo_path : `http://localhost:3000${photo.photo_path}`}
                                             alt={photo.description || 'Book photo'}
                                             style={{
                                                 width: '100%',
@@ -178,17 +225,20 @@ export const PhotoGalleryModal: React.FC<PhotoGalleryModalProps> = ({
                                     <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>
                                         {getPhotoTypeIcon(selectedPhoto.photo_type)} Photo Details
                                     </h4>
-                                    <button
-                                        onClick={() => handleDeletePhoto(selectedPhoto.id)}
-                                        className="secondary-btn small"
-                                        style={{ color: 'var(--danger-color)', borderColor: 'var(--danger-color)' }}
-                                    >
-                                        🗑️ Delete
-                                    </button>
+
+                                    {selectedPhoto.id !== -1 && (
+                                        <button
+                                            onClick={() => handleDeletePhoto(selectedPhoto.id)}
+                                            className="secondary-btn small"
+                                            style={{ color: 'var(--danger-color)', borderColor: 'var(--danger-color)' }}
+                                        >
+                                            🗑️ Delete
+                                        </button>
+                                    )}
                                 </div>
 
                                 <img
-                                    src={`http://localhost:3000${selectedPhoto.photo_path}`}
+                                    src={selectedPhoto.photo_path.startsWith('http') ? selectedPhoto.photo_path : `http://localhost:3000${selectedPhoto.photo_path}`}
                                     alt={selectedPhoto.description || 'Book photo'}
                                     style={{
                                         width: '100%',
@@ -239,8 +289,26 @@ export const PhotoGalleryModal: React.FC<PhotoGalleryModalProps> = ({
                             </div>
                         )}
                     </>
-                )}
-            </div>
-        </Modal>
+                )
+                }
+            </div >
+
+
+            <Toast
+                message={toast.message}
+                type={toast.type}
+                isVisible={toast.isVisible}
+                onClose={() => setToast({ ...toast, isVisible: false })}
+            />
+
+            <ConfirmationModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                onConfirm={confirmModal.onConfirm}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                isDanger={confirmModal.isDanger}
+            />
+        </Modal >
     );
 };
