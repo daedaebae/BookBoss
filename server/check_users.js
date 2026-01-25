@@ -13,10 +13,13 @@ db.connect(err => {
         console.error('Connection failed:', err);
         process.exit(1);
     }
-    const query = 'SELECT id, username, password, is_admin FROM users';
+    const query = 'SELECT id, username, is_admin FROM users';
     db.query(query, (err, results) => {
         if (err) console.error(err);
-        else console.log('Users:', results);
+        else {
+            console.log('Users found:', results.length);
+            console.log(results);
+        }
         db.end();
     });
 });

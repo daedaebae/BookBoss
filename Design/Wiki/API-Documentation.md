@@ -510,10 +510,24 @@ Update user information (admin only).
 
 ---
 
+---
+
 #### DELETE /api/users/:id
 Delete a user (admin only).
 
 ---
+
+#### DELETE /api/admin/libraries/:userId/wipe
+Wipe all data (books, shelves, history) for a specific user but keep the user account (admin only).
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "User library wiped."
+}
+```
+
 
 ### Settings
 

@@ -16,9 +16,14 @@ const jwt = require('jsonwebtoken');
 const helmet = require('helmet');
 
 if (!process.env.JWT_SECRET) {
-    console.warn('WARNING: JWT_SECRET environment variable is not set. Using insecure default.');
+    if (process.env.NODE_ENV === 'production') {
+        console.error('FATAL: JWT_SECRET environment variable is not set. Exiting.');
+        process.exit(1);
+    } else {
+        console.warn('WARNING: JWT_SECRET environment variable is not set. Using random secret for development.');
+    }
 }
-const JWT_SECRET = process.env.JWT_SECRET || 'insecure-default-secret';
+const JWT_SECRET = process.env.JWT_SECRET || require('crypto').randomBytes(64).toString('hex');
 
 /**
  * BookBoss Server
@@ -1133,6 +1138,62 @@ app.post('/api/users', authenticateToken, requireAdmin, async (req, res) => {
 // Update a user
 // Update a user
 // Update a user
+// --- User Profile/Privacy APIs ---
+
+app.get('/api/users/profile', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    db.query('SELECT id, username, is_admin, privacy_settings FROM users WHERE id = ?', [userId], (err, results) => {
+        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+        if (results.length === 0) return res.status(404).json({ error: 'User not found' });
+
+        const user = results[0];
+        try {
+            if (typeof user.privacy_settings === 'string') {
+                user.privacy_settings = JSON.parse(user.privacy_settings || '{}');
+            }
+        } catch (e) {
+            console.error('Failed to parse privacy_settings:', e);
+            user.privacy_settings = {};
+        }
+        res.json(user);
+    });
+});
+
+app.put('/api/users/profile', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
+    const { privacy_settings } = req.body;
+
+    // console.log(`[Profile Update] User ${userId} updating settings:`, privacy_settings); // Debug log
+
+    try {
+        const [results] = await db.promise().query('SELECT privacy_settings FROM users WHERE id = ?', [userId]);
+
+        if (results.length === 0) return res.status(404).json({ error: 'User not found' });
+
+        let currentSettings = {};
+        try {
+            if (results[0] && results[0].privacy_settings) {
+                // Check if it's already an object or string
+                currentSettings = typeof results[0].privacy_settings === 'string'
+                    ? JSON.parse(results[0].privacy_settings)
+                    : results[0].privacy_settings;
+            }
+        } catch (e) {
+            console.error('Failed to parse current settings:', e);
+        }
+
+        // Merge settings
+        const updatedSettings = { ...currentSettings, ...(privacy_settings || {}) };
+
+        await db.promise().query('UPDATE users SET privacy_settings = ? WHERE id = ?', [JSON.stringify(updatedSettings), userId]);
+
+        res.json({ message: 'Profile updated', privacy_settings: updatedSettings });
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.put('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { username, password, isAdmin } = req.body;
@@ -1528,53 +1589,7 @@ app.post('/api/books/:id/refresh-metadata', authenticateToken, requireAdmin, asy
         }
     })();
 });
-// --- User Profile/Privacy APIs ---
 
-app.get('/api/users/profile', authenticateToken, (req, res) => {
-    const userId = req.user.id;
-    db.query('SELECT id, username, is_admin, privacy_settings FROM users WHERE id = ?', [userId], (err, results) => {
-        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
-        if (results.length === 0) return res.status(404).json({ error: 'User not found' });
-
-        const user = results[0];
-        try {
-            if (typeof user.privacy_settings === 'string') {
-                user.privacy_settings = JSON.parse(user.privacy_settings || '{}');
-            }
-        } catch (e) {
-            console.error('Failed to parse privacy_settings:', e);
-            user.privacy_settings = {};
-        }
-        res.json(user);
-    });
-});
-
-app.put('/api/users/profile', authenticateToken, (req, res) => {
-    const userId = req.user.id;
-    const { privacy_settings } = req.body;
-    db.query('SELECT privacy_settings FROM users WHERE id = ?', [userId], (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
-
-        let currentSettings = {};
-        try {
-            if (results[0] && results[0].privacy_settings) {
-                // Check if it's already an object or string
-                currentSettings = typeof results[0].privacy_settings === 'string'
-                    ? JSON.parse(results[0].privacy_settings)
-                    : results[0].privacy_settings;
-            }
-        } catch (e) {
-            console.error('Failed to parse current settings:', e);
-        }
-
-        const updatedSettings = { ...currentSettings, ...privacy_settings };
-
-        db.query('UPDATE users SET privacy_settings = ? WHERE id = ?', [JSON.stringify(updatedSettings), userId], (updateErr) => {
-            if (updateErr) { console.error(updateErr); return res.status(500).json({ error: updateErr.message }); }
-            res.json({ message: 'Profile updated', privacy_settings: updatedSettings });
-        });
-    });
-});
 
 // --- Reading Lists APIs ---
 
@@ -2273,16 +2288,16 @@ app.post('/api/admin/debug/generate-data', authenticateToken, requireAdmin, (req
 // Get All Library Stats for Management
 app.get('/api/admin/libraries', authenticateToken, requireAdmin, async (req, res) => {
     try {
-        const [results] = await db.query(`
+        const [results] = await db.promise().query(`
             SELECT 
                 u.id, 
                 u.username, 
-                COUNT(b.id) as book_count,
-                COUNT(s.id) as shelf_count
+                COUNT(DISTINCT b.id) as book_count,
+                COUNT(DISTINCT s.id) as shelf_count
             FROM users u
             LEFT JOIN books b ON b.owner_id = u.id
             LEFT JOIN shelves s ON s.user_id = u.id
-            GROUP BY u.id
+            GROUP BY u.id, u.username
         `);
         res.json(results);
     } catch (error) {
@@ -2297,11 +2312,12 @@ app.delete('/api/admin/libraries/:userId/wipe', authenticateToken, requireAdmin,
     if (!userId) return res.status(400).json({ error: 'User ID required' });
 
     try {
-        await db.query('DELETE FROM books WHERE owner_id = ?', [userId]);
-        await db.query('DELETE FROM shelves WHERE user_id = ?', [userId]);
-        await db.query('DELETE FROM user_books WHERE user_id = ?', [userId]);
+        await db.promise().query('DELETE FROM books WHERE owner_id = ?', [userId]);
+        await db.promise().query('DELETE FROM shelves WHERE user_id = ?', [userId]);
+        await db.promise().query('DELETE FROM user_books WHERE user_id = ?', [userId]);
 
-        const [user] = await db.query('SELECT username FROM users WHERE id = ?', [userId]);
+        const [rows] = await db.promise().query('SELECT username FROM users WHERE id = ?', [userId]);
+        const user = rows;
         console.log(`[Admin] Wiped library for user ${user[0]?.username || userId}`);
 
         res.json({ success: true, message: 'User library wiped.' });
