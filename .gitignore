@@ -14,3 +14,7 @@ server/uploads/*
 
 # Database Data
 mysql-data/
+
+# Security & Backups
+certs/
+backups/

@@ -1,0 +1,237 @@
+import React, { useState, useEffect } from 'react';
+import { Sidebar, type SidebarFilter } from '../components/layout/Sidebar';
+import { useAuth } from '../context/AuthContext';
+// import { useTheme } from '../context/ThemeContext';
+import { FeatureCard } from '../components/features/FeatureCard';
+import { FeatureFormModal } from '../components/features/FeatureFormModal';
+import { featureService, type FeatureRequest } from '../services/featureService';
+import { Toast } from '../components/common/Toast';
+
+export const Features: React.FC = () => {
+    const { user, logout } = useAuth();
+    // const { theme, setTheme } = useTheme(); // Unused
+    const [features, setFeatures] = useState<FeatureRequest[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<'all' | 'my' | 'planned' | 'completed'>('all');
+    const [filterText, setFilterText] = useState('');
+    const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+    const [toast, setToast] = useState({ message: '', type: 'info' as 'success' | 'error' | 'info', isVisible: false });
+
+    // Sidebar state stub to keep Sidebar component happy
+    const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>({ type: 'all' });
+
+    useEffect(() => {
+        loadFeatures();
+    }, []);
+
+    const loadFeatures = async () => {
+        try {
+            setIsLoading(true);
+            const data = await featureService.getFeatures();
+            setFeatures(data);
+        } catch (error) {
+            console.error(error);
+            showToast('Failed to load feature requests', 'error');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleCreate = async (title: string, description: string) => {
+        try {
+            await featureService.createFeature(title, description);
+            showToast('Feature request submitted!', 'success');
+            loadFeatures();
+        } catch (error) {
+            showToast('Failed to submit request', 'error');
+        }
+    };
+
+    const handleVote = async (id: number) => {
+        try {
+            const result = await featureService.toggleVote(id);
+            setFeatures(prev => prev.map(f => {
+                if (f.id === id) {
+                    return { ...f, vote_count: result.new_count, voted_by_me: result.voted };
+                }
+                return f;
+            }));
+        } catch (error) {
+            showToast('Failed to register vote', 'error');
+        }
+    };
+
+    const handleStatusChange = async (id: number, status: string) => {
+        try {
+            await featureService.updateStatus(id, status);
+            showToast('Status updated', 'success');
+            loadFeatures();
+        } catch (error) {
+            showToast('Failed to update status', 'error');
+        }
+    };
+
+    const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+        setToast({ message, type, isVisible: true });
+    };
+
+    // Filter Logic
+    const filteredFeatures = features.filter(f => {
+        const matchesText = f.title.toLowerCase().includes(filterText.toLowerCase()) ||
+            f.description.toLowerCase().includes(filterText.toLowerCase());
+
+        if (!matchesText) return false;
+
+        if (activeTab === 'my') return f.created_by === user?.username;
+        if (activeTab === 'planned') return f.status === 'planned' || f.status === 'in_progress';
+        if (activeTab === 'completed') return f.status === 'completed';
+
+        return true;
+    });
+
+    return (
+        <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-color)' }}>
+            <Sidebar
+                activeFilter={sidebarFilter}
+                onFilterChange={setSidebarFilter} // Stub
+                shelves={[]} // Stub
+                seriesList={[]} // Stub
+                onManageShelves={() => { }} // Stub
+                bookCounts={{
+                    total: 0,
+                    notStarted: 0,
+                    inProgress: 0,
+                    completed: 0,
+                    dnf: 0,
+                    physical: 0,
+                    ebook: 0,
+                    audiobook: 0,
+                    loaned: 0,
+                    overdue: 0
+                }} // Stub
+                isMobileOpen={isMobileSidebarOpen}
+                onMobileClose={() => setIsMobileSidebarOpen(false)}
+                onToggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)}
+                isVisible={isSidebarVisible}
+                user={user}
+                onLogout={logout}
+                onSettingsClick={() => { }}
+                publicLibraries={[]}
+            />
+
+            <div className="content-area" style={{
+                marginLeft: isSidebarVisible ? 'var(--sidebar-width)' : '0',
+                flex: 1,
+                transition: 'margin-left 0.3s ease'
+            }}>
+                <div className="top-bar" style={{ justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <button
+                            className="icon-btn mobile-only"
+                            onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+                            style={{ fontSize: '1.5rem', background: 'none', border: 'none', color: 'var(--text-primary)' }}
+                        >
+                            ☰
+                        </button>
+                        <h2 style={{ margin: 0, background: 'linear-gradient(to right, var(--title-gradient-start), var(--title-gradient-end))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                            Feature Requests
+                        </h2>
+                    </div>
+
+                    <button
+                        className="primary-btn"
+                        onClick={() => setIsFormOpen(true)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                        <span>+</span> New Request
+                    </button>
+                </div>
+
+                <div style={{ padding: '30px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+                    {/* Tabs */}
+                    <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', borderBottom: 'var(--glass-border)' }}>
+                        {[
+                            { id: 'all', label: 'All Requests' },
+                            { id: 'planned', label: 'Planned' },
+                            { id: 'completed', label: 'Completed' },
+                            { id: 'my', label: 'My Requests' }
+                        ].map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as any)}
+                                style={{
+                                    padding: '12px 0',
+                                    background: 'none',
+                                    border: 'none',
+                                    borderBottom: activeTab === tab.id ? '2px solid var(--accent-color)' : '2px solid transparent',
+                                    color: activeTab === tab.id ? 'var(--accent-color)' : 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    fontWeight: 600,
+                                    fontSize: '1rem'
+                                }}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Search */}
+                    <div style={{ marginBottom: '30px' }}>
+                        <input
+                            type="text"
+                            placeholder="Search requests..."
+                            value={filterText}
+                            onChange={e => setFilterText(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '12px 20px',
+                                borderRadius: '30px',
+                                border: 'var(--glass-border)',
+                                background: 'rgba(255,255,255,0.05)',
+                                color: 'var(--text-primary)',
+                                outline: 'none'
+                            }}
+                        />
+                    </div>
+
+                    {/* Grid */}
+                    {isLoading ? (
+                        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>Loading...</div>
+                    ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+                            {filteredFeatures.map(feature => (
+                                <FeatureCard
+                                    key={feature.id}
+                                    feature={feature}
+                                    onVote={handleVote}
+                                    isAdmin={!!user?.is_admin}
+                                    onStatusChange={handleStatusChange}
+                                />
+                            ))}
+                            {filteredFeatures.length === 0 && (
+                                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                                    No requests found.
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                <FeatureFormModal
+                    isOpen={isFormOpen}
+                    onClose={() => setIsFormOpen(false)}
+                    onSubmit={handleCreate}
+                />
+
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    isVisible={toast.isVisible}
+                    onClose={() => setToast({ ...toast, isVisible: false })}
+                />
+            </div>
+        </div>
+    );
+};

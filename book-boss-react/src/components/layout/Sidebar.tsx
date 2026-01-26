@@ -54,6 +54,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onSettingsClick,
     publicLibraries = []
 }) => {
+    // State for collapsible sections
+    const [isLibrariesOpen, setIsLibrariesOpen] = React.useState(true);
+
     const isActive = (type: string, value?: string | number) => {
         if (type === 'user') return activeFilter.type === 'user' && activeFilter.userId === value;
         return activeFilter.type === type && activeFilter.value === value;
@@ -62,6 +65,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const handleFilterClick = (filter: SidebarFilter) => {
         onFilterChange(filter);
         onMobileClose?.();
+    };
+
+    // Helper to get initials
+    const getInitials = (name: string) => {
+        return name.slice(0, 2).toUpperCase();
     };
 
     return (
@@ -74,16 +82,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 />
             )}
 
-            <aside className={`sidebar ${isMobileOpen ? 'open' : ''}`} style={{ display: isVisible ? 'flex' : 'none' }}>
+            <aside className={`sidebar ${isMobileOpen ? 'open' : ''}`} style={{ display: isVisible ? 'flex' : 'none', flexDirection: 'column' }}>
                 {/* Sidebar Header */}
                 <div className="sidebar-header" style={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    alignItems: 'start'
+                    alignItems: 'start',
+                    flexShrink: 0
                 }}>
                     <div>
                         <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, background: 'linear-gradient(to right, var(--title-gradient-start), var(--title-gradient-end))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                            BookBoss {import.meta.env.DEV && <span style={{ fontSize: '0.8rem', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '1px' }}>(Dev Mode)</span>}
+                            BookBoss {import.meta.env.DEV && <span style={{ fontSize: '0.8rem', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '1px' }}>(Dev)</span>}
                         </h2>
                         {user && (
                             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
@@ -103,79 +112,133 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     )}
                 </div>
 
-                <div className="sidebar-nav">
-                    {/* All Books */}
+
+
+                <div className="sidebar-nav" style={{ flex: 1, overflowY: 'auto' }}>
+
+                    {/* Main Navigation */}
                     <div className="sidebar-section">
                         <button
-                            className={`sidebar-item ${isActive('all') ? 'active' : ''}`}
-                            onClick={() => handleFilterClick({ type: 'all' })}
+                            className={`sidebar-item ${isActive('all') && !window.location.pathname.includes('features') ? 'active' : ''}`}
+                            onClick={() => {
+                                if (window.location.pathname !== '/') {
+                                    window.location.href = '/';
+                                }
+                                handleFilterClick({ type: 'all' });
+                            }}
                         >
                             <span className="sidebar-icon">📚</span>
                             <span className="sidebar-label">My Library</span>
                             <span className="sidebar-count">{bookCounts.total}</span>
                         </button>
+
+                        <button
+                            className={`sidebar-item ${window.location.pathname.includes('features') ? 'active' : ''}`}
+                            onClick={() => {
+                                window.location.href = '/features';
+                                onMobileClose?.();
+                            }}
+                        >
+                            <span className="sidebar-icon">💡</span>
+                            <span className="sidebar-label">Feature Requests</span>
+                        </button>
                     </div>
 
-                    {/* Libraries Section (New) */}
+                    {/* Libraries Section (Collapsible) */}
                     <div className="sidebar-section">
-                        <div className="sidebar-section-title">Shared Libraries</div>
-                        {publicLibraries.length > 0 ? (
-                            publicLibraries.map(lib => (
-                                <button
-                                    key={lib.id}
-                                    className={`sidebar-item ${isActive('user', lib.id) ? 'active' : ''}`}
-                                    onClick={() => handleFilterClick({ type: 'user', userId: lib.id })}
-                                >
-                                    <span className="sidebar-icon">👤</span>
-                                    <span className="sidebar-label">{lib.library_name || `${lib.username}'s Library`}</span>
-                                </button>
-                            ))
-                        ) : (
-                            <div style={{ padding: '4px 12px', fontSize: '0.8rem', opacity: 0.6 }}>No shared libraries</div>
+                        <div
+                            className="sidebar-section-title"
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                userSelect: 'none'
+                            }}
+                            onClick={() => setIsLibrariesOpen(!isLibrariesOpen)}
+                        >
+                            <span>Shared Libraries</span>
+                            <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>{isLibrariesOpen ? '▼' : '▶'}</span>
+                        </div>
+
+                        {isLibrariesOpen && (
+                            <div style={{ maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
+                                {publicLibraries.length > 0 ? (
+                                    publicLibraries.sort((a, b) => (a.library_name || a.username).localeCompare(b.library_name || b.username)).map(lib => {
+                                        const displayName = lib.library_name || `${lib.username}'s Library`;
+                                        return (
+                                            <button
+                                                key={lib.id}
+                                                className={`sidebar-item ${isActive('user', lib.id) ? 'active' : ''}`}
+                                                onClick={() => handleFilterClick({ type: 'user', userId: lib.id })}
+                                                title={displayName}
+                                                style={{
+                                                    paddingLeft: '16px',
+                                                    paddingTop: '12px',
+                                                    paddingBottom: '12px',
+                                                    gap: '12px'
+                                                }}
+                                            >
+                                                <span className="sidebar-icon" style={{
+                                                    fontSize: '1rem',
+                                                    background: 'var(--glass-border)',
+                                                    borderRadius: '6px',
+                                                    width: '32px',
+                                                    height: '32px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    marginRight: '0', // handled by gap
+                                                    flexShrink: 0,
+                                                    fontWeight: 600,
+                                                    color: 'var(--accent-color)'
+                                                }}>
+                                                    {getInitials(lib.username)}
+                                                </span>
+                                                <span className="sidebar-label" style={{
+                                                    whiteSpace: 'nowrap',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    fontSize: '1rem',
+                                                    fontWeight: 500
+                                                }}>
+                                                    {displayName}
+                                                </span>
+                                            </button>
+                                        );
+                                    })
+                                ) : (
+                                    <div style={{ padding: '4px 12px', fontSize: '0.8rem', opacity: 0.6, fontStyle: 'italic' }}>No shared libraries</div>
+                                )}
+                            </div>
                         )}
                     </div>
 
                     {/* Reading Status */}
                     <div className="sidebar-section">
                         <div className="sidebar-section-title">Reading Status</div>
-                        <button
-                            className={`sidebar-item ${isActive('status', 'Not Started') ? 'active' : ''}`}
-                            onClick={() => handleFilterClick({ type: 'status', value: 'Not Started' })}
-                        >
-                            <span className="sidebar-icon">⭕</span>
-                            <span className="sidebar-label">Not Started</span>
-                            <span className="sidebar-count">{bookCounts.notStarted}</span>
-                        </button>
-                        <button
-                            className={`sidebar-item ${isActive('status', 'In Progress') ? 'active' : ''}`}
-                            onClick={() => handleFilterClick({ type: 'status', value: 'In Progress' })}
-                        >
-                            <span className="sidebar-icon">📗</span>
-                            <span className="sidebar-label">In Progress</span>
-                            <span className="sidebar-count">{bookCounts.inProgress}</span>
-                        </button>
-                        <button
-                            className={`sidebar-item ${isActive('status', 'Completed') ? 'active' : ''}`}
-                            onClick={() => handleFilterClick({ type: 'status', value: 'Completed' })}
-                        >
-                            <span className="sidebar-icon">✅</span>
-                            <span className="sidebar-label">Completed</span>
-                            <span className="sidebar-count">{bookCounts.completed}</span>
-                        </button>
-                        <button
-                            className={`sidebar-item ${isActive('status', 'DNF') ? 'active' : ''}`}
-                            onClick={() => handleFilterClick({ type: 'status', value: 'DNF' })}
-                        >
-                            <span className="sidebar-icon">⛔</span>
-                            <span className="sidebar-label">Did Not Finish</span>
-                            <span className="sidebar-count">{bookCounts.dnf}</span>
-                        </button>
+                        {[
+                            { val: 'Not Started', icon: '⭕', label: 'Not Started', count: bookCounts.notStarted },
+                            { val: 'In Progress', icon: '📗', label: 'In Progress', count: bookCounts.inProgress },
+                            { val: 'Completed', icon: '✅', label: 'Completed', count: bookCounts.completed },
+                            { val: 'DNF', icon: '⛔', label: 'Did Not Finish', count: bookCounts.dnf },
+                        ].map(status => (
+                            <button
+                                key={status.val}
+                                className={`sidebar-item ${isActive('status', status.val) ? 'active' : ''}`}
+                                onClick={() => handleFilterClick({ type: 'status', value: status.val })}
+                            >
+                                <span className="sidebar-icon">{status.icon}</span>
+                                <span className="sidebar-label">{status.label}</span>
+                                <span className="sidebar-count">{status.count}</span>
+                            </button>
+                        ))}
                     </div>
 
                     {/* Loaned Books */}
                     {bookCounts.loaned > 0 && (
                         <div className="sidebar-section">
-                            <div className="sidebar-section-title">Loaned Books</div>
+                            <div className="sidebar-section-title">Loans</div>
                             <button
                                 className={`sidebar-item ${isActive('loaned') ? 'active' : ''}`}
                                 onClick={() => handleFilterClick({ type: 'loaned' })}
@@ -190,7 +253,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                             fontSize: '0.85em',
                                             fontWeight: 600
                                         }}>
-                                            ({bookCounts.overdue} overdue)
+                                            (! {bookCounts.overdue})
                                         </span>
                                     )}
                                 </span>
@@ -202,30 +265,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {/* Format */}
                     <div className="sidebar-section">
                         <div className="sidebar-section-title">Format</div>
-                        <button
-                            className={`sidebar-item ${isActive('format', 'Physical') ? 'active' : ''}`}
-                            onClick={() => handleFilterClick({ type: 'format', value: 'Physical' })}
-                        >
-                            <span className="sidebar-icon">📖</span>
-                            <span className="sidebar-label">Physical</span>
-                            <span className="sidebar-count">{bookCounts.physical}</span>
-                        </button>
-                        <button
-                            className={`sidebar-item ${isActive('format', 'Ebook') ? 'active' : ''}`}
-                            onClick={() => handleFilterClick({ type: 'format', value: 'Ebook' })}
-                        >
-                            <span className="sidebar-icon">💻</span>
-                            <span className="sidebar-label">Ebook</span>
-                            <span className="sidebar-count">{bookCounts.ebook}</span>
-                        </button>
-                        <button
-                            className={`sidebar-item ${isActive('format', 'Audiobook') ? 'active' : ''}`}
-                            onClick={() => handleFilterClick({ type: 'format', value: 'Audiobook' })}
-                        >
-                            <span className="sidebar-icon">🎧</span>
-                            <span className="sidebar-label">Audiobook</span>
-                            <span className="sidebar-count">{bookCounts.audiobook}</span>
-                        </button>
+                        {[
+                            { val: 'Physical', icon: '📖', label: 'Physical', count: bookCounts.physical },
+                            { val: 'Ebook', icon: '💻', label: 'Ebook', count: bookCounts.ebook },
+                            { val: 'Audiobook', icon: '🎧', label: 'Audiobook', count: bookCounts.audiobook },
+                        ].map(fmt => (
+                            <button
+                                key={fmt.val}
+                                className={`sidebar-item ${isActive('format', fmt.val) ? 'active' : ''}`}
+                                onClick={() => handleFilterClick({ type: 'format', value: fmt.val })}
+                            >
+                                <span className="sidebar-icon">{fmt.icon}</span>
+                                <span className="sidebar-label">{fmt.label}</span>
+                                <span className="sidebar-count">{fmt.count}</span>
+                            </button>
+                        ))}
                     </div>
 
                     {/* Shelves */}
@@ -242,9 +296,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     padding: '0 4px',
                                     color: 'var(--accent-color)',
                                     fontWeight: 'bold',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
                                     lineHeight: 1
                                 }}
                                 title="Create Shelf"
@@ -300,25 +351,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             ))}
                         </div>
                     )}
-                    {/* System Section */}
-                    <div className="sidebar-section" style={{ marginTop: 'auto', paddingTop: '20px', borderTop: '1px solid var(--glass-border)' }}>
-                        <div className="sidebar-section-title">System</div>
-                        {onSettingsClick && (
-                            <button className="sidebar-item" onClick={() => { onSettingsClick(); onMobileClose?.(); }}>
-                                <span className="sidebar-icon">⚙️</span>
-                                <span className="sidebar-label">Settings</span>
-                            </button>
-                        )}
-
-                        {onLogout && (
-                            <button className="sidebar-item" onClick={onLogout}>
-                                <span className="sidebar-icon">🚪</span>
-                                <span className="sidebar-label">Logout</span>
-                            </button>
-                        )}
-                    </div>
                 </div>
-            </aside>
+
+                {/* System Section - Sticky Footer */}
+                <div className="sidebar-footer" style={{
+                    marginTop: 'auto',
+                    paddingTop: '15px',
+                    borderTop: '1px solid var(--glass-border)',
+                    flexShrink: 0
+                }}>
+                    {onSettingsClick && (
+                        <button className="sidebar-item" onClick={() => { onSettingsClick(); onMobileClose?.(); }}>
+                            <span className="sidebar-icon">⚙️</span>
+                            <span className="sidebar-label">Settings</span>
+                        </button>
+                    )}
+
+                    {onLogout && (
+                        <button className="sidebar-item" onClick={onLogout}>
+                            <span className="sidebar-icon">🚪</span>
+                            <span className="sidebar-label">Logout</span>
+                        </button>
+                    )}
+                </div>
+            </aside >
         </>
     );
 };

@@ -145,14 +145,13 @@ export const BookSearch: React.FC<BookSearchProps> = ({ onBookSelect, initialQue
     return (
         <div className="book-search">
             {/* ... Existing Search Bar ... */}
-            <div className="search-bar" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <div className="book-search-bar">
                 <input
                     type="text"
                     placeholder="Search by title, author, or ISBN..."
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    style={{ flex: 1 }}
                 />
                 <button
                     className="primary-btn"

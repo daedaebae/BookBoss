@@ -31,21 +31,21 @@ Accessible only to users with the `Admin` role.
 - Create, edit, and delete user accounts.
 - Assign roles (Admin, Editor, Viewer).
 
-### System Configuration (Planned)
+### System Configuration
 - **Registration**: Enable/disable public registration.
-- **Storage Limits**: Set quotas for file uploads.
-- **Backup**: Schedule automated database backups.
+- **Backup**: Create and restore full database backups.
+- **Debug Mode**: Enable detailed logging and development tools.
 
 ## Audiobookshelf Integration
 
 Settings for connecting to an external Audiobookshelf server.
 - **Server URL**: Address of the ABS instance.
 - **API Key**: Token for authentication.
-- **Sync Settings**: Configuration for what data to sync.
+- **Sync Settings**: specificSync individual libraries or all content.
 
 ## Implementation
 
-- **Frontend**: `SettingsPage.tsx` manages the UI tabs.
+- **Frontend**: `SettingsModal.tsx` manages the UI. It features a responsive **Horizontal Scrollable Tab Bar** for navigation, ensuring a consistent experience across desktop and mobile devices.
 - **State**: `ThemeContext` handles visual preferences.
 - **Persistence**: User preferences are synced to the backend `users` table (planned) or stored in `localStorage`.
 

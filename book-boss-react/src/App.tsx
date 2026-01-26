@@ -2,6 +2,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { Layout } from './components/layout/Layout';
 import { Library } from './pages/Library';
+import { Features } from './pages/Features';
 import { Login } from './pages/Login';
 
 function AppContent() {
@@ -17,7 +18,7 @@ function AppContent() {
 
   return (
     <Layout>
-      <Library />
+      {window.location.pathname === '/features' ? <Features /> : <Library />}
     </Layout>
   );
 }

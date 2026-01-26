@@ -577,63 +577,71 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     const visibleTabs = tabs.filter(tab => !tab.adminOnly || user?.is_admin);
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Settings (Dev Mode)">
-            <div style={{ display: 'flex', gap: '20px', minHeight: '500px' }}>
+        <Modal isOpen={isOpen} onClose={onClose} title="Settings (Dev Mode)" maxWidth="800px">
+            <div className="settings-layout">
                 {/* Sidebar */}
-                <aside style={{
-                    width: '200px',
-                    borderRight: '1px solid var(--glass-border)',
-                    paddingRight: '20px'
-                }}>
-                    {visibleTabs.map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            style={{
-                                display: 'block',
-                                width: '100%',
-                                padding: '12px',
-                                marginBottom: '8px',
-                                background: activeTab === tab.id ? 'var(--glass-bg)' : 'transparent',
-                                border: activeTab === tab.id ? '1px solid var(--accent-color)' : '1px solid transparent',
-                                borderRadius: '8px',
-                                color: 'var(--text-primary)',
-                                textAlign: 'left',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                    {user?.is_admin && debugMode && (
-                        <button
-                            onClick={() => setActiveTab('debug' as any)}
-                            style={{
-                                display: 'block',
-                                width: '100%',
-                                padding: '12px',
-                                marginBottom: '8px',
-                                background: activeTab === ('debug' as any) ? 'var(--glass-bg)' : 'transparent',
-                                border: activeTab === ('debug' as any) ? '1px dashed var(--danger-color)' : '1px solid transparent',
-                                borderRadius: '8px',
-                                color: 'var(--danger-color)',
-                                textAlign: 'left',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                marginTop: '20px'
-                            }}
-                        >
-                            🐞 Debug Menu
-                        </button>
-                    )}
+                {/* Sidebar Navigation 
+                    Refactored to a horizontal scrollable tab bar for universal layout (desktop & mobile).
+                    Includes left/right scroll arrows for better accessibilty on smaller screens.
+                */}
+                <aside className="settings-sidebar">
+                    <button
+                        className="settings-scroll-btn left"
+                        onClick={() => {
+                            const container = document.querySelector('.settings-tabs-scroll-area');
+                            if (container) container.scrollBy({ left: -100, behavior: 'smooth' });
+                        }}
+                        aria-label="Scroll Left"
+                    >
+                        ‹
+                    </button>
+                    <div className="settings-tabs-scroll-area">
+                        {visibleTabs.map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`settings-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                        {user?.is_admin && debugMode && (
+                            <button
+                                onClick={() => setActiveTab('debug' as any)}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    height: '100%',
+                                    padding: '0 16px',
+                                    background: activeTab === ('debug' as any) ? 'rgba(239, 68, 68, 0.1)' : 'transparent',
+                                    border: 'none',
+                                    borderBottom: activeTab === ('debug' as any) ? '2px solid var(--danger-color)' : '2px solid transparent',
+                                    color: 'var(--danger-color)',
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >
+                                🐞 Debug
+                            </button>
+                        )}
+                    </div>
+                    <button
+                        className="settings-scroll-btn right"
+                        onClick={() => {
+                            const container = document.querySelector('.settings-tabs-scroll-area');
+                            if (container) container.scrollBy({ left: 100, behavior: 'smooth' });
+                        }}
+                        aria-label="Scroll Right"
+                    >
+                        ›
+                    </button>
                 </aside>
 
                 {/* Content */}
-                <main style={{ flex: 1 }}>
+                <main className="settings-body">
                     {activeTab === 'general' && user?.is_admin && (
                         <div>
-                            <h3>General Settings</h3>
+
                             <div className="form-group">
                                 <label>Accent Color / Theme</label>
                                 <select value={accentColor} onChange={handleAccentChange}>
@@ -661,22 +669,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                 <label>Library Maintenance</label>
 
                                 {privacySettings.share_library && (
-                                    <div className="form-group" style={{ marginBottom: '20px', padding: '10px', background: 'var(--glass-bg)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-                                        <label style={{ fontSize: '0.9rem', marginBottom: '8px' }}>Library Name (Public)</label>
-                                        <div style={{ display: 'flex', gap: '10px' }}>
-                                            <input
-                                                type="text"
-                                                value={privacySettings.library_name || ''}
-                                                placeholder={`${user?.username}'s Library`}
-                                                onChange={(e) => setPrivacySettings({ ...privacySettings, library_name: e.target.value })}
-                                                onBlur={(e) => updatePrivacySettings({ ...privacySettings, library_name: e.target.value })}
-                                                style={{ flex: 1 }}
-                                            />
-                                        </div>
-                                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                                            Controls the name shown in the sidebar for users you share with.
-                                        </p>
-                                    </div>
+                                    <></>
                                 )}
                                 <button
                                     className="secondary-btn"
@@ -734,7 +727,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
                     {activeTab === 'profile' && (
                         <div>
-                            <h3>My Profile</h3>
+
 
                             <div style={{ marginBottom: '30px', paddingBottom: '20px', borderBottom: '1px solid var(--glass-border)' }}>
                                 <h4>Privacy Settings</h4>
@@ -754,6 +747,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
                                     If disabled, your library is completely hidden from other users.
                                 </p>
+
+                                {privacySettings.share_library && (
+                                    <div className="form-group" style={{ marginBottom: '20px', padding: '10px', background: 'var(--glass-bg)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                                        <label style={{ fontSize: '0.9rem', marginBottom: '8px' }}>Library Name (Public)</label>
+                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                            <input
+                                                type="text"
+                                                value={privacySettings.library_name || ''}
+                                                placeholder={`${user?.username}'s Library`}
+                                                onChange={(e) => setPrivacySettings({ ...privacySettings, library_name: e.target.value })}
+                                                onBlur={(e) => updatePrivacySettings({ ...privacySettings, library_name: e.target.value })}
+                                                style={{ flex: 1 }}
+                                            />
+                                        </div>
+                                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                            Controls the name shown in the sidebar for users you share with.
+                                        </p>
+                                    </div>
+                                )}
 
                                 <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: privacySettings.share_library ? 1 : 0.5 }}>
                                     <label style={{ marginBottom: 0 }}>Share my shelves with other users</label>
@@ -804,7 +816,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
                     {activeTab === 'filters' && (
                         <div>
-                            <h3>Library Defaults</h3>
+
                             <div className="form-group">
                                 <label>Default Sort Order</label>
                                 <select value={defaultSort} onChange={handleSortChange}>
@@ -819,7 +831,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
                     {activeTab === 'export' && (
                         <div>
-                            <h3>Export Library</h3>
+
                             <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>
                                 Download your library metadata.
                             </p>
@@ -839,7 +851,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
                     {activeTab === ('debug' as any) && user?.is_admin && (
                         <div>
-                            <h3 style={{ color: 'var(--danger-color)' }}>🐞 Debug Menu</h3>
+
                             <div className="alert alert-warning">
                                 <strong>Warning:</strong> These actions are destructive and intended for development only.
                             </div>
@@ -883,7 +895,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                     {activeTab === 'users' && user?.is_admin && (
                         <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                                <h3>User & Library Management</h3>
+                                <div></div>
                                 {!showAddUser && (
                                     <button className="secondary-btn small" onClick={() => {
                                         setEditingUser(null);
@@ -898,14 +910,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                             </div>
 
                             {showAddUser && (
-                                <div style={{ marginBottom: '20px', padding: '15px', background: 'var(--glass-bg)', borderRadius: '8px' }}>
-                                    <h4>{editingUser ? 'Edit User' : 'New User'}</h4>
+                                <div style={{ marginBottom: '20px', padding: '20px', background: 'var(--glass-bg)', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                                    <h4 style={{ marginTop: 0, marginBottom: '15px' }}>{editingUser ? 'Edit User' : 'New User'}</h4>
                                     <div className="form-group">
+                                        <label>Username</label>
                                         <input
                                             type="text"
                                             placeholder="Username"
                                             value={newUsername}
                                             onChange={(e) => setNewUsername(e.target.value)}
+                                            style={{ padding: '8px', fontSize: '0.9rem' }}
                                         />
                                     </div>
                                     <div className="form-group">
@@ -915,20 +929,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                             placeholder={editingUser ? "New Password (leave blank to keep current)" : "Password"}
                                             value={newUserPassword}
                                             onChange={(e) => setNewUserPassword(e.target.value)}
+                                            style={{ padding: '8px', fontSize: '0.9rem' }}
                                         />
                                     </div>
                                     <div className="form-group">
                                         <label>Permissions</label>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'normal' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 'normal', cursor: 'pointer', fontSize: '0.9rem' }}>
                                             <input
                                                 type="checkbox"
                                                 checked={newUserIsAdmin}
                                                 onChange={(e) => setNewUserIsAdmin(e.target.checked)}
+                                                style={{ width: '16px', height: '16px' }}
                                             />
                                             Administrator (Full Access)
                                         </label>
                                     </div>
-                                    <div style={{ display: 'flex', gap: '10px' }}>
+                                    <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
                                         <button className="primary-btn small" onClick={editingUser ? updateUser : handleCreateUser}>
                                             {editingUser ? 'Update User' : 'Create User'}
                                         </button>
@@ -940,72 +956,78 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                             <div>
                                 {usersError && (
                                     <div style={{
-                                        padding: '15px',
+                                        padding: '10px',
                                         marginBottom: '15px',
                                         background: 'rgba(239, 68, 68, 0.1)',
                                         border: '1px solid var(--danger-color)',
                                         borderRadius: '8px',
-                                        color: 'var(--danger-color)'
+                                        color: 'var(--danger-color)',
+                                        fontSize: '0.9rem'
                                     }}>
                                         {usersError}
                                     </div>
                                 )}
                                 {!usersError && users.length === 0 && <p style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>No users found.</p>}
-                                <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <table className="data-table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 4px' }}>
                                     <thead>
                                         <tr>
-                                            <th style={{ textAlign: 'left', padding: '10px' }}>Username</th>
-                                            <th style={{ textAlign: 'left', padding: '10px' }}>Role</th>
-                                            <th style={{ textAlign: 'right', padding: '10px' }}>Library Stats</th>
-                                            <th style={{ textAlign: 'right', padding: '10px' }}>Actions</th>
+                                            <th style={{ textAlign: 'left', padding: '8px 12px', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem' }}>Username</th>
+                                            <th style={{ textAlign: 'left', padding: '8px 12px', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem' }}>Role</th>
+                                            <th style={{ textAlign: 'right', padding: '8px 12px', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem' }}>Library Stats</th>
+                                            <th style={{ textAlign: 'right', padding: '8px 12px', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem' }}>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {users.map((u: any) => (
-                                            <tr key={u.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                                                <td style={{ padding: '10px' }}>{u.username}</td>
-                                                <td style={{ padding: '10px' }}>{u.is_admin ? <span className="badge">Admin</span> : 'User'}</td>
-                                                <td style={{ padding: '10px', textAlign: 'right' }}>
-                                                    {/* We need to fetch stats separately or enhance fetchUsers endpoint.
-                                                    For now, let's fetch stats on mount and map them.
-                                                    OR just add a "Load Stats" info?
-                                                    Let's assume I updated the backend fetchLibraries endpoint to return everything.
-                                                    Actually I added `GET /api/admin/libraries` which returns users + counts.
-                                                    I should swap `userService.getUsers()` with `fetch('/api/admin/libraries')` for admins in this modal to get richer data.
-                                                 */}
-                                                    {u.book_count !== undefined ? `${u.book_count} Books` : <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Run Sync</span>}
+                                            <tr key={u.id} style={{ background: 'var(--glass-bg)', borderRadius: '6px', transition: 'transform 0.2s' }}>
+                                                <td style={{ padding: '10px 12px', fontSize: '0.9rem', fontWeight: 500, borderRadius: '6px 0 0 6px' }}>{u.username}</td>
+                                                <td style={{ padding: '10px 12px', fontSize: '0.9rem' }}>{u.is_admin ? <span className="badge small">Admin</span> : <span style={{ opacity: 0.7 }}>User</span>}</td>
+                                                <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: '0.9rem' }}>
+                                                    {u.book_count !== undefined ?
+                                                        <span style={{ fontWeight: 500 }}>{u.book_count} Books</span> :
+                                                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Run Sync</span>
+                                                    }
                                                 </td>
-                                                <td style={{ padding: '10px', textAlign: 'right' }}>
-                                                    <button className="icon-btn" onClick={() => startEditingUser(u)} title="Edit User">✏️</button>
-                                                    {!u.is_admin && (
-                                                        <>
-                                                            <button
-                                                                className="icon-btn"
-                                                                onClick={async () => {
-                                                                    openConfirm('Wipe Library', `Delete all books and shelves for ${u.username}?`, async () => {
-                                                                        try {
-                                                                            const token = localStorage.getItem('bookboss_token');
-                                                                            await fetch(`/api/admin/libraries/${u.id}/wipe`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-                                                                            showToast('Library wiped', 'success');
-                                                                            fetchUsers(); // Refresh
-                                                                        } catch (e) { console.error(e); showToast('Failed', 'error'); }
-                                                                    }, true);
-                                                                }}
-                                                                title="Wipe Library"
-                                                                style={{ color: 'var(--danger-color)' }}
-                                                            >
-                                                                🗑️ Lib
-                                                            </button>
-                                                            <button
-                                                                className="icon-btn"
-                                                                onClick={() => { setUserToDelete(u); openConfirm('Delete User', `Delete ${u.username}?`, deleteUser, true); }}
-                                                                title="Delete User"
-                                                                style={{ color: 'var(--danger-color)' }}
-                                                            >
-                                                                ❌ User
-                                                            </button>
-                                                        </>
-                                                    )}
+                                                <td style={{ padding: '8px 12px', textAlign: 'right', borderRadius: '0 6px 6px 0' }}>
+                                                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                                        <button
+                                                            className="icon-btn small"
+                                                            onClick={() => startEditingUser(u)}
+                                                            title="Edit User"
+                                                            style={{ padding: '6px', background: 'var(--glass-border)', borderRadius: '4px', fontSize: '0.8rem' }}
+                                                        >
+                                                            ✏️
+                                                        </button>
+                                                        {!u.is_admin && (
+                                                            <>
+                                                                <button
+                                                                    className="icon-btn small"
+                                                                    onClick={async () => {
+                                                                        openConfirm('Wipe Library', `Delete all books and shelves for ${u.username}?`, async () => {
+                                                                            try {
+                                                                                const token = localStorage.getItem('bookboss_token');
+                                                                                await fetch(`/api/admin/libraries/${u.id}/wipe`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+                                                                                showToast('Library wiped', 'success');
+                                                                                fetchUsers(); // Refresh
+                                                                            } catch (e) { console.error(e); showToast('Failed', 'error'); }
+                                                                        }, true);
+                                                                    }}
+                                                                    title="Wipe Library"
+                                                                    style={{ color: 'var(--danger-color)', padding: '6px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '4px', fontSize: '0.8rem' }}
+                                                                >
+                                                                    🗑️
+                                                                </button>
+                                                                <button
+                                                                    className="icon-btn small"
+                                                                    onClick={() => { setUserToDelete(u); openConfirm('Delete User', `Delete ${u.username}?`, deleteUser, true); }}
+                                                                    title="Delete User"
+                                                                    style={{ color: 'var(--danger-color)', padding: '6px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '4px', fontSize: '0.8rem' }}
+                                                                >
+                                                                    ❌
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -1013,14 +1035,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                 </table>
                             </div>
                         </div>
-                    )
-                    }
+                    )}
+
 
                     {
                         activeTab === 'audiobookshelf' && user?.is_admin && (
                             <div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                                    <h3>Audiobookshelf Servers</h3>
+                                    <div></div>
                                     {!showAddServer && (
                                         <button className="secondary-btn small" onClick={() => { closeServerForm(); setShowAddServer(true); }}>
                                             + Add Server
@@ -1119,7 +1141,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                     {
                         activeTab === 'backup' && user?.is_admin && (
                             <div className="settings-section">
-                                <h3>Backup & Restore</h3>
+
 
                                 <div className="setting-group">
                                     <h4>Export Library</h4>

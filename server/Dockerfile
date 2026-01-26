@@ -14,10 +14,10 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Copy backend package files
+# Copy backend package files
 COPY server/package*.json ./
 RUN npm install
 
-# Copy backend source
 # Copy backend source
 COPY server/ .
 

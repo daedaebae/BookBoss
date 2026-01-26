@@ -2322,10 +2322,174 @@ app.delete('/api/admin/libraries/:userId/wipe', authenticateToken, requireAdmin,
 
         res.json({ success: true, message: 'User library wiped.' });
     } catch (error) {
-        console.error('Failed to wipe library:', error);
-        res.status(500).json({ error: 'Database error' });
+        console.error('Error wiping library:', error);
+        res.status(500).json({ error: error.message });
     }
 });
+
+// --- Feature Request System ---
+
+// Get all feature requests with vote counts and user vote status
+app.get('/api/features', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
+
+    try {
+        const query = `
+            SELECT 
+                fr.*,
+                u.username as created_by,
+                (SELECT COUNT(*) FROM feature_votes fv WHERE fv.feature_request_id = fr.id) as vote_count,
+                EXISTS(SELECT 1 FROM feature_votes fv WHERE fv.feature_request_id = fr.id AND fv.user_id = ?) as voted_by_me
+            FROM feature_requests fr
+            JOIN users u ON fr.user_id = u.id
+            ORDER BY vote_count DESC, fr.created_at DESC
+        `;
+
+        const [results] = await db.promise().query(query, [userId]);
+
+        // Convert bool 1/0 to true/false for voted_by_me if needed, though MySQL returns 1/0
+        const features = results.map(f => ({
+            ...f,
+            voted_by_me: Boolean(f.voted_by_me)
+        }));
+
+        res.json(features);
+    } catch (error) {
+        console.error('Error fetching features:', error);
+        res.status(500).json({ error: 'Failed to fetch feature requests' });
+    }
+});
+
+// Create a new feature request
+app.post('/api/features', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
+    const { title, description } = req.body;
+
+    if (!title || !title.trim()) {
+        return res.status(400).json({ error: 'Title is required' });
+    }
+
+    try {
+        const [result] = await db.promise().query(
+            'INSERT INTO feature_requests (user_id, title, description) VALUES (?, ?, ?)',
+            [userId, title.trim(), description || '']
+        );
+
+        // Auto-vote for own request? Let's say yes for engagement
+        await db.promise().query(
+            'INSERT INTO feature_votes (user_id, feature_request_id) VALUES (?, ?)',
+            [userId, result.insertId]
+        );
+
+        const [newFeature] = await db.promise().query(
+            `SELECT fr.*, u.username as created_by 
+              FROM feature_requests fr 
+              JOIN users u ON fr.user_id = u.id 
+              WHERE fr.id = ?`,
+            [result.insertId]
+        );
+
+        // Send notification to ntfy
+        try {
+            const ntfyTopic = process.env.NTFY_TOPIC || 'bookboss_feature_requests';
+            const serverUrl = process.env.NTFY_SERVER_URL || 'https://ntfy.philemonsgarden.com';
+            // Ensure no double slash between base and topic if base has trailing slash
+            const baseUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+            const ntfyUrl = `${baseUrl}/${ntfyTopic}`;
+
+            await axios.post(ntfyUrl, `New Feature Request: ${title.trim()}\n\n${description || 'No description provided.'}`, {
+                headers: {
+                    'Title': 'BookBoss Feature Request', // This might need to be 'X-Title' depending on ntfy server version, but 'Title' is standard
+                    'Tags': 'bulb,bookboss',
+                    'Priority': 'default'
+                }
+            });
+            console.log(`Notification sent to ${ntfyUrl}`);
+        } catch (ntfyError) {
+            console.error('Failed to send ntfy notification:', ntfyError.message);
+            // Don't fail the request if notification fails
+        }
+
+        res.status(201).json({
+            ...newFeature[0],
+            vote_count: 1,
+            voted_by_me: true
+        });
+    } catch (error) {
+        console.error('Error creating feature:', error);
+        res.status(500).json({ error: 'Failed to create feature request' });
+    }
+});
+
+// Toggle vote on a feature
+app.post('/api/features/:id/vote', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
+    const featureId = req.params.id;
+
+    try {
+        // Check if already voted
+        const [existing] = await db.promise().query(
+            'SELECT id FROM feature_votes WHERE user_id = ? AND feature_request_id = ?',
+            [userId, featureId]
+        );
+
+        let voted = false;
+        if (existing.length > 0) {
+            // Remove vote
+            await db.promise().query(
+                'DELETE FROM feature_votes WHERE user_id = ? AND feature_request_id = ?',
+                [userId, featureId]
+            );
+            voted = false;
+        } else {
+            // Add vote
+            await db.promise().query(
+                'INSERT INTO feature_votes (user_id, feature_request_id) VALUES (?, ?)',
+                [userId, featureId]
+            );
+            voted = true;
+        }
+
+        // Get new vote count
+        const [countResult] = await db.promise().query(
+            'SELECT COUNT(*) as count FROM feature_votes WHERE feature_request_id = ?',
+            [featureId]
+        );
+
+        res.json({
+            success: true,
+            voted: voted,
+            new_count: countResult[0].count
+        });
+
+    } catch (error) {
+        console.error('Error voting on feature:', error);
+        res.status(500).json({ error: 'Failed to toggle vote' });
+    }
+});
+
+// Update feature status (Admin only)
+app.put('/api/features/:id/status', authenticateToken, requireAdmin, async (req, res) => {
+    const featureId = req.params.id;
+    const { status } = req.body;
+
+    const validStatuses = ['open', 'planned', 'in_progress', 'completed', 'rejected'];
+    if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    try {
+        await db.promise().query(
+            'UPDATE feature_requests SET status = ? WHERE id = ?',
+            [status, featureId]
+        );
+        res.json({ success: true, message: 'Status updated' });
+    } catch (error) {
+        console.error('Error updating feature status:', error);
+        res.status(500).json({ error: 'Failed to update status' });
+    }
+});
+
 
 // Serve static files from the React frontend app
 const publicPath = path.join(__dirname, 'public');
