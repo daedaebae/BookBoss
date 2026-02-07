@@ -2,6 +2,7 @@ USE bookboss;
 
 CREATE TABLE IF NOT EXISTS books (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    owner_id INT,
     title VARCHAR(255) NOT NULL,
     author VARCHAR(255),
     isbn VARCHAR(20),
@@ -27,7 +28,12 @@ CREATE TABLE IF NOT EXISTS books (
     is_loaned BOOLEAN DEFAULT FALSE,
     borrower_name VARCHAR(255),
     loan_date DATETIME,
-    due_date DATETIME
+    due_date DATETIME,
+    physical_format VARCHAR(50),
+    book_condition VARCHAR(50),
+    is_signed BOOLEAN DEFAULT FALSE,
+    edition_type VARCHAR(100),
+    notes TEXT
 );
 
 CREATE TABLE IF NOT EXISTS users (

@@ -24,23 +24,7 @@
   --sidebar-width: 260px;
 }
 
-.light-theme {
-  --bg-color: #f8fafc;
-  --sidebar-bg: #ffffff;
-  --card-bg: rgba(255, 255, 255, 0.95);
-  --text-primary: #020617;
-  --text-secondary: #475569;
-  /* Darker secondary text for better contrast */
-  --accent-color: #4f46e5;
-  --accent-hover: #4338ca;
-  --glass-border: 1px solid rgba(0, 0, 0, 0.1);
-  --glass-bg: rgba(255, 255, 255, 0.95);
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.05);
-  --icon-color: #1e293b;
-  /* Dark icon color for light theme */
-  --title-gradient-start: #818cf8;
-  --title-gradient-end: #4f46e5;
-}
+
 
 /* Accent Themes */
 .theme-purple {
@@ -2083,4 +2067,21 @@ input[type="file"]::file-selector-button:hover {
   .book-search-bar input {
     padding: 8px 12px;
   }
+}
+.light-theme {
+  --bg-color: #f8fafc;
+  --sidebar-bg: #ffffff;
+  --card-bg: rgba(255, 255, 255, 0.95);
+  --text-primary: #020617;
+  --text-secondary: #475569;
+  /* Darker secondary text for better contrast */
+  --accent-color: #4f46e5;
+  --accent-hover: #4338ca;
+  --glass-border: 1px solid rgba(0, 0, 0, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+  --icon-color: #1e293b; 
+  /* Dark icon color for light theme */
+  --title-gradient-start: #818cf8;
+  --title-gradient-end: #4f46e5;
 }

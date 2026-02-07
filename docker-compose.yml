@@ -35,6 +35,7 @@ services:
       NTFY_TOPIC: ${NTFY_TOPIC}
       NTFY_SERVER_URL: ${NTFY_SERVER_URL}
       PORT: 3000
+      DB_PORT: 3306
     depends_on:
       - db
     ports:

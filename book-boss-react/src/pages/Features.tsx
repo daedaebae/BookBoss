@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar, type SidebarFilter } from '../components/layout/Sidebar';
+import { Header } from '../components/layout/Header';
 import { useAuth } from '../context/AuthContext';
 // import { useTheme } from '../context/ThemeContext';
 import { FeatureCard } from '../components/features/FeatureCard';
@@ -126,20 +127,12 @@ export const Features: React.FC = () => {
                 flex: 1,
                 transition: 'margin-left 0.3s ease'
             }}>
-                <div className="top-bar" style={{ justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                        <button
-                            className="icon-btn mobile-only"
-                            onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-                            style={{ fontSize: '1.5rem', background: 'none', border: 'none', color: 'var(--text-primary)' }}
-                        >
-                            ☰
-                        </button>
-                        <h2 style={{ margin: 0, background: 'linear-gradient(to right, var(--title-gradient-start), var(--title-gradient-end))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                            Feature Requests
-                        </h2>
-                    </div>
-
+                <Header
+                    title="Feature Requests"
+                    onMobileSidebarToggle={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+                    onDesktopSidebarToggle={() => setIsSidebarVisible(!isSidebarVisible)}
+                    isSidebarVisible={isSidebarVisible}
+                >
                     <button
                         className="primary-btn"
                         onClick={() => setIsFormOpen(true)}
@@ -147,7 +140,7 @@ export const Features: React.FC = () => {
                     >
                         <span>+</span> New Request
                     </button>
-                </div>
+                </Header>
 
                 <div style={{ padding: '30px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
                     {/* Tabs */}

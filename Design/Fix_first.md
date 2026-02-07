@@ -15,3 +15,4 @@ THis document is a collection of tasks that need to be addressed first before wo
 8. [ ] Implement proper debug options
 9. [x] on the book-details modal when I click the stars keep them selected as the rating.
 10. [ ] If an admin user is logged in and have an active session and visit the /api url show the api wiki documentation.
+11. [ ] Change the once a day backup to once an hour backup.

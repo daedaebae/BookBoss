@@ -26,6 +26,7 @@ Welcome to the design documentation for **BookBoss**, a personal library managem
 
 -   [**Planned Features**](./Planning/PLANNED_FEATURES.md): Roadmap of upcoming features.
 -   [**React Migration Plan**](./Planning/react_migration_plan.md): Strategy for the legacy-to-React migration.
+-   [**Validation Summary**](./Validation-Summary.md): Pre-commit validation results and fixes.
 
 ## 💖 Support the Project
 

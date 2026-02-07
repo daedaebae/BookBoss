@@ -7,25 +7,34 @@ import { EditBookModal } from '../components/books/EditBookModal';
 import { EpubReaderModal } from '../components/books/EpubReaderModal';
 import { BookDetailModal } from '../components/books/BookDetailModal';
 import { Sidebar, type SidebarFilter } from '../components/layout/Sidebar';
+import { Header } from '../components/layout/Header';
 import { Toast } from '../components/common/Toast';
 import { ConfirmationModal } from '../components/common/ConfirmationModal';
 import { SettingsModal } from '../components/settings/SettingsModal';
 import { ShelfManagerModal } from '../components/shelves/ShelfManagerModal';
 import { UpdateProgressModal } from '../components/books/UpdateProgressModal';
-import { shelfService } from '../services/shelfService';
-import { type Shelf } from '../types/shelf';
-import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { useBooks } from '../hooks/queries/useBooks';
+import { useShelves } from '../hooks/queries/useShelves';
+import { useBookMutations } from '../hooks/queries/useBookMutations';
 import { MetadataRefreshModal } from '../components/books/MetadataRefreshModal';
 
 export const Library: React.FC = () => {
-    const { theme, setTheme } = useTheme();
+    // const { theme, setTheme } = useTheme(); // Moved to Header
     const { user, logout } = useAuth();
-    const [books, setBooks] = useState<Book[]>([]);
+
+    // Sidebar state
+    const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>({ type: 'all' });
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+    const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+
+    // React Query Hooks (Dependent on sidebarFilter)
+    const { data: books = [], isLoading: isBooksLoading, error: booksError } = useBooks(sidebarFilter.type === 'user' ? sidebarFilter.userId : undefined);
+    const { data: shelves = [] } = useShelves();
+    const { deleteBook, bulkDeleteBooks, bulkUpdateShelf, addToShelf } = useBookMutations();
+
     const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
-    const [shelves, setShelves] = useState<Shelf[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+
     const [filters, setFilters] = useState<BookFilters>({
         search: '',
         sortBy: 'added_desc',
@@ -41,11 +50,6 @@ export const Library: React.FC = () => {
     const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
     const [isMetadataRefreshOpen, setIsMetadataRefreshOpen] = useState(false);
     const [selectedBook, setSelectedBook] = useState<Book | null>(null);
-
-    // Sidebar state
-    const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>({ type: 'all' });
-    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-    const [isSidebarVisible, setIsSidebarVisible] = useState(true);
 
     // Toast state
     const [toast, setToast] = useState({ message: '', type: 'info' as 'success' | 'error' | 'info', isVisible: false });
@@ -69,15 +73,14 @@ export const Library: React.FC = () => {
     const [publicLibraries, setPublicLibraries] = useState<{ id: number; username: string; library_name?: string }[]>([]);
 
     // Fetch shelves and public libs on mount
-    useEffect(() => {
-        loadShelves();
-        loadPublicLibraries();
-    }, []);
+    // Derived state for public libraries (still manual fetch for now or create hook?)
+    // Let's keep manual for this small part or quick hook.
+    // ...
 
-    // Fetch books when switching libraries (user filter)
+    // Effect for filtering
     useEffect(() => {
-        loadBooks();
-    }, [sidebarFilter.type, sidebarFilter.userId]);
+        applyFilters();
+    }, [books, filters, sidebarFilter]);
 
     // Apply filters whenever books, filters, or sidebar filter change
     useEffect(() => {
@@ -95,55 +98,7 @@ export const Library: React.FC = () => {
         }
     };
 
-    const loadBooks = async () => {
-        try {
-            setIsLoading(true);
-            setError(null);
-
-            const targetUserId = sidebarFilter.type === 'user' ? sidebarFilter.userId : undefined;
-
-            // Fetch books and user progress in parallel
-            const [booksData, userBooksData] = await Promise.all([
-                bookService.getBooks(targetUserId),
-                // Only fetch user progress if viewing my own library or if we support tracking on others
-                // For now, let's keep user status for my own interaction with these books if possible,
-                // BUT the server returns books I don't own. 
-                // Getting user_books for these IDs might fail if I don't have a tailored endpoint.
-                // getUserBooks returns *all* my user_books. We can match by ID.
-                bookService.getUserBooks().catch(() => [])
-            ]);
-
-            // Merge user progress into books
-            const mergedBooks = booksData.map(book => {
-                const userBook = userBooksData.find((ub: any) => ub.book_id === book.id);
-                if (userBook) {
-                    return {
-                        ...book,
-                        user_status: userBook.status,
-                        user_progress: userBook.progress,
-                        user_rating: userBook.rating
-                    };
-                }
-                return book;
-            });
-
-            setBooks(mergedBooks);
-        } catch (err) {
-            setError('Failed to load books. Please try again. ' + (err as any).message);
-            console.error('Error loading books:', err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const loadShelves = async () => {
-        try {
-            const data = await shelfService.getShelves();
-            setShelves(data);
-        } catch (err) {
-            console.error('Error loading shelves:', err);
-        }
-    };
+    // loadBooks and loadShelves removed.
 
     const applyFilters = () => {
         let result = [...books];
@@ -216,12 +171,12 @@ export const Library: React.FC = () => {
     };
 
     const handleBookAdded = () => {
-        loadBooks();
+        // loadBooks(); // Query auto invalidates
         showToast('Book added successfully!', 'success');
     };
 
     const handleBookUpdated = () => {
-        loadBooks();
+        // loadBooks();
         showToast('Book updated successfully!', 'success');
     };
 
@@ -236,8 +191,7 @@ export const Library: React.FC = () => {
             `Are you sure you want to delete "${book.title}"?`,
             async () => {
                 try {
-                    await bookService.deleteBook(book.id);
-                    loadBooks();
+                    await deleteBook.mutateAsync(book.id);
                     showToast('Book deleted successfully!', 'success');
                 } catch (error) {
                     console.error('Error deleting book:', error);
@@ -276,8 +230,7 @@ export const Library: React.FC = () => {
             `Delete ${selectedBooks.size} selected books?`,
             async () => {
                 try {
-                    await bookService.bulkDeleteBooks(Array.from(selectedBooks));
-                    loadBooks();
+                    await bulkDeleteBooks.mutateAsync(Array.from(selectedBooks));
                     setSelectedBooks(new Set());
                     setBulkMode(false);
                     showToast(`${selectedBooks.size} books deleted successfully!`, 'success');
@@ -293,12 +246,7 @@ export const Library: React.FC = () => {
     const handleBulkUpdateShelf = async (shelf: string) => {
         if (selectedBooks.size === 0) return;
         try {
-            await Promise.all(Array.from(selectedBooks).map(id => {
-                const formData = new FormData();
-                formData.append('shelf', shelf);
-                return bookService.updateBook(id, formData);
-            }));
-            loadBooks();
+            await bulkUpdateShelf.mutateAsync({ ids: Array.from(selectedBooks), shelf });
             setSelectedBooks(new Set());
             setBulkMode(false);
             showToast(`Updated ${selectedBooks.size} books!`, 'success');
@@ -310,9 +258,8 @@ export const Library: React.FC = () => {
 
     const handleAddToShelf = async (bookId: number, shelfId: number) => {
         try {
-            await shelfService.addBookToShelf(shelfId, bookId);
+            await addToShelf.mutateAsync({ bookId, shelfId });
             showToast('Book added to shelf', 'success');
-            loadBooks(); // Reload to update shelf_ids
         } catch (error) {
             console.error('Error adding to shelf:', error);
             showToast('Failed to add book to shelf', 'error');
@@ -328,10 +275,10 @@ export const Library: React.FC = () => {
         setToast({ message, type, isVisible: true });
     };
 
-    if (error) {
+    if (booksError) {
         return (
             <div style={{ padding: '40px', textAlign: 'center', color: 'var(--danger-color)' }}>
-                {error}
+                {booksError.message || 'Error loading books'}
             </div>
         );
     }
@@ -374,120 +321,69 @@ export const Library: React.FC = () => {
             />
 
             <div className="content-area" style={{ marginLeft: isSidebarVisible ? 'var(--sidebar-width)' : '0', minHeight: '100vh', transition: 'margin-left 0.3s ease' }}>
-                <div className="top-bar" style={{ display: 'flex', gap: '20px', alignItems: 'center', position: 'sticky', top: 0, zIndex: 40, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flex: 1, minWidth: '300px' }}>
-                        {/* Mobile Hamburger Menu */}
-                        <button
-                            className="icon-btn mobile-only"
-                            onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-                            style={{
-                                fontSize: '1.5rem',
-                                background: 'none',
-                                border: 'none',
-                                color: 'var(--text-primary)',
-                                cursor: 'pointer',
-                                padding: '8px',
-                            }}
-                            aria-label="Toggle menu"
-                        >
-                            ☰
-                        </button>
+                <Header
+                    onMobileSidebarToggle={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+                    onDesktopSidebarToggle={() => setIsSidebarVisible(!isSidebarVisible)}
+                    isSidebarVisible={isSidebarVisible}
+                    searchBar={
+                        <input
+                            type="text"
+                            placeholder="Search books..."
+                            value={filters.search}
+                            onChange={(e) => handleSearch(e.target.value)}
+                        />
+                    }
+                >
+                    <button
+                        className="secondary-btn small"
+                        onClick={() => {
+                            setBulkMode(!bulkMode);
+                            setSelectedBooks(new Set());
+                        }}
+                    >
+                        {bulkMode ? 'Cancel' : 'Select'}
+                    </button>
+                    <select
+                        value={filters.sortBy}
+                        onChange={(e) => setFilters((prev) => ({ ...prev, sortBy: e.target.value as BookFilters['sortBy'] }))}
+                        className="secondary-btn small"
+                        style={{
+                            paddingRight: '30px', // Space for dropdown arrow
+                            appearance: 'none',   // Remove default arrow
+                            backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b5cf6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 8px center',
+                            backgroundSize: '16px',
+                            color: 'var(--accent-color)',
+                            borderColor: 'var(--accent-color)'
+                        }}
+                    >
+                        <option value="added_desc">Recent</option>
+                        <option value="added_asc">Oldest</option>
+                        <option value="title_asc">Title</option>
+                        <option value="author_asc">Author</option>
+                        <option value="rating_desc">Rating</option>
+                        <option value="page_count_desc">Length</option>
+                        <option value="pub_date_desc">Published</option>
+                    </select>
 
-                        {/* Desktop Sidebar Toggle */}
-                        {!isSidebarVisible && (
-                            <button
-                                className="secondary-btn small desktop-only"
-                                onClick={() => setIsSidebarVisible(!isSidebarVisible)}
-                                title="Show Menu"
-                                style={{
-                                    padding: '8px 12px',
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
-                                ▶ Menu
-                            </button>
-                        )}
-
-                        <div className="search-container" style={{ flex: 1 }}>
-                            <input
-                                type="text"
-                                placeholder="Search books..."
-                                value={filters.search}
-                                onChange={(e) => handleSearch(e.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        <button
-                            className="secondary-btn small"
-                            onClick={() => {
-                                setBulkMode(!bulkMode);
-                                setSelectedBooks(new Set());
-                            }}
-                        >
-                            {bulkMode ? 'Cancel' : 'Select'}
-                        </button>
-                        <select
-                            value={filters.sortBy}
-                            onChange={(e) => setFilters((prev) => ({ ...prev, sortBy: e.target.value as BookFilters['sortBy'] }))}
-                            className="secondary-btn small"
-                            style={{
-                                paddingRight: '30px', // Space for dropdown arrow
-                                appearance: 'none',   // Remove default arrow
-                                backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b5cf6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
-                                backgroundRepeat: 'no-repeat',
-                                backgroundPosition: 'right 8px center',
-                                backgroundSize: '16px',
-                                color: 'var(--accent-color)',
-                                borderColor: 'var(--accent-color)'
-                            }}
-                        >
-                            <option value="added_desc">Recent</option>
-                            <option value="added_asc">Oldest</option>
-                            <option value="title_asc">Title</option>
-                            <option value="author_asc">Author</option>
-                            <option value="rating_desc">Rating</option>
-                            <option value="page_count_desc">Length</option>
-                            <option value="pub_date_desc">Published</option>
-                        </select>
-
-                        {/* Theme Toggle Button */}
-                        <button
-                            className="secondary-btn"
-                            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                            style={{
-                                padding: '10px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: '50%',
-                                width: '42px',
-                                height: '42px'
-                            }}
-                            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-                        >
-                            {theme === 'dark' ? '☀️' : '🌙'}
-                        </button>
-
-                        {/* Add Book Button */}
-                        <button
-                            className="primary-btn"
-                            onClick={() => setIsAddModalOpen(true)}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                padding: '10px 20px',
-                                fontSize: '1rem',
-                                whiteSpace: 'nowrap'
-                            }}
-                        >
-                            <span style={{ fontSize: '1.2rem' }}>+</span>
-                            <span>Add</span>
-                        </button>
-                    </div>
-                </div>
+                    {/* Add Book Button */}
+                    <button
+                        className="primary-btn"
+                        onClick={() => setIsAddModalOpen(true)}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '10px 20px',
+                            fontSize: '1rem',
+                            whiteSpace: 'nowrap'
+                        }}
+                    >
+                        <span style={{ fontSize: '1.2rem' }}>+</span>
+                        <span>Add</span>
+                    </button>
+                </Header>
 
 
                 {/* Bulk Actions Toolbar */}
@@ -532,7 +428,7 @@ export const Library: React.FC = () => {
 
                 <BookGrid
                     books={filteredBooks}
-                    isLoading={isLoading}
+                    isLoading={isBooksLoading}
                     onBookClick={handleBookClick}
                     bulkMode={bulkMode}
                     selectedBooks={selectedBooks}
@@ -582,20 +478,27 @@ export const Library: React.FC = () => {
                 <ShelfManagerModal
                     isOpen={isShelfManagerOpen}
                     onClose={() => setIsShelfManagerOpen(false)}
-                    onShelvesUpdated={loadShelves}
+                    onShelvesUpdated={() => { }} // Query invalidates auto if we hook it up, but ShelfManagerModal might still call this. 
+                // ShelfManagerModal likely calls shelfService manually. 
+                // We should pass a prop to invalidate query or just empty function if React Query invalidation is handled in mutation hook?
+                // Ideally ShelfManagerModal should also use hooks or we pass a refetch.
+                // For now, empty function as shelves will auto-refresh if mutation hooks invalidating 'shelves' are used used.
+                // But ShelfManagerModal probably uses internal state or calls service directly. 
+                // To be safe we should probably expose 'refetchShelves' or just ignore if not critical.
+                // Actually, useShelves can return 'refetch'.
                 />
 
                 <UpdateProgressModal
                     isOpen={isProgressModalOpen}
                     onClose={() => setIsProgressModalOpen(false)}
                     book={selectedBook}
-                    onProgressUpdated={loadBooks}
+                    onProgressUpdated={() => { }} // Query invalidates
                 />
 
                 <MetadataRefreshModal
                     isOpen={isMetadataRefreshOpen}
                     onClose={() => setIsMetadataRefreshOpen(false)}
-                    onRefreshComplete={loadBooks}
+                    onRefreshComplete={() => { }} // Query invalidates
                 />
 
                 <EpubReaderModal

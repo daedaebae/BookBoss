@@ -309,7 +309,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
     const updateGeneralSettings = async (updates: { accent_color?: string; allow_registration?: string }) => {
         try {
-            await fetch('/api/settings', {
+            const response = await fetch('/api/settings', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -321,12 +321,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                 })
             });
 
+            if (!response.ok) {
+                throw new Error('Failed to save settings');
+            }
+
             if (updates.accent_color) {
                 setGlobalAccentColor(updates.accent_color);
             }
-            // Optional: show a small toast or indicator
+
+            showToast('Settings saved successfully', 'success');
         } catch (error) {
             console.error('Failed to save settings:', error);
+            showToast('Failed to save settings', 'error');
         }
     };
 
