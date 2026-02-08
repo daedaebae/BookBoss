@@ -76,5 +76,19 @@ jobs:
     - name: Run Linter
       run: npm run lint
       
-    - name: Build
+    - name: Build Check
       run: npm run build
+
+  backend-syntax-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./server
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+    - name: Syntax Check
+      run: node --check server.js

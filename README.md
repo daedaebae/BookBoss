@@ -104,15 +104,9 @@ npm run dev
 
 ## Tech Stack
 
-**Frontend:**
-- React 18 + TypeScript
-- Vite
-- Custom CSS (no framework)
-- Axios for API calls
-
-**Backend:**
-- Node.js + Express
-- MySQL
+- **Frontend**: React 18, Vite, Tailwind CSS, Lucide React
+- **Backend**: Node.js, Express
+- **Database**: MySQL 8.0
 - JWT authentication
 - Multer for file uploads
 

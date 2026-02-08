@@ -1,3 +1,10 @@
+/*
+ * MIT License
+ * Copyright (c) 2026
+ * See LICENSE file for details
+ */
+
+require('./src/config/env'); // Validate environment variables before anything else
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');

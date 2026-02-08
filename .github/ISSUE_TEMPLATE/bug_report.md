@@ -23,6 +23,11 @@ A clear and concise description of what you expected to happen.
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
+**Environment (please complete the following information):**
+ - OS: [e.g. macOS, Windows, Linux]
+ - Browser: [e.g. Chrome, Firefox, Safari]
+ - Library Size: [e.g. ~100 books, ~1000 books]
+
 **Desktop (please complete the following information):**
  - OS: [e.g. macOS, Windows]
  - Browser [e.g. chrome, safari]
