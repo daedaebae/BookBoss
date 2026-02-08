@@ -12,6 +12,19 @@ jobs:
     defaults:
       run:
         working-directory: ./server
+    
+    services:
+      db:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: bookboss
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: password
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
     steps:
     - uses: actions/checkout@v4
     
@@ -24,14 +37,25 @@ jobs:
         
     - name: Install dependencies
       run: npm ci
-      
-    # - name: Run Linter
-    #   run: npm run lint
-      
-    # - name: Run Tests
-    #   run: npm test
 
-  frontend-build:
+    - name: Initialize Database
+      run: |
+        mysql -h 127.0.0.1 -u test_user -ppassword bookboss < schema.sql
+
+    - name: Start Backend & Run Tests
+      env:
+        DB_HOST: 127.0.0.1
+        DB_USER: test_user
+        DB_PASSWORD: password
+        DB_NAME: bookboss
+        JWT_SECRET: test_secret_key
+        PORT: 5000
+      run: |
+        npm start &
+        sleep 10
+        npm test
+
+  frontend-check:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -48,6 +72,9 @@ jobs:
         
     - name: Install dependencies
       run: npm ci
+      
+    - name: Run Linter
+      run: npm run lint
       
     - name: Build
       run: npm run build

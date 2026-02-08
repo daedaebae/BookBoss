@@ -129,4 +129,4 @@ JWT_SECRET=your_secret_key
 
 ## License
 
-Private - All Rights Reserved
+MIT License - see the [LICENSE](LICENSE) file for details

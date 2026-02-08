@@ -6,7 +6,7 @@ services:
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: bookboss
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
@@ -30,7 +30,7 @@ services:
       DB_HOST: db
       DB_USER: ${MYSQL_USER}
       DB_PASSWORD: ${MYSQL_PASSWORD}
-      DB_NAME: bookboss
+      DB_NAME: ${MYSQL_DATABASE}
       JWT_SECRET: ${JWT_SECRET}
       NTFY_TOPIC: ${NTFY_TOPIC}
       NTFY_SERVER_URL: ${NTFY_SERVER_URL}
@@ -91,11 +91,11 @@ services:
       MYSQL_HOST: db
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_DATABASE: bookboss
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
     command: >
       sh -c "apk add --no-cache mysql-client && echo 'Starting Backup Service...'; while true; do
         echo 'Starting backup at $$(date)...';
-        mysqldump -h db -u $${MYSQL_USER} -p$${MYSQL_PASSWORD} bookboss > /backups/backup_$$(date +%Y-%m-%d_%H%M%S).sql 2>/dev/null;
+        mysqldump -h db -u $${MYSQL_USER} -p$${MYSQL_PASSWORD} $${MYSQL_DATABASE} > /backups/backup_$$(date +%Y-%m-%d_%H%M%S).sql 2>/dev/null;
         if [ $$? -eq 0 ]; then
              echo 'Backup successful';
              find /backups -name 'backup_*.sql' -mtime +7 -delete;
