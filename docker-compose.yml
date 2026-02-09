@@ -13,6 +13,11 @@ services:
       - ./server/schema.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -37,7 +42,8 @@ services:
       PORT: 3000
       DB_PORT: 3306
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "3000:3000"
     volumes:

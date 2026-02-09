@@ -73,21 +73,7 @@ BookBoss is currently undergoing a migration from a vanilla JavaScript applicati
 
 ## Architecture Comparison
 
-### Legacy (Vanilla JS)
 
-```
-legacy-web/
-├── index.html          # Monolithic HTML
-├── style.css           # All styles in one file
-└── app.js              # All logic in one file (~3000 lines)
-```
-
-**Issues:**
-- No component reusability
-- Global state management
-- Difficult to maintain
-- Poor mobile experience
-- No type safety
 
 ### Modern (React)
 

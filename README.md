@@ -54,7 +54,6 @@ A modern, full-featured book management application for tracking your personal l
 
 - **`book-boss-react/`** - React + TypeScript frontend (production-ready)
 - **`server/`** - Node.js/Express backend with MySQL database
-- **`legacy-web/`** - Original vanilla JS frontend (deprecated)
 - **`Design/`** - Documentation and planning materials
 
 ## Current Status
@@ -98,11 +97,7 @@ npm install
 npm run dev
 ```
 
-### Legacy Frontend
-```bash
-# Served from legacy-web/ directory
-# Open index.html in browser or use a local server
-```
+
 
 ## Features
 

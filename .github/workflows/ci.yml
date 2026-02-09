@@ -76,7 +76,7 @@ jobs:
     - name: Run Linter
       run: npm run lint
       
-    - name: Build Check
+    - name: Build & Type Check
       run: npm run build
 
   backend-syntax-check:
