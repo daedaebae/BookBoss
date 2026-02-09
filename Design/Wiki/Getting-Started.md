@@ -12,16 +12,14 @@ This guide provides instructions on how to set up and run the BookBoss applicati
 
 Before running the application, you must configure the sensitive environment variables.
 
-1.  Navigate to the `server` directory (or root if running Docker).
-2.  Copy the example environment file:
+1.  **Environment Setup**:
+    Copy the example environment file from the project root:
     ```bash
-    cp server/.env.example .env
+    cp .env.example .env
     ```
-    *(Note: If running with Docker, ensure the `.env` file is in the same directory as `docker-compose.yml` or that you update the docker-compose mapping. Currently, our setup expects `.env` in the root `BookBoss` directory for Docker Compose context)*.
-    
-    > **Correction**: The `docker-compose.yml` expects `.env` in the root directory where you run the command.
 
-3.  Edit `.env` and set your secrets:
+2.  **Secure Secrets**:
+    Edit `.env` and set your secrets:
     ```ini
     # Database
     MYSQL_ROOT_PASSWORD=change_this_to_a_secure_password
@@ -41,24 +39,24 @@ This method spins up the Database and the Combined App (Backend + Frontend) in c
     Execute from the project root:
     ```bash
     # Important: To reset the database (required if tables are missing), you must delete the local data folder:
-    docker-compose down
+    docker compose down
     sudo rm -rf mysql-data
-    docker-compose up -d --build
+    docker compose up -d --build
     ```
 
 2.  **Access the Application**:
-    -   **Web App**: [http://localhost](http://localhost) (Served by Node.js on port 80)
-    -   **API**: [http://localhost/api](http://localhost/api) (or :3000)
+    -   **Web App**: [http://localhost:5173](http://localhost:5173) (or via Proxy)
+    -   **API**: [http://localhost:3000](http://localhost:3000)
     -   **Database**: Port 3307 (Mapped to host)
 
 3.  **Viewing Logs**:
     ```bash
-    docker-compose logs -f
+    docker compose logs -f
     ```
 
 4.  **Stopping**:
     ```bash
-    docker-compose down
+    docker compose down
     ```
 
 ## Option 2: Hybrid Development (Recommended for Code Editing)
@@ -68,7 +66,7 @@ This is the preferred method for developing on the code. You run the database in
 ### 1. Database (Docker)
 Start *only* the database service:
 ```bash
-sudo docker-compose up -d db
+docker compose up -d db
 ```
 *Creates a MySQL instance on port 3307.*
 
@@ -109,12 +107,14 @@ Open a new terminal window.
 Authentication is active by default. You need an Admin user to access the system and create other users.
 
 1.  **Create Default Admin**:
-    A helper script is provided to create an initial admin user `admin` with password `admin`.
+    The backend automatically attempts to create an `admin` user on startup (configured in `docker-compose.yml`).
+    
+    If you need to manually reset or create it:
     
     **Using Docker**:
     ```bash
-    # Execute inside the app container
-    docker exec -it bookboss-app node create_docker_admin.js
+    # Execute inside the backend container
+    docker exec -it bookboss-backend node create_docker_admin.js
     ```
     
     **Manual Run**:

@@ -79,8 +79,8 @@ graph TB
 
 ## Project Structure
 
-```
 BookBoss/
+├── .env                      # Environment configuration
 ├── book-boss-react/          # React frontend application
 │   ├── src/
 │   │   ├── components/       # Reusable UI components
@@ -101,7 +101,6 @@ BookBoss/
 │   ├── abs-client.js         # Audiobookshelf client
 │   └── uploads/              # User-uploaded files
 │
-├── legacy-web/               # Original vanilla JS app (deprecated)
 ├── migrations/               # Database migration history
 └── Design/                   # Project documentation
     └── Wiki/                 # This wiki

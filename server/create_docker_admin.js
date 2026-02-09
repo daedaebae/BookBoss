@@ -1,5 +1,7 @@
 const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 // Explicit credentials from docker-compose.yml
 // Determine connection details
