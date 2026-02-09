@@ -3,7 +3,7 @@ const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const db = require('../src/config/db');
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://127.0.0.1:5000/api';
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret'; // Fallback if not in env, but should be.
 
 async function runTests() {
