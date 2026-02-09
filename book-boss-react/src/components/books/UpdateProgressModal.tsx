@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { type Book } from '../../types/book';
 import { bookService } from '../../services/bookService';
@@ -11,17 +11,10 @@ interface UpdateProgressModalProps {
 }
 
 export const UpdateProgressModal: React.FC<UpdateProgressModalProps> = ({ isOpen, onClose, book, onProgressUpdated }) => {
-    const [status, setStatus] = useState<string>('plan_to_read');
-    const [progress, setProgress] = useState<number>(0);
-    const [rating, setRating] = useState<number>(0);
-
-    useEffect(() => {
-        if (book) {
-            setStatus(book.user_status || 'plan_to_read');
-            setProgress(book.user_progress || 0);
-            setRating(book.user_rating || 0);
-        }
-    }, [book]);
+    // Initialize state from props (parent must use key to reset)
+    const [status, setStatus] = useState<string>(book?.user_status || 'plan_to_read');
+    const [progress, setProgress] = useState<number>(book?.user_progress || 0);
+    const [rating, setRating] = useState<number>(book?.user_rating || 0);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -67,7 +60,7 @@ export const UpdateProgressModal: React.FC<UpdateProgressModalProps> = ({ isOpen
                         )}
                     </div>
                     {/* Visual Progress Bar Slider */}
-                     <input
+                    <input
                         type="range"
                         min="0"
                         max={book?.page_count || 100}

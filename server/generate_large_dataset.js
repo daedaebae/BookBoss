@@ -1,13 +1,13 @@
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
-require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 
 // Use environment variables or fallback to Docker defaults
 const config = {
     host: process.env.DB_HOST || 'db',
-    user: process.env.DB_USER || 'bookboss', // Fallback to likely default
-    password: process.env.DB_PASSWORD || 'bookboss_secret', // Fallback to likely default
-    database: process.env.DB_NAME || 'bookboss'
+    user: process.env.MYSQL_USER || 'bookboss', // Fallback to likely default
+    password: process.env.MYSQL_PASSWORD || 'bookboss_secret', // Fallback to likely default
+    database: process.env.MYSQL_DATABASE || 'bookboss'
 };
 
 const USERS_TO_CREATE = 5;
@@ -150,9 +150,9 @@ async function run() {
         // Try to connect, utilizing process envs but falling back if undefined/empty inside container execution
         connection = await mysql.createConnection({
             host: process.env.DB_HOST || 'db',
-            user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD,
-            database: process.env.DB_NAME || 'bookboss'
+            user: process.env.MYSQL_USER,
+            password: process.env.MYSQL_PASSWORD,
+            database: process.env.MYSQL_DATABASE || 'bookboss'
         });
 
         console.log('Connected.');

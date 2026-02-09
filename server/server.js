@@ -4,8 +4,8 @@
  * See LICENSE file for details
  */
 
-require('./src/config/env'); // Validate environment variables before anything else
-require('dotenv').config();
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+require('./src/config/env'); // Validate environment variables after loading them
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');

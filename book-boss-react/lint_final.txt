@@ -1,0 +1,122 @@
+
+> book-boss-react@1.0.0 lint
+> eslint .
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+
+/Users/user/BookBoss/book-boss-react/src/components/books/AddBookModal.tsx
+  394:103  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/user/BookBoss/book-boss-react/src/components/books/BarcodeScanner.tsx
+   6:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  95:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/user/BookBoss/book-boss-react/src/components/books/BookDetailModal.tsx
+  41:82  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  41:92  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/user/BookBoss/book-boss-react/src/components/books/BookSearch.tsx
+   12:44  warning  Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+   23:8   warning  React Hook React.useEffect has a missing dependency: 'searchBooks'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+   51:46  warning  Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+   55:40  warning  Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+   91:34  warning  Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+   95:58  warning  Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+  131:61  warning  Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+  132:59  warning  Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+  207:53  warning  Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+
+/Users/user/BookBoss/book-boss-react/src/components/books/EditBookModal.tsx
+   66:28   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  212:95   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  305:108  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  319:107  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  341:102  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/user/BookBoss/book-boss-react/src/components/books/MetadataDiffModal.tsx
+  7:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  7:46  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/user/BookBoss/book-boss-react/src/components/books/MetadataRefreshModal.tsx
+   28:56  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  149:33  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  183:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/user/BookBoss/book-boss-react/src/components/layout/Sidebar.tsx
+  33:12  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/user/BookBoss/book-boss-react/src/components/photos/PhotoGalleryModal.tsx
+  55:8  warning  React Hook useEffect has a missing dependency: 'loadPhotos'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/user/BookBoss/book-boss-react/src/components/settings/SettingsModal.tsx
+  123:40  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  126:52  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  130:54  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  133:50  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  170:25  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  178:45  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  186:25  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  192:47  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  201:33  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  210:38  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  229:39  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  244:33  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  278:8   warning  React Hook useEffect has missing dependencies: 'activeTab' and 'fetchSettings'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  402:43  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  416:25  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  491:55  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  539:25  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  561:33  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  616:72  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  622:75  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  624:77  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  858:48  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  987:56  warning  Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+
+/Users/user/BookBoss/book-boss-react/src/context/AuthContext.tsx
+  61:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/user/BookBoss/book-boss-react/src/context/ThemeContext.tsx
+  81:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/user/BookBoss/book-boss-react/src/hooks/queries/useBookMutations.ts
+  15:67  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/user/BookBoss/book-boss-react/src/hooks/queries/useBooks.ts
+  16:58  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/user/BookBoss/book-boss-react/src/pages/Features.tsx
+   28:8   warning  React Hook useEffect has a missing dependency: 'loadFeatures'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  159:71  warning  Unexpected any. Specify a different type                                                                         @typescript-eslint/no-explicit-any
+
+/Users/user/BookBoss/book-boss-react/src/pages/Login.tsx
+  20:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/user/BookBoss/book-boss-react/src/services/authService.ts
+  30:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  50:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/user/BookBoss/book-boss-react/src/services/bookService.ts
+   75:123  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   75:133  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   86:37   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   87:46   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   92:50   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   98:51   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  106:32   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/user/BookBoss/book-boss-react/src/services/settingsService.ts
+   5:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  11:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  17:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  17:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  23:53  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  23:67  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  34:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/user/BookBoss/book-boss-react/src/services/userService.ts
+  19:34  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  25:46  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 74 problems (0 errors, 74 warnings)
+

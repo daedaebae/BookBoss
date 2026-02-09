@@ -6,19 +6,31 @@ A comprehensive book management system.
 
 The easiest way to run BookBoss is with Docker.
 
-1.  **Prerequisites**:
-    *   Install [Docker Desktop](https://www.docker.com/products/docker-desktop/).
-    *   Add `127.0.0.1 bookboss.local` to your `/etc/hosts` file.
-2.  **Run**:
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/yourusername/BookBoss.git
+    cd BookBoss
+    ```
+2.  **Environment Setup**:
+    ```bash
+    cp .env.example .env
+    # Optional: Edit .env to change default passwords
+    ```
+3.  **Run**:
     ```bash
     docker compose up --build -d
     ```
-3.  **Access**:
-    - The application will be available at `https://bookboss.local` (or `https://localhost` with a warning).      -   *Note*: Accept the self-signed certificate warning in your browser.
-    -   **Backend**: http://localhost:3000 (API)
-    -   **Database**: Port 3306 (internal), 3307 (external)
+4.  **Access**:
+    - **Frontend**: http://localhost:5173 (or http://localhost:80 if proxied)
+    - **Backend API**: http://localhost:3000
+    - **Database**: Port 3307 (mapped to host)
 
-> **Note**: Default credentials in `docker-compose.yml` are for development only. Change `JWT_SECRET` and passwords for production usage.
+### Default Credentials
+*   **Username**: `admin`
+*   **Password**: `admin`
+*(Created automatically on first build)*
+
+> **Note**: For production, update `JWT_SECRET` and passwords in your `.env` file immediately.
 
 ## Manual Installation
 A modern, full-featured book management application for tracking your personal library with support for physical books, ebooks, and audiobooks.
@@ -112,14 +124,13 @@ npm run dev
 
 ## Environment Variables
 
-Create a `.env` file in the `server/` directory:
+The project uses a single `.env` file in the root directory. Copy `.env.example` to start:
+
+```bash
+cp .env.example .env
 ```
-DB_HOST=localhost
-DB_USER=your_user
-DB_PASSWORD=your_password
-DB_NAME=bookboss
-JWT_SECRET=your_secret_key
-```
+
+Review the comments in `.env` for detailed configuration options.
 
 ## License
 

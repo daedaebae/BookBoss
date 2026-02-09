@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { Toast } from '../common/Toast';
 import { type Book } from '../../types/book';
@@ -19,73 +19,41 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
     });
 
     const [formData, setFormData] = useState<Partial<Book>>({
-        title: '',
-        author: '',
-        isbn: '',
-        library: '',
-        format: '',
-        series: '',
-        series_index: undefined,
-        publisher: '',
-        language: '',
-        description: '',
-        shelf: '',
-        status: undefined,
-        is_loaned: false,
-        borrower_name: '',
-        loan_date: '',
-        due_date: '',
+        title: book?.title || '',
+        author: book?.author || '',
+        isbn: book?.isbn || '',
+        library: book?.library || '',
+        format: book?.format || '',
+        series: book?.series || '',
+        series_order: book?.series_order,
+        series_index: book?.series_index,
+        publisher: book?.publisher || '',
+        language: book?.language || 'en',
+        description: book?.description || '',
+        shelf: book?.shelf || '',
+        status: book?.status,
+        rating: book?.rating,
+        page_count: book?.page_count,
+        publication_date: book?.publication_date,
+        is_loaned: book?.is_loaned || false,
+        borrower_name: book?.borrower_name || '',
+        loan_date: book?.loan_date || '',
+        due_date: book?.due_date || '',
+        current_page: book?.current_page || 0,
+        progress_percentage: book?.progress_percentage || 0,
+        last_read_at: book?.last_read_at,
         // Enhanced physical book metadata
-        physical_format: undefined,
-        book_condition: undefined,
-        is_signed: false,
-        has_bonus_chapters: false,
-        edition_type: '',
-        edge_type: undefined,
-        binding_details: '',
+        physical_format: book?.physical_format,
+        book_condition: book?.book_condition,
+        is_signed: book?.is_signed || false,
+        has_bonus_chapters: book?.has_bonus_chapters || false,
+        edition_type: book?.edition_type || '',
+        edge_type: book?.edge_type,
+        binding_details: book?.binding_details || '',
         // Reviews and notes
-        notes: '',
+        notes: book?.notes || '',
     });
 
-    useEffect(() => {
-        if (book) {
-            setFormData({
-                title: book.title,
-                author: book.author,
-                isbn: book.isbn || '',
-                library: book.library || '',
-                format: book.format || '',
-                series: book.series || '',
-                series_order: book.series_order,
-                series_index: book.series_index,
-                publisher: book.publisher || '',
-                language: book.language || 'en',
-                description: book.description || '',
-                shelf: book.shelf || '',
-                status: book.status,
-                rating: book.rating,
-                page_count: book.page_count,
-                publication_date: book.publication_date,
-                is_loaned: book.is_loaned || false,
-                borrower_name: book.borrower_name || '',
-                loan_date: book.loan_date || '',
-                due_date: book.due_date || '',
-                current_page: book.current_page || 0,
-                progress_percentage: book.progress_percentage || 0,
-                last_read_at: book.last_read_at,
-                // Enhanced physical book metadata
-                physical_format: book.physical_format,
-                book_condition: book.book_condition,
-                is_signed: book.is_signed || false,
-                has_bonus_chapters: book.has_bonus_chapters || false,
-                edition_type: book.edition_type || '',
-                edge_type: book.edge_type,
-                binding_details: book.binding_details || '',
-                // Reviews and notes
-                notes: book.notes || '',
-            });
-        }
-    }, [book]);
 
     const showToast = (message: string, type: 'success' | 'error') => {
         setToast({ message, type, isVisible: true });

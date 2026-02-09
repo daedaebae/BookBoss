@@ -1,4 +1,4 @@
-require('dotenv').config({ path: '../.env' }); // Load env from server root
+require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') }); // Load env from project root
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const db = require('../src/config/db');

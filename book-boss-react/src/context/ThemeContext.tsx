@@ -12,16 +12,14 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [theme, setThemeState] = useState<'light' | 'dark'>('dark');
-    const [accentColor, setAccentColorState] = useState<string>('theme-purple');
+    const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
+        return (localStorage.getItem('bookboss_theme') as 'light' | 'dark') || 'dark';
+    });
+    const [accentColor, setAccentColorState] = useState<string>(() => {
+        return localStorage.getItem('bookboss_accent') || 'theme-purple';
+    });
 
     useEffect(() => {
-        const storedTheme = localStorage.getItem('bookboss_theme') as 'light' | 'dark';
-        const storedAccent = localStorage.getItem('bookboss_accent');
-
-        if (storedTheme) setThemeState(storedTheme);
-        if (storedAccent) setAccentColorState(storedAccent);
-
         // Fetch global settings to ensure we have the latest server-side config
         const fetchGlobalSettings = async () => {
             try {

@@ -1,13 +1,13 @@
 const bcrypt = require('bcryptjs');
 const mysql = require('mysql2/promise');
-require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 
 async function resetAdmin() {
     const connection = await mysql.createConnection({
         host: process.env.DB_HOST || 'localhost',
-        user: process.env.DB_USER || 'bookboss',
-        password: process.env.DB_PASSWORD || 'bookboss_secret',
-        database: process.env.DB_NAME || 'bookboss',
+        user: process.env.MYSQL_USER || 'bookboss',
+        password: process.env.MYSQL_PASSWORD || 'bookboss_secret',
+        database: process.env.MYSQL_DATABASE || 'bookboss',
         port: process.env.DB_PORT || 3307
     });
 

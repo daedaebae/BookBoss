@@ -40,7 +40,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
                     }
                     try {
                         scannerRef.current.clear();
-                    } catch (e) {
+                    } catch {
                         // ignore clean errors
                     }
                     scannerRef.current = null;
@@ -73,8 +73,8 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
                             onScanSuccess(decodedText);
                         }
                     },
-                    (_errorMessage) => {
-                        // Ignore frame errors
+                    () => {
+                        // console.log(errorMessage);
                     }
                 );
 
@@ -99,8 +99,8 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
                 if ((err.name === 'NotReadableError' || err.name === 'NotAllowedError') && retryCount < 2) {
                     console.log(`Scanner start failed with ${err.name}, retrying in 1s... (Attempt ${retryCount + 1})`);
                     if (isScanningRef.current && scannerRef.current) {
-                        try { await scannerRef.current.stop(); } catch { }
-                        try { scannerRef.current.clear(); } catch { }
+                        try { await scannerRef.current.stop(); } catch { /* ignore */ }
+                        try { scannerRef.current.clear(); } catch { /* ignore */ }
                         isScanningRef.current = false;
                         scannerRef.current = null;
                     }
@@ -151,7 +151,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
                 scannerRef.current.stop().then(() => {
                     scannerRef.current?.clear();
                     isScanningRef.current = false;
-                }).catch(err => console.error("Failed to stop scanner", err));
+                }).catch(() => console.error("Failed to stop scanner"));
             }
         };
     }, [onScanSuccess, onScanFailure, retryTrigger]);

@@ -28,9 +28,9 @@ services:
     restart: always
     environment:
       DB_HOST: db
-      DB_USER: ${MYSQL_USER}
-      DB_PASSWORD: ${MYSQL_PASSWORD}
-      DB_NAME: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
       JWT_SECRET: ${JWT_SECRET}
       NTFY_TOPIC: ${NTFY_TOPIC}
       NTFY_SERVER_URL: ${NTFY_SERVER_URL}
@@ -44,7 +44,7 @@ services:
       - ./server:/app
       - /app/node_modules
       - ./server/uploads:/app/uploads
-    command: npm run dev
+    command: sh -c "node create_docker_admin.js && npm run dev"
     deploy:
       resources:
         limits:

@@ -10,9 +10,9 @@ const port = host === 'localhost' ? 3307 : 3306;
 
 const db = mysql.createConnection({
     host: host,
-    user: process.env.DB_USER || process.env.MYSQL_USER || 'root',
-    password: process.env.DB_PASSWORD || process.env.MYSQL_PASSWORD || 'rootpassword',
-    database: process.env.DB_NAME || 'bookboss',
+    user: process.env.MYSQL_USER || process.env.MYSQL_USER || 'root',
+    password: process.env.MYSQL_PASSWORD || process.env.MYSQL_PASSWORD || 'rootpassword',
+    database: process.env.MYSQL_DATABASE || 'bookboss',
     port: port
 });
 

@@ -32,8 +32,8 @@ export const Features: React.FC = () => {
             setIsLoading(true);
             const data = await featureService.getFeatures();
             setFeatures(data);
-        } catch (error) {
-            console.error(error);
+        } catch (err) {
+            console.error('Error loading features:', err);
             showToast('Failed to load feature requests', 'error');
         } finally {
             setIsLoading(false);
@@ -45,7 +45,8 @@ export const Features: React.FC = () => {
             await featureService.createFeature(title, description);
             showToast('Feature request submitted!', 'success');
             loadFeatures();
-        } catch (error) {
+        } catch (err) {
+            console.error('Error creating feature:', err);
             showToast('Failed to submit request', 'error');
         }
     };
@@ -59,7 +60,8 @@ export const Features: React.FC = () => {
                 }
                 return f;
             }));
-        } catch (error) {
+        } catch (err) {
+            console.error('Error voting:', err);
             showToast('Failed to register vote', 'error');
         }
     };
@@ -69,7 +71,8 @@ export const Features: React.FC = () => {
             await featureService.updateStatus(id, status);
             showToast('Status updated', 'success');
             loadFeatures();
-        } catch (error) {
+        } catch (err) {
+            console.error('Error updating status:', err);
             showToast('Failed to update status', 'error');
         }
     };

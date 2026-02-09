@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react'; // Fixed hooks imports
 import { type Book, type BookFilters } from '../types/book';
 import { bookService } from '../services/bookService';
 import { BookGrid } from '../components/books/BookGrid';
@@ -33,7 +33,7 @@ export const Library: React.FC = () => {
     const { data: shelves = [] } = useShelves();
     const { deleteBook, bulkDeleteBooks, bulkUpdateShelf, addToShelf } = useBookMutations();
 
-    const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
+    // const [filteredBooks, setFilteredBooks] = useState<Book[]>([]); // Removed state
 
     const [filters, setFilters] = useState<BookFilters>({
         search: '',
@@ -77,18 +77,6 @@ export const Library: React.FC = () => {
     // Let's keep manual for this small part or quick hook.
     // ...
 
-    // Effect for filtering
-    useEffect(() => {
-        applyFilters();
-    }, [books, filters, sidebarFilter]);
-
-    // Apply filters whenever books, filters, or sidebar filter change
-    useEffect(() => {
-        applyFilters();
-    }, [books, filters, sidebarFilter]);
-
-
-
     const loadPublicLibraries = async () => {
         try {
             const libs = await bookService.getPublicUsers();
@@ -98,9 +86,7 @@ export const Library: React.FC = () => {
         }
     };
 
-    // loadBooks and loadShelves removed.
-
-    const applyFilters = () => {
+    const filteredBooks = React.useMemo(() => {
         let result = [...books];
 
         // Apply sidebar filter first
@@ -112,7 +98,7 @@ export const Library: React.FC = () => {
             // New logic for mapped shelves
             result = result.filter(book => book.shelf_ids && book.shelf_ids.includes(sidebarFilter.shelfId!));
         } else if (sidebarFilter.type === 'shelf' && sidebarFilter.value) {
-            // Fallback to legacy string shelf if no shelfId (though we probably won't use this much)
+            // Fallback to legacy string shelf if no shelfId
             result = result.filter(book => book.shelf === sidebarFilter.value);
         } else if (sidebarFilter.type === 'series' && sidebarFilter.value) {
             result = result.filter(book => book.series === sidebarFilter.value);
@@ -163,8 +149,8 @@ export const Library: React.FC = () => {
                 break;
         }
 
-        setFilteredBooks(result);
-    };
+        return result;
+    }, [books, filters, sidebarFilter]);
 
     const handleSearch = (searchTerm: string) => {
         setFilters((prev) => ({ ...prev, search: searchTerm }));
@@ -463,6 +449,7 @@ export const Library: React.FC = () => {
                 />
 
                 <EditBookModal
+                    key={selectedBook?.id || 'edit-empty'}
                     isOpen={isEditModalOpen}
                     onClose={() => setIsEditModalOpen(false)}
                     book={selectedBook}
@@ -489,6 +476,7 @@ export const Library: React.FC = () => {
                 />
 
                 <UpdateProgressModal
+                    key={selectedBook?.id || 'progress-empty'}
                     isOpen={isProgressModalOpen}
                     onClose={() => setIsProgressModalOpen(false)}
                     book={selectedBook}

@@ -89,9 +89,9 @@ const exportJson = (req, res) => {
 
 const sqlBackup = (req, res) => {
     const mysqldump = process.env.MYSQLDUMP_PATH || 'mysqldump';
-    const dbUser = process.env.DB_USER || 'root';
-    const dbPassword = process.env.DB_PASSWORD;
-    const dbName = process.env.DB_NAME || 'bookboss';
+    const dbUser = process.env.MYSQL_USER || 'root';
+    const dbPassword = process.env.MYSQL_PASSWORD;
+    const dbName = process.env.MYSQL_DATABASE || 'bookboss';
     const dbHost = process.env.DB_HOST || 'localhost';
 
     const backupDir = path.join(__dirname, '../../backups'); // Adjust path
@@ -115,9 +115,9 @@ const sqlRestore = (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No backup file provided' });
 
     const mysql = process.env.MYSQL_PATH || 'mysql';
-    const dbUser = process.env.DB_USER || 'root';
-    const dbPassword = process.env.DB_PASSWORD;
-    const dbName = process.env.DB_NAME || 'bookboss';
+    const dbUser = process.env.MYSQL_USER || 'root';
+    const dbPassword = process.env.MYSQL_PASSWORD;
+    const dbName = process.env.MYSQL_DATABASE || 'bookboss';
     const dbHost = process.env.DB_HOST || 'localhost';
 
     const filepath = req.file.path;

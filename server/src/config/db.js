@@ -1,11 +1,12 @@
 const mysql = require('mysql2');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
 
 const dbConfig = {
     host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME || 'bookboss',
+    user: process.env.MYSQL_USER || 'root',
+    password: process.env.MYSQL_PASSWORD,
+    database: process.env.MYSQL_DATABASE || 'bookboss',
     port: process.env.DB_PORT || 3306,
     waitForConnections: true,
     connectionLimit: 10,
@@ -36,7 +37,7 @@ const checkDbConnection = (retries = 5, delay = 5000) => {
 // Start connection check
 checkDbConnection();
 
-if (!process.env.DB_PASSWORD) {
+if (!process.env.MYSQL_PASSWORD) {
     console.warn('WARNING: DB_PASSWORD environment variable is not set. Database connection may fail.');
 }
 
