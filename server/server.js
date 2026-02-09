@@ -4,12 +4,12 @@
  * See LICENSE file for details
  */
 
+const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 require('./src/config/env'); // Validate environment variables after loading them
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const path = require('path');
 const db = require('./src/config/db'); // Ensure DB connection is initialized
 const apiRoutes = require('./src/routes');
 
