@@ -138,9 +138,28 @@ CREATE TABLE IF NOT EXISTS abs_listening_progress (
     `progress` DECIMAL(5,4),
     is_finished BOOLEAN DEFAULT false,
     last_update DATETIME,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
     FOREIGN KEY (abs_server_id) REFERENCES audiobookshelf_servers(id) ON DELETE CASCADE
+);
+
+-- Feature Requests / Suggestions
+CREATE TABLE IF NOT EXISTS feature_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    status VARCHAR(50) DEFAULT 'open', -- open, planned, in_progress, completed, rejected
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS feature_votes (
+    user_id INT NOT NULL,
+    feature_request_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, feature_request_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (feature_request_id) REFERENCES feature_requests(id) ON DELETE CASCADE
 );
 
 

@@ -140,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             }}
                         >
                             <span className="sidebar-icon">💡</span>
-                            <span className="sidebar-label">Feature Requests</span>
+                            <span className="sidebar-label">Suggest a Change!</span>
                         </button>
                     </div>
 

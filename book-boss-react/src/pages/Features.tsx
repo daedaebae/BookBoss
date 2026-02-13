@@ -42,8 +42,12 @@ export const Features: React.FC = () => {
 
     const handleCreate = async (title: string, description: string) => {
         try {
-            await featureService.createFeature(title, description);
-            showToast('Feature request submitted!', 'success');
+            const response = await featureService.createFeature(title, description);
+            if (response.warning) {
+                showToast(response.warning, 'info');
+            } else {
+                showToast('Feature request submitted!', 'success');
+            }
             loadFeatures();
         } catch (err) {
             console.error('Error creating feature:', err);
@@ -131,7 +135,7 @@ export const Features: React.FC = () => {
                 transition: 'margin-left 0.3s ease'
             }}>
                 <Header
-                    title="Feature Requests"
+                    title="Suggest a Change!"
                     onMobileSidebarToggle={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
                     onDesktopSidebarToggle={() => setIsSidebarVisible(!isSidebarVisible)}
                     isSidebarVisible={isSidebarVisible}

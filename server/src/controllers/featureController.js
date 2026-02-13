@@ -58,6 +58,8 @@ const createFeatureRequest = async (req, res) => {
             [result.insertId]
         );
 
+        let warning = null;
+
         // Send notification to ntfy
         try {
             const ntfyTopic = process.env.NTFY_TOPIC || 'bookboss_feature_requests';
@@ -75,12 +77,14 @@ const createFeatureRequest = async (req, res) => {
             console.log(`Notification sent to ${ntfyUrl}`);
         } catch (ntfyError) {
             console.error('Failed to send ntfy notification:', ntfyError.message);
+            warning = 'Suggestion saved, but failed to notify admin (NTFY unavailable).';
         }
 
         res.status(201).json({
             ...newFeature[0],
             vote_count: 1,
-            voted_by_me: true
+            voted_by_me: true,
+            warning: warning
         });
     } catch (error) {
         console.error('Error creating feature:', error);

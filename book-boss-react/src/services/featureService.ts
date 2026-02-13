@@ -9,6 +9,7 @@ export interface FeatureRequest {
     voted_by_me: boolean;
     created_by: string;
     created_at: string;
+    warning?: string; // Optional warning from backend (e.g. ntfy failure)
 }
 
 export const featureService = {
