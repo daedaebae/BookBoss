@@ -107,7 +107,7 @@ Open a new terminal window.
 Authentication is active by default. You need an Admin user to access the system and create other users.
 
 1.  **Create Default Admin**:
-    The backend automatically attempts to create an `admin` user on startup (configured in `docker-compose.yml`).
+    The backend automatically attempts to create an `admin` user on startup. *(Note: The `docker-compose.yml` file uses the `.env` in the project root to configure this).*
     
     If you need to manually reset or create it:
     
