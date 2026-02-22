@@ -9,6 +9,7 @@ export interface FeatureRequest {
     voted_by_me: boolean;
     created_by: string;
     created_at: string;
+    admin_note?: string; // Optional admin note
     warning?: string; // Optional warning from backend (e.g. ntfy failure)
 }
 
@@ -28,7 +29,7 @@ export const featureService = {
         return response.data;
     },
 
-    updateStatus: async (id: number, status: string): Promise<void> => {
-        await apiClient.put(`/features/${id}/status`, { status });
+    updateFeature: async (id: number, updates: { status?: string; admin_note?: string }): Promise<void> => {
+        await apiClient.put(`/features/${id}`, updates);
     }
 };

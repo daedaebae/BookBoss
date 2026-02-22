@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SettingsModal } from '../components/settings/SettingsModal';
 import { Sidebar, type SidebarFilter } from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
 import { useAuth } from '../context/AuthContext';
@@ -10,7 +11,7 @@ import { Toast } from '../components/common/Toast';
 
 export const Features: React.FC = () => {
     const { user, logout } = useAuth();
-    // const { theme, setTheme } = useTheme(); // Unused
+    // const { theme, setTheme } = useTheme();
     const [features, setFeatures] = useState<FeatureRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -18,10 +19,11 @@ export const Features: React.FC = () => {
     const [filterText, setFilterText] = useState('');
     const [isSidebarVisible, setIsSidebarVisible] = useState(true);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false); // Added state
     const [toast, setToast] = useState({ message: '', type: 'info' as 'success' | 'error' | 'info', isVisible: false });
 
     // Sidebar state stub to keep Sidebar component happy
-    const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>({ type: 'all' });
+    const [sidebarFilter] = useState<SidebarFilter>({ type: 'all' });
 
     useEffect(() => {
         loadFeatures();
@@ -70,14 +72,14 @@ export const Features: React.FC = () => {
         }
     };
 
-    const handleStatusChange = async (id: number, status: string) => {
+    const handleStatusChange = async (id: number, status: string, admin_note?: string) => {
         try {
-            await featureService.updateStatus(id, status);
-            showToast('Status updated', 'success');
+            await featureService.updateFeature(id, { status, admin_note });
+            showToast('Feature updated', 'success');
             loadFeatures();
         } catch (err) {
-            console.error('Error updating status:', err);
-            showToast('Failed to update status', 'error');
+            console.error('Error updating feature:', err);
+            showToast('Failed to update feature', 'error');
         }
     };
 
@@ -103,7 +105,14 @@ export const Features: React.FC = () => {
         <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-color)' }}>
             <Sidebar
                 activeFilter={sidebarFilter}
-                onFilterChange={setSidebarFilter} // Stub
+                onFilterChange={(filter) => {
+                    const params = new URLSearchParams();
+                    params.set('type', filter.type);
+                    if (filter.value) params.set('value', filter.value);
+                    if (filter.shelfId) params.set('shelfId', filter.shelfId.toString());
+                    if (filter.userId) params.set('userId', filter.userId.toString());
+                    window.location.href = `/?${params.toString()}`;
+                }}
                 shelves={[]} // Stub
                 seriesList={[]} // Stub
                 onManageShelves={() => { }} // Stub
@@ -125,7 +134,7 @@ export const Features: React.FC = () => {
                 isVisible={isSidebarVisible}
                 user={user}
                 onLogout={logout}
-                onSettingsClick={() => { }}
+                onSettingsClick={() => setIsSettingsModalOpen(true)} // Connected
                 publicLibraries={[]}
             />
 
@@ -223,6 +232,12 @@ export const Features: React.FC = () => {
                     isOpen={isFormOpen}
                     onClose={() => setIsFormOpen(false)}
                     onSubmit={handleCreate}
+                />
+
+                <SettingsModal
+                    isOpen={isSettingsModalOpen}
+                    onClose={() => setIsSettingsModalOpen(false)}
+                    onSettingsChange={() => { }} // No library reload needed for features page
                 />
 
                 <Toast

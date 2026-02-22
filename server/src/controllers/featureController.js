@@ -134,24 +134,49 @@ const voteFeature = async (req, res) => {
     }
 };
 
-const updateFeatureStatus = async (req, res) => {
+const updateFeature = async (req, res) => {
     const featureId = req.params.id;
-    const { status } = req.body;
+    const { status, admin_note } = req.body;
+
+    // Admin Check
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ error: 'Only admins can update features' });
+    }
 
     const validStatuses = ['open', 'planned', 'in_progress', 'completed', 'rejected'];
-    if (!validStatuses.includes(status)) {
+    if (status && !validStatuses.includes(status)) {
         return res.status(400).json({ error: 'Invalid status' });
     }
 
     try {
-        await db.promise().query(
-            'UPDATE feature_requests SET status = ? WHERE id = ?',
-            [status, featureId]
-        );
-        res.json({ success: true, message: 'Status updated' });
+        // Build query dynamically based on what's provided
+        let query = 'UPDATE feature_requests SET ';
+        const params = [];
+
+        if (status) {
+            query += 'status = ?, ';
+            params.push(status);
+        }
+
+        if (admin_note !== undefined) {
+            query += 'admin_note = ?, ';
+            params.push(admin_note);
+        }
+
+        // Remove trailing comma and space
+        query = query.slice(0, -2);
+        query += ' WHERE id = ?';
+        params.push(featureId);
+
+        await db.promise().query(query, params);
+
+        // Fetch updated feature to return
+        const [updated] = await db.promise().query('SELECT * FROM feature_requests WHERE id = ?', [featureId]);
+
+        res.json({ success: true, message: 'Feature updated', feature: updated[0] });
     } catch (error) {
-        console.error('Error updating feature status:', error);
-        res.status(500).json({ error: 'Failed to update status' });
+        console.error('Error updating feature:', error);
+        res.status(500).json({ error: 'Failed to update feature' });
     }
 };
 
@@ -159,5 +184,5 @@ module.exports = {
     getFeatureRequests,
     createFeatureRequest,
     voteFeature,
-    updateFeatureStatus
+    updateFeature
 };

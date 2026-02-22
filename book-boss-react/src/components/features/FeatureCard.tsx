@@ -1,21 +1,12 @@
 import React from 'react';
 
-interface FeatureRequest {
-    id: number;
-    title: string;
-    description: string;
-    status: 'open' | 'planned' | 'in_progress' | 'completed' | 'rejected';
-    vote_count: number;
-    voted_by_me: boolean;
-    created_by: string;
-    created_at: string;
-}
+import { type FeatureRequest } from '../../services/featureService';
 
 interface FeatureCardProps {
     feature: FeatureRequest;
     onVote: (id: number) => void;
     isAdmin: boolean;
-    onStatusChange?: (id: number, status: string) => void;
+    onStatusChange?: (id: number, status: string, admin_note?: string) => void;
 }
 
 export const FeatureCard: React.FC<FeatureCardProps> = ({ feature, onVote, isAdmin, onStatusChange }) => {
@@ -25,6 +16,16 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({ feature, onVote, isAdm
         in_progress: '#3b82f6',
         completed: 'var(--success-color)',
         rejected: 'var(--danger-color)'
+    };
+
+    const [isEditing, setIsEditing] = React.useState(false);
+    const [note, setNote] = React.useState(feature.admin_note || '');
+
+    const handleSaveNote = () => {
+        if (onStatusChange) {
+            onStatusChange(feature.id, feature.status, note);
+            setIsEditing(false);
+        }
     };
 
     return (
@@ -58,6 +59,72 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({ feature, onVote, isAdm
                 {feature.description}
             </p>
 
+            {/* Admin Note Section */}
+            {(feature.admin_note || (isAdmin && isEditing)) && (
+                <div style={{
+                    marginTop: '8px',
+                    padding: '10px',
+                    background: 'rgba(255, 255, 0, 0.05)',
+                    border: '1px solid rgba(255, 255, 0, 0.2)',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem'
+                }}>
+                    <div style={{ fontWeight: 'bold', color: 'var(--accent-color)', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Admin Note:</span>
+                        {isAdmin && !isEditing && (
+                            <button
+                                onClick={() => setIsEditing(true)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem' }}
+                                title="Edit Note"
+                            >
+                                ✎
+                            </button>
+                        )}
+                    </div>
+                    {isEditing ? (
+                        <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
+                            <textarea
+                                value={note}
+                                onChange={(e) => setNote(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    background: 'var(--bg-color)',
+                                    color: 'var(--text-primary)',
+                                    border: 'var(--glass-border)',
+                                    borderRadius: '4px',
+                                    padding: '6px',
+                                    minHeight: '60px'
+                                }}
+                            />
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <button onClick={() => setIsEditing(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>Cancel</button>
+                                <button onClick={handleSaveNote} className="primary-btn small" style={{ fontSize: '0.8rem', padding: '4px 8px' }}>Save</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <p style={{ margin: 0, fontStyle: 'italic', color: 'var(--text-primary)' }}>{feature.admin_note}</p>
+                    )}
+                </div>
+            )}
+
+            {isAdmin && !feature.admin_note && !isEditing && (
+                <button
+                    onClick={() => setIsEditing(true)}
+                    style={{
+                        alignSelf: 'flex-start',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        marginBottom: '8px'
+                    }}
+                >
+                    + Add Admin Note
+                </button>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                     <span>By {feature.created_by}</span>
@@ -69,7 +136,7 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({ feature, onVote, isAdm
                     {isAdmin && onStatusChange && (
                         <select
                             value={feature.status}
-                            onChange={(e) => onStatusChange(feature.id, e.target.value)}
+                            onChange={(e) => onStatusChange(feature.id, e.target.value, feature.admin_note)}
                             style={{
                                 padding: '4px 8px',
                                 borderRadius: '6px',

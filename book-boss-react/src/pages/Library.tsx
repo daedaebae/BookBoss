@@ -24,7 +24,19 @@ export const Library: React.FC = () => {
     const { user, logout } = useAuth();
 
     // Sidebar state
-    const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>({ type: 'all' });
+    const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>(() => {
+        const params = new URLSearchParams(window.location.search);
+        const type = params.get('type') as SidebarFilter['type'] || 'all';
+        const value = params.get('value') || undefined;
+        const shelfId = params.get('shelfId') ? parseInt(params.get('shelfId')!) : undefined;
+        const userId = params.get('userId') ? parseInt(params.get('userId')!) : undefined;
+
+        // Clear params to avoid sticky filters on refresh if desired, 
+        // but for now keeping them allows bookmarking/refreshing with filter.
+        // If we wanted to clear them: window.history.replaceState({}, '', '/');
+
+        return { type, value, shelfId, userId };
+    });
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [isSidebarVisible, setIsSidebarVisible] = useState(true);
 

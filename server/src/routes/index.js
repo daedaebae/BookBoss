@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const featureController = require('../controllers/featureController');
+const { authenticateToken } = require('../middleware/authMiddleware');
 
 const authRoutes = require('./authRoutes');
 const userRoutes = require('./userRoutes');
@@ -13,7 +15,7 @@ const searchRoutes = require('./searchRoutes');
 const settingsRoutes = require('./settingsRoutes');
 const jobRoutes = require('./jobRoutes');
 const systemRoutes = require('./systemRoutes');
-const featureRoutes = require('./featureRoutes');
+// const featureRoutes = require('./featureRoutes'); // Removed in favor of inline routes
 const absRoutes = require('./absRoutes');
 const photoRoutes = require('./photoRoutes');
 
@@ -31,6 +33,12 @@ router.use('/books', bookRoutes);
 
 // Photos (Direct Access)
 router.use('/photos', photoRoutes);
+
+// Feature Requests
+router.get('/features', authenticateToken, featureController.getFeatureRequests);
+router.post('/features', authenticateToken, featureController.createFeatureRequest);
+router.post('/features/:id/vote', authenticateToken, featureController.voteFeature);
+router.put('/features/:id', authenticateToken, featureController.updateFeature); // Unified update (status + note)
 
 // Shelves
 router.use('/shelves', shelfRoutes);
@@ -75,9 +83,6 @@ router.use('/jobs', jobRoutes);
 // System/Admin
 router.use('/', systemRoutes); // /api/backup, /api/restore, /api/export...
 // systemRoutes has /backup, /restore, /export/csv... so mounting at root /api/ works.
-
-// Features
-router.use('/features', featureRoutes);
 
 // ABS
 router.use('/audiobookshelf', absRoutes);
