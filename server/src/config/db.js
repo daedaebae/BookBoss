@@ -5,7 +5,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
 const dbConfig = {
     host: process.env.DB_HOST || 'localhost',
     user: process.env.MYSQL_USER || 'root',
-    password: process.env.MYSQL_PASSWORD,
+    password: process.env.MYSQL_PASSWORD === 'none' ? '' : process.env.MYSQL_PASSWORD,
     database: process.env.MYSQL_DATABASE || 'bookboss',
     port: process.env.DB_PORT || 3306,
     waitForConnections: true,
