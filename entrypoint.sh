@@ -10,12 +10,14 @@ MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootpass}
 echo "Starting BookBoss Initialization..."
 
 # Initialize MySQL data directory if it's empty
-if [ ! -d "/var/lib/mysql/mysql" ]; then
+if [ ! -f "/var/lib/mysql/.bb_initialized" ]; then
     echo "Initializing MariaDB data directory..."
+    # The datadir might already have standard mysql files from the Debian apt install, 
+    # but we need to ensure our specific users and DBs are set up.
     mysql_install_db --user=mysql --datadir=/var/lib/mysql > /dev/null
     
     echo "Starting MariaDB temporarily to set up users and databases..."
-    mysqld --user=mysql --datadir=/var/lib/mysql --skip-networking &
+    mysqld --user=mysql --datadir=/var/lib/mysql --skip-networking --skip-grant-tables &
     pid="$!"
     
     # Wait for MySQL to start
@@ -32,13 +34,16 @@ if [ ! -d "/var/lib/mysql/mysql" ]; then
     fi
 
     echo "Configuring database..."
-    mysql -e "CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;"
-    mysql -e "CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'localhost' IDENTIFIED BY '${MYSQL_PASSWORD}';"
-    mysql -e "GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'localhost';"
-    mysql -e "CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';"
-    mysql -e "GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';"
-    mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';"
-    mysql -e "FLUSH PRIVILEGES;"
+    mysql -uroot <<EOF
+FLUSH PRIVILEGES;
+CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;
+CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'localhost' IDENTIFIED BY '${MYSQL_PASSWORD}';
+GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'localhost';
+CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
+GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';
+ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
+FLUSH PRIVILEGES;
+EOF
     
     # Run the SQL schema script
     if [ -f "/app/schema.sql" ]; then
@@ -51,6 +56,7 @@ if [ ! -d "/var/lib/mysql/mysql" ]; then
         echo >&2 "MariaDB stop process failed."
         exit 1
     fi
+    touch "/var/lib/mysql/.bb_initialized"
     echo "MariaDB initialization complete."
 fi
 

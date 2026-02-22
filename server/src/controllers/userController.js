@@ -113,6 +113,31 @@ const getPublicUsers = (req, res) => {
     });
 };
 
+const getUserBooks = (req, res) => {
+    const userId = req.user.id;
+    db.query('SELECT * FROM user_books WHERE user_id = ?', [userId], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(results);
+    });
+};
+
+const updateUserBookProgress = (req, res) => {
+    const userId = req.user.id;
+    const { bookId } = req.params;
+    const { status, progress, rating } = req.body;
+
+    const query = `
+        INSERT INTO user_books (user_id, book_id, status, progress, rating)
+        VALUES (?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+        status = VALUES(status), progress = VALUES(progress), rating = VALUES(rating)
+    `;
+    db.query(query, [userId, bookId, status || 'Not Started', progress || 0, rating || 0], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Progress updated' });
+    });
+};
+
 module.exports = {
     getUsers,
     createUser,
@@ -120,5 +145,7 @@ module.exports = {
     deleteUser,
     getProfile,
     updateProfile,
-    getPublicUsers
+    getPublicUsers,
+    getUserBooks,
+    updateUserBookProgress
 };

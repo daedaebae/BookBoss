@@ -28,6 +28,11 @@ router.use('/', authRoutes); // /api/login
 // Users & Profiles
 router.use('/users', userRoutes);
 
+// User Reading Progress (My Library State)
+const userController = require('../controllers/userController');
+router.get('/user/books', authenticateToken, userController.getUserBooks);
+router.post('/user/books/:bookId', authenticateToken, userController.updateUserBookProgress);
+
 // Books
 router.use('/books', bookRoutes);
 
