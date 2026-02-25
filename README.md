@@ -2,27 +2,41 @@
 
 A comprehensive book management system.
 
-## 🚀 Quick Start (Docker)
+## 🚀 Quick Start (Hosting)
 
-The easiest way to run BookBoss is with Docker. You can pull the prebuilt image directly.
+The easiest and recommended way to **host** BookBoss is with Docker using our prebuilt image. You do not need to clone the repository to run the app.
 
-### Option 1: Docker Compose (Recommended)
-
-1.  **Clone the repository** (to get the configuration files):
+1.  **Download the docker-compose file**:
     ```bash
-    git clone https://github.com/daedaebae/BookBoss.git
-    cd BookBoss
+    curl -O https://raw.githubusercontent.com/daedaebae/BookBoss/main/docker-compose.yml
+    curl -o .env https://raw.githubusercontent.com/daedaebae/BookBoss/main/.env.example
     ```
 2.  **Environment Setup**:
     ```bash
-    cp .env.example .env
     # Note: Edit the .env file to configure your secure passwords and secrets!
     ```
 3.  **Run with Prebuilt Image**:
     You can pull the latest prebuilt image and run the stack using Docker Compose:
     ```bash
-    # Optionally comment out the 'build:' section in docker-compose.yml and add 'image: ghcr.io/daedaebae/bookboss:latest' to use the remote registry
+    # Open docker-compose.yml, comment out the 'build:' section, 
+    # and ensure 'image: ghcr.io/daedaebae/bookboss:latest' is enabled.
     docker compose up -d
+    ```
+
+## 🛠️ Development (Cloning)
+
+If you wish to **develop** or modify the BookBoss source code, you should clone the repository:
+
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/daedaebae/BookBoss.git
+    cd BookBoss
+    ```
+2.  **Run Development Stack**:
+    Use the included docker-compose configuration to build the local source code instead of pulling the prebuilt image:
+    ```bash
+    cp .env.example .env
+    docker compose up --build -d
     ```
 
 ### Option 2: Standalone Docker Run

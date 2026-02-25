@@ -38,18 +38,35 @@ Before running the application, you must configure the sensitive environment var
     # NTFY_SA_SECRET="CF-Access-Client-Secret: your-client-secret"
     ```
 
-## Option 1: Running with Docker (Recommended)
+## Option 1: Hosting with Docker (Recommended)
 
-This method spins up the Database and the Combined App (Backend + Frontend) in containers. By default, it uses the **prebuilt Docker image** from GitHub Container Registry.
+This method is recommended for simply **hosting** BookBoss and spins up the application using the **prebuilt Docker image** from the GitHub Container Registry. You do not need to clone the repository.
 
-1.  **Start the Stack**:
-    Execute from the project root (where `docker-compose.yml` is located):
+1.  **Download the Configuration**:
+    Grab the required files directly from the repository:
     ```bash
-    # Optionally, edit docker-compose.yml and add 'image: ghcr.io/daedaebae/bookboss:latest' to the bookboss service to prevent building locally.
+    curl -O https://raw.githubusercontent.com/daedaebae/BookBoss/main/docker-compose.yml
+    curl -o .env https://raw.githubusercontent.com/daedaebae/BookBoss/main/.env.example
+    ```
+
+2.  **Start the Stack**:
+    Execute from the directory where `docker-compose.yml` is located:
+    ```bash
+    # Edit docker-compose.yml: add/uncomment 'image: ghcr.io/daedaebae/bookboss:latest' under the bookboss service to prevent building locally.
     docker compose up -d
     ```
 
-    *If you wish to build the container from the source code directly, use: `docker compose up -d --build`*
+## Option 2: Development with Docker
+
+If you intend to **modify the source code**, you should clone the repository and build the Docker image locally.
+
+1.  **Clone & Build**:
+    ```bash
+    git clone https://github.com/daedaebae/BookBoss.git
+    cd BookBoss
+    cp .env.example .env
+    docker compose up -d --build
+    ```
 
 2.  **Access the Application**:
     -   **Web App & API**: [http://localhost:3000](http://localhost:3000)
