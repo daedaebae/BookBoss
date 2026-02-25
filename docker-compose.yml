@@ -20,6 +20,8 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - NTFY_TOPIC=${NTFY_TOPIC}
       - NTFY_SERVER_URL=${NTFY_SERVER_URL}
+      - NTFY_SA_ID=${NTFY_SA_ID}
+      - NTFY_SA_SECRET=${NTFY_SA_SECRET}
       - PORT=3000
     volumes:
       # Persist the MariaDB database files

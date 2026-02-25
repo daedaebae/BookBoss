@@ -29,6 +29,13 @@ Before running the application, you must configure the sensitive environment var
 
     # Security
     JWT_SECRET=change_this_to_a_long_random_string
+
+    # Optional: Notifications (ntfy.sh)
+    NTFY_TOPIC=bookboss_notifications
+    NTFY_SERVER_URL=https://ntfy.sh
+    # Optional: Cloudflare Zero Trust Service Auth for NTFY
+    # NTFY_SA_ID="CF-Access-Client-Id: your-client-id.access"
+    # NTFY_SA_SECRET="CF-Access-Client-Secret: your-client-secret"
     ```
 
 ## Option 1: Running with Docker (Recommended)

@@ -67,12 +67,28 @@ const createFeatureRequest = async (req, res) => {
             const baseUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
             const ntfyUrl = `${baseUrl}/${ntfyTopic}`;
 
-            await axios.post(ntfyUrl, `New Feature Request: ${title.trim()}\n\n${description || 'No description provided.'}`, {
-                headers: {
-                    'Title': 'BookBoss Feature Request',
-                    'Tags': 'bulb,bookboss',
-                    'Priority': 'default'
+            const headers = {
+                'Title': 'BookBoss Feature Request',
+                'Tags': 'bulb,bookboss',
+                'Priority': 'default'
+            };
+
+            if (process.env.NTFY_SA_ID) {
+                const parts = process.env.NTFY_SA_ID.split(':');
+                if (parts.length >= 2) {
+                    headers[parts[0].trim()] = parts.slice(1).join(':').trim();
                 }
+            }
+
+            if (process.env.NTFY_SA_SECRET) {
+                const parts = process.env.NTFY_SA_SECRET.split(':');
+                if (parts.length >= 2) {
+                    headers[parts[0].trim()] = parts.slice(1).join(':').trim();
+                }
+            }
+
+            await axios.post(ntfyUrl, `New Feature Request: ${title.trim()}\n\n${description || 'No description provided.'}`, {
+                headers: headers
             });
             console.log(`Notification sent to ${ntfyUrl}`);
         } catch (ntfyError) {
