@@ -40,20 +40,19 @@ Before running the application, you must configure the sensitive environment var
 
 ## Option 1: Running with Docker (Recommended)
 
-This method spins up the Database and the Combined App (Backend + Frontend) in containers.
+This method spins up the Database and the Combined App (Backend + Frontend) in containers. By default, it uses the **prebuilt Docker image** from GitHub Container Registry.
 
-1.  **Build and Start**:
-    Execute from the project root:
+1.  **Start the Stack**:
+    Execute from the project root (where `docker-compose.yml` is located):
     ```bash
-    # Important: To reset the database (required if tables are missing), you must delete the local data folder:
-    docker compose down
-    sudo rm -rf mysql-data
-    docker compose up -d --build
+    # Optionally, edit docker-compose.yml and add 'image: ghcr.io/daedaebae/bookboss:latest' to the bookboss service to prevent building locally.
+    docker compose up -d
     ```
 
+    *If you wish to build the container from the source code directly, use: `docker compose up -d --build`*
+
 2.  **Access the Application**:
-    -   **Web App**: [http://localhost:5173](http://localhost:5173) (or via Proxy)
-    -   **API**: [http://localhost:3000](http://localhost:3000)
+    -   **Web App & API**: [http://localhost:3000](http://localhost:3000)
     -   **Database**: Port 3307 (Mapped to host)
 
 3.  **Viewing Logs**:

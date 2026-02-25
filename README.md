@@ -4,26 +4,51 @@ A comprehensive book management system.
 
 ## 🚀 Quick Start (Docker)
 
-The easiest way to run BookBoss is with Docker.
+The easiest way to run BookBoss is with Docker. You can pull the prebuilt image directly.
 
-1.  **Clone the repository**:
+### Option 1: Docker Compose (Recommended)
+
+1.  **Clone the repository** (to get the configuration files):
     ```bash
-    git clone https://github.com/yourusername/BookBoss.git
+    git clone https://github.com/daedaebae/BookBoss.git
     cd BookBoss
     ```
 2.  **Environment Setup**:
     ```bash
     cp .env.example .env
-    # Optional: Edit .env to change default passwords
+    # Note: Edit the .env file to configure your secure passwords and secrets!
     ```
-3.  **Run**:
+3.  **Run with Prebuilt Image**:
+    You can pull the latest prebuilt image and run the stack using Docker Compose:
     ```bash
-    docker compose up --build -d
+    # Optionally comment out the 'build:' section in docker-compose.yml and add 'image: ghcr.io/daedaebae/bookboss:latest' to use the remote registry
+    docker compose up -d
     ```
-4.  **Access**:
-    - **Frontend**: http://localhost:5173 (or http://localhost:80 if proxied)
-    - **Backend API**: http://localhost:3000
-    - **Database**: Port 3307 (mapped to host)
+
+### Option 2: Standalone Docker Run
+
+If you prefer to run BookBoss without `docker-compose`, you can pull and run the prebuilt image directly. You must explicitly pass your environment variables:
+
+```bash
+docker run -d \
+  --name bookboss \
+  -p 3000:3000 \
+  -e MYSQL_ROOT_PASSWORD=bookboss \
+  -e MYSQL_USER=user \
+  -e MYSQL_PASSWORD=bookboss \
+  -e MYSQL_DATABASE=bookboss \
+  -e JWT_SECRET=your_secure_secret \
+  -v bookboss_data:/var/lib/mysql \
+  -v bookboss_uploads:/app/uploads \
+  -v bookboss_backups:/app/backups \
+  ghcr.io/daedaebae/bookboss:latest
+```
+
+### Accessing the Application
+- **Frontend / Application**: http://localhost:3000
+- **Database (Internal default mapped)**: Port 3306
+
+> **Note**: The frontend is built directly into the Node.js backend public directory, so you only need to expose port 3000!
 
 ### Default Credentials
 *   **Username**: `admin`
