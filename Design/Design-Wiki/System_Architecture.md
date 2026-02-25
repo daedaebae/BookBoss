@@ -33,7 +33,7 @@ graph TD
 
     subgraph Infrastructure ["Infrastructure"]
         DB[(MySQL Database)]
-        Backup[Backup Service (Sidecar)]
+        BackupService[Backup Service Sidecar]
         FS[File System / Uploads]
     end
 
@@ -44,7 +44,7 @@ graph TD
 
     API_Client -- "JSON / HTTP" --> Router
     Controllers -- "SQL" --> DB
-    Backup -- "Dump (Cron)" --> DB
+    BackupService -- "Dump (Cron)" --> DB
     Controllers -- "Read/Write" --> FS
     Controllers -- "Fetch Metadata" --> GB
     Controllers -- "Sync / Auth" --> ABS
