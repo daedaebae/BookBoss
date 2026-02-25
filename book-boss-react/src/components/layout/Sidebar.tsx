@@ -142,6 +142,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             <span className="sidebar-icon">💡</span>
                             <span className="sidebar-label">Suggest a Change!</span>
                         </button>
+
+                        <a
+                            href="https://github.com/daedaebae/BookBoss/tree/main/Design/User-Wiki"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="sidebar-item"
+                            style={{
+                                textDecoration: 'none',
+                                marginTop: '10px',
+                                border: '2px dashed var(--accent-color)',
+                                background: 'rgba(var(--accent-color-rgb), 0.1)'
+                            }}
+                        >
+                            <span className="sidebar-icon" style={{ animation: 'bounce 2s infinite' }}>🧭</span>
+                            <span className="sidebar-label" style={{ fontWeight: 'bold', color: 'var(--accent-color)' }}>User Guide / Help!</span>
+                        </a>
                     </div>
 
                     {/* Libraries Section (Collapsible) */}

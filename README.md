@@ -76,14 +76,22 @@ A modern, full-featured book management application for tracking your personal l
 
 ## 📚 Documentation
 
-**Complete documentation is available in the [Design/Wiki](./Design/Wiki/) folder:**
+BookBoss is fully documented. Please refer to the specific Wiki for your needs:
 
-- **[Architecture Overview](./Design/Wiki/Architecture.md)** - System design and technology stack
-- **[Database Schema](./Design/Wiki/Database-Schema.md)** - Complete database structure
-- **[API Documentation](./Design/Wiki/API-Documentation.md)** - REST API reference
-- **[Book Management](./Design/Wiki/Book-Management.md)** - Core features guide
-- **[React Migration](./Design/Wiki/React-Migration.md)** - Migration progress and developer guide
-- **[Component Library](./Design/Wiki/Component-Library.md)** - React components reference
+### [👨‍💻 User Wiki](./Design/User-Wiki/)
+Simple, non-technical walkthroughs for getting started and using the application.
+- Getting Started
+- Basic Features
+- Advanced Features
+
+### [🛠️ Design Wiki](./Design/Design-Wiki/)
+Complete technical documentation for developers.
+- **[Architecture Overview](./Design/Design-Wiki/Architecture.md)** - System design and technology stack
+- **[Database Schema](./Design/Design-Wiki/Database-Schema.md)** - Complete database structure
+- **[API Documentation](./Design/Design-Wiki/API-Documentation.md)** - REST API reference
+- **[Book Management](./Design/Design-Wiki/Book-Management.md)** - Core features guide
+- **[React Migration](./Design/Design-Wiki/React-Migration.md)** - Migration progress and developer guide
+- **[Component Library](./Design/Design-Wiki/Component-Library.md)** - React components reference
 
 **Planning Documents:**
 - [Planned Features](./Design/PLANNED_FEATURES.md) - Feature roadmap and status
