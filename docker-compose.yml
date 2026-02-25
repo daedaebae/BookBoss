@@ -1,8 +1,6 @@
 services:
   bookboss:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/daedaebae/bookboss:latest
     container_name: bookboss
     restart: unless-stopped
     ports:

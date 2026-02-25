@@ -10,8 +10,6 @@ Adding a book to your library is easy.
 4. **The Manual Way**: Fill out the title, author, format, and other details manually.
 5. Click **Save**.
 
-*(Imagine a screenshot of the Add Book modal here)*
-
 ## 2. Using Shelves
 Shelves are like folders for your books (e.g., "Favorites", "Summer Reading", "To Read").
 
@@ -19,8 +17,6 @@ Shelves are like folders for your books (e.g., "Favorites", "Summer Reading", "T
 2. Click the **+** (plus) icon next to the "Shelves" title.
 3. Type a name for your new shelf and hit Enter.
 4. To add a book to a shelf, click on a book in your library to open its details, then select the shelf from its dropdown menu!
-
-*(Imagine a screenshot of a created Shelf in the UI here)*
 
 ## 3. Tracking Your Reading Status
 You can track if you've finished a book or are currently reading it.

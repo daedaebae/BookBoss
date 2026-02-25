@@ -143,8 +143,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             <span className="sidebar-label">Suggest a Change!</span>
                         </button>
 
+                        {/* NEW HELP BUTTON (Links to User Wiki) */}
                         <a
-                            href="https://github.com/daedaebae/BookBoss/tree/main/Design/User-Wiki"
+                            href="https://daedaebae.github.io/BookBoss/User-Wiki/1-Getting-Started.html"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="sidebar-item"

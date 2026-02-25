@@ -5,7 +5,7 @@ Welcome to BookBoss! This guide will walk you through the very basics of logging
 ## 1. Logging In
 When you first open BookBoss, you'll be presented with a login screen. 
 
-*(Imagine a screenshot of the login screen here)*
+![Login Screen](/User-Wiki/images/login.png)
 
 - Enter your username and password provided by your administrator.
 - Click the **Login** button.
@@ -14,7 +14,7 @@ When you first open BookBoss, you'll be presented with a login screen.
 Once you log in, you are greeted by the Dashboard (or "My Library" view). 
 This is where all your books live. 
 
-*(Imagine a screenshot of the main grid of books here)*
+![Dashboard Overview](/User-Wiki/images/dashboard.png)
 
 On the left side of the screen is the **Sidebar Navigation**. This is your primary way to move around BookBoss:
 - **My Library**: Clicking this always brings you back to the main book grid.

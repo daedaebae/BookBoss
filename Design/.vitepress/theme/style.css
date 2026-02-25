@@ -1,0 +1,78 @@
+/* BookBoss VitePress Theme overrides */
+
+:root {
+  /* Dark Slate Background */
+  --vp-c-bg: #0f172a;
+  --vp-c-bg-alt: #1e293b;
+  --vp-c-bg-soft: #1e293b;
+
+  /* Text Colors */
+  --vp-c-text-1: #f8fafc;
+  --vp-c-text-2: #94a3b8;
+  
+  /* BookBoss Accent Colors (Purple) */
+  --vp-c-brand-1: #8b5cf6;
+  --vp-c-brand-2: #7c3aed;
+  --vp-c-brand-3: #6366f1;
+  --vp-c-brand-soft: rgba(139, 92, 246, 0.15);
+
+  /* Glassmorphism Borders */
+  --vp-c-divider: rgba(255, 255, 255, 0.1);
+  --vp-c-gutter: rgba(255, 255, 255, 0.1);
+  --vp-c-border: rgba(255, 255, 255, 0.1);
+
+  /* Button Themes */
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: var(--vp-c-white);
+  --vp-button-brand-bg: var(--vp-c-brand-1);
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: var(--vp-c-white);
+  --vp-button-brand-hover-bg: var(--vp-c-brand-2);
+  --vp-button-brand-active-border: transparent;
+  --vp-button-brand-active-text: var(--vp-c-white);
+  --vp-button-brand-active-bg: var(--vp-c-brand-1);
+}
+
+/* Force dark mode styling aesthetics onto light mode technically 
+   if a user toggles it, but typically we want it to just stay dark 
+   for the "BookBoss" feel. */
+
+.VPHero {
+  animation: fade-in-up 0.8s ease-out forwards;
+}
+.VPImage {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Custom Image Wrapper for Screenshots to give them the BookBoss card look */
+.vp-doc img {
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+  transition: transform 0.2s;
+}
+
+.vp-doc img:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 30px rgba(139, 92, 246, 0.2);
+}
+
+/* Animations */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}

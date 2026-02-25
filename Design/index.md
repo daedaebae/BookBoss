@@ -1,30 +1,42 @@
-# BookBoss Documentation
+---
+layout: home
 
-Welcome to the central documentation hub for **BookBoss**, a personal library management system.
+hero:
+  name: "BookBoss"
+  text: "Documentation"
+  tagline: "Your Personal Library Manager, fully documented."
+  image:
+    src: /icon.svg
+    alt: BookBoss Logo
+  actions:
+    - theme: brand
+      text: "Read the User Guide"
+      link: /User-Wiki/1-Getting-Started
+    - theme: alt
+      text: "View Design Architecture"
+      link: /Design-Wiki/System_Architecture
 
-## 👨‍💻 User Wiki
-*Simple, non-technical walkthroughs for getting started and using BookBoss.*
+features:
+  - title: 👨‍💻 For Users
+    details: Simple, non-technical walkthroughs for getting started and using the application effectively.
+    link: /User-Wiki/1-Getting-Started
+  - title: 🛠️ For Developers
+    details: Complete technical details covering the full-stack architecture, database design, and migration strategy.
+    link: /Design-Wiki/System_Architecture
+  - title: 💬 Community Support
+    details: Need help or want to suggest a feature? Join our community or support the project via Patreon!
+    link: https://www.patreon.com/cw/durfy
+---
 
--   [**Getting Started**](./User-Wiki/1-Getting-Started.md)
-    -   Basic login and navigation.
--   [**Basic Features**](./User-Wiki/2-Basic-Features.md)
-    -   Adding books, shelves, and reading status.
--   [**Advanced Features**](./User-Wiki/3-Advanced-Features.md)
-    -   Bulk edits, advanced search, and loan tracking.
-
-## 🛠️ Design Wiki
-*Technical architecture, schemas, and developer planning documents.*
-
--   [**System Architecture**](./Design-Wiki/System_Architecture.md)
-    -   High-level overview of the React + Node.js + MySQL stack.
--   [**Database Design**](./Design-Wiki/Database_Design.md)
-    -   Entity Relationship Diagram (ERD).
--   [**User Flows**](./Design-Wiki/User_Flows.md)
-    -   Visual guides for key user interactions.
--   [**Features Overview**](./Design-Wiki/Features.md)
-    -   Comprehensive list of current and planned capabilities.
--   [**Planned Features**](./Design-Wiki/Planning/PLANNED_FEATURES.md)
--   [**React Migration Plan**](./Design-Wiki/Planning/react_migration_plan.md)
+<style>
+/* Custom animations handled via the global theme css */
+.VPHero {
+  animation: fade-in-up 0.8s ease-out forwards;
+}
+.VPImage {
+  animation: float 6s ease-in-out infinite;
+}
+</style>
 
 ## 💖 Support the Project
 

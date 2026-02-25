@@ -9,8 +9,6 @@ Need to delete or edit a bunch of books at once?
 3. Select the ones you want to change.
 4. Use the action menu that pops up to apply a single change (like changing shelves or deleting) to all selected books simultaneously.
 
-*(Imagine a screenshot of the Bulk Selection checkboxes active here)*
-
 ## 2. Advanced Search
 The main search bar at the top isn't just for exact titles. 
 - You can type an author's name, part of a title, or even scan a barcode/ISBN directly into it to instantly filter your view.

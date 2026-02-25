@@ -18,8 +18,7 @@ The easiest and recommended way to **host** BookBoss is with Docker using our pr
 3.  **Run with Prebuilt Image**:
     You can pull the latest prebuilt image and run the stack using Docker Compose:
     ```bash
-    # Open docker-compose.yml, comment out the 'build:' section, 
-    # and ensure 'image: ghcr.io/daedaebae/bookboss:latest' is enabled.
+    # The default docker-compose.yml automatically pulls the latest GHCR image.
     docker compose up -d
     ```
 
