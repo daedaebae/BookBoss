@@ -91,7 +91,7 @@ fi
 echo "Starting background backup service..."
 (
     while true; do
-        sleep 86400 # 24 hours
+        sleep 3600 # 1 hour
         echo "Starting backup at $(date)..."
         mysqldump -u "${MYSQL_USER}" -p"${MYSQL_PASSWORD}" "${MYSQL_DATABASE}" > /app/backups/backup_$(date +%Y-%m-%d_%H%M%S).sql 2>/dev/null
         if [ $? -eq 0 ]; then

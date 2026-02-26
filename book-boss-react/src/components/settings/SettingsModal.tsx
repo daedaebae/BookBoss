@@ -10,6 +10,7 @@ import { userService } from '../../services/userService';
 import { settingsService } from '../../services/settingsService';
 import { absService } from '../../services/absService';
 import { MetadataRefreshModal } from '../books/MetadataRefreshModal';
+import { IntegrationsTab } from './tabs/IntegrationsTab';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -17,8 +18,7 @@ interface SettingsModalProps {
     onSettingsChange?: () => void;
 }
 
-type SettingsTab = 'general' | 'profile' | 'filters' | 'export' | 'users' | 'audiobookshelf' | 'backup';
-
+type SettingsTab = 'general' | 'profile' | 'filters' | 'export' | 'users' | 'audiobookshelf' | 'backup' | 'integrations';
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSettingsChange }) => {
     const { user } = useAuth();
     const { setAccentColor: setGlobalAccentColor } = useTheme();
@@ -28,6 +28,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     const [accentColor, setAccentColor] = useState('theme-purple');
     const [allowRegistration, setAllowRegistration] = useState(false);
     const [debugMode, setDebugMode] = useState(false);
+
+
 
     // Logging
     const [showLogs, setShowLogs] = useState(false);
@@ -302,6 +304,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
             if (storedDebug) {
                 setDebugMode(storedDebug === 'true');
             }
+
         } catch (error) {
             console.error('Failed to fetch settings:', error);
         }
@@ -335,6 +338,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
             showToast('Failed to save settings', 'error');
         }
     };
+
+
 
     const handleAccentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newVal = e.target.value;
@@ -728,8 +733,48 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                     Show detailed logs for actions like Sync.
                                 </p>
                             </div>
+
+                            <div className="form-group" style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid var(--glass-border)' }}>
+                                <h4>Broadcast Notification (MOTD)</h4>
+                                <form onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    const form = e.target as HTMLFormElement;
+                                    const title = (form.elements.namedItem('motd_title') as HTMLInputElement).value;
+                                    const msg = (form.elements.namedItem('motd_msg') as HTMLTextAreaElement).value;
+                                    const type = (form.elements.namedItem('motd_type') as HTMLSelectElement).value;
+
+                                    try {
+                                        await fetch('/api/notifications', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
+                                            },
+                                            body: JSON.stringify({
+                                                title, message: msg, type, is_global: true
+                                            })
+                                        });
+                                        form.reset();
+                                        alert('Notification broadcasted globally!');
+                                    } catch (err) {
+                                        alert('Failed to broadcast');
+                                    }
+                                }}>
+                                    <input name="motd_title" className="form-input" style={{ width: '100%', marginBottom: '10px' }} placeholder="Title" required />
+                                    <textarea name="motd_msg" className="form-input" style={{ width: '100%', marginBottom: '10px', height: '80px' }} placeholder="Message body..." required></textarea>
+                                    <select name="motd_type" className="form-input" style={{ width: '100%', marginBottom: '10px' }}>
+                                        <option value="info">Info</option>
+                                        <option value="success">Success</option>
+                                        <option value="warning">Warning / Alert</option>
+                                        <option value="motd">Message of the Day</option>
+                                    </select>
+                                    <button type="submit" className="primary-btn" style={{ width: '100%' }}>Broadcast to All Users</button>
+                                </form>
+                            </div>
                         </div>
                     )}
+
+                    {activeTab === 'integrations' && <IntegrationsTab />}
 
                     {activeTab === 'profile' && (
                         <div>

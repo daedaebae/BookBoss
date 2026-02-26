@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const fs = require('fs');
 const featureController = require('../controllers/featureController');
-const { authenticateToken } = require('../middleware/authMiddleware');
+const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
 
 const authRoutes = require('./authRoutes');
 const userRoutes = require('./userRoutes');
@@ -18,12 +20,32 @@ const systemRoutes = require('./systemRoutes');
 // const featureRoutes = require('./featureRoutes'); // Removed in favor of inline routes
 const absRoutes = require('./absRoutes');
 const photoRoutes = require('./photoRoutes');
+const notificationRoutes = require('./notifications');
 
 // Mount routes
 // Map to existing API structure in server.js
 
+// Root API Wiki Route
+router.get('/', authenticateToken, requireAdmin, (req, res) => {
+    try {
+        const wikiPath = path.join(__dirname, '../../API_WIKI.md');
+        if (fs.existsSync(wikiPath)) {
+            const content = fs.readFileSync(wikiPath, 'utf8');
+            res.type('text/markdown').send(content);
+        } else {
+            res.status(404).json({ error: 'API Wiki not found.' });
+        }
+    } catch (err) {
+        console.error('Error serving API Wiki:', err);
+        res.status(500).json({ error: 'Failed to load API Wiki.' });
+    }
+});
+
 // Auth
 router.use('/', authRoutes); // /api/login
+
+// Notifications
+router.use('/notifications', notificationRoutes);
 
 // Users & Profiles
 router.use('/users', userRoutes);

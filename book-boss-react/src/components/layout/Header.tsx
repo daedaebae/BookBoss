@@ -1,5 +1,6 @@
 import React from 'react';
 import { ThemeToggle } from '../common/ThemeToggle';
+import { NotificationBell } from '../common/NotificationBell';
 
 interface HeaderProps {
     title?: string;
@@ -68,6 +69,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 {children}
+                <NotificationBell />
                 <ThemeToggle />
             </div>
         </div>

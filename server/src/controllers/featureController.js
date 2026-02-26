@@ -96,6 +96,36 @@ const createFeatureRequest = async (req, res) => {
             warning = 'Suggestion saved, but failed to notify admin (NTFY unavailable).';
         }
 
+        // Fetch Settings for GitHub
+        try {
+            const [settingsRows] = await db.promise().query("SELECT `key`, value FROM settings WHERE `key` IN ('github_enabled', 'github_repo', 'github_token')");
+            const appSettings = settingsRows.reduce((acc, curr) => {
+                acc[curr.key] = curr.value;
+                return acc;
+            }, {});
+
+            // GitHub Integration
+            if (appSettings.github_enabled === 'true' && appSettings.github_repo && appSettings.github_token) {
+                const response = await axios.post(
+                    `https://api.github.com/repos/${appSettings.github_repo}/issues`,
+                    {
+                        title: `[Feature] ${title.trim()}`,
+                        body: `${description || 'No description provided.'}\n\n*Requested by @${newFeature[0].created_by} via BookBoss*`
+                    },
+                    {
+                        headers: {
+                            'Authorization': `token ${appSettings.github_token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    }
+                );
+                console.log(`Created GitHub Issue: ${response.data.html_url}`);
+            }
+        } catch (ghError) {
+            console.error('Failed to create GitHub issue:', ghError.response ? ghError.response.data : ghError.message);
+            if (!warning) warning = 'Suggestion saved, but failed to sync to GitHub.';
+        }
+
         res.status(201).json({
             ...newFeature[0],
             vote_count: 1,
@@ -188,8 +218,29 @@ const updateFeature = async (req, res) => {
 
         // Fetch updated feature to return
         const [updated] = await db.promise().query('SELECT * FROM feature_requests WHERE id = ?', [featureId]);
+        const updatedFeature = updated[0];
 
-        res.json({ success: true, message: 'Feature updated', feature: updated[0] });
+        if (status) {
+            try {
+                await db.promise().query(
+                    `INSERT INTO notifications 
+                    (title, message, type, is_global, target_user_id, created_by) 
+                    VALUES (?, ?, ?, ?, ?, ?)`,
+                    [
+                        `Feature Status Change`,
+                        `Your feature request "${updatedFeature.title}" is now marked as: ${status}.`,
+                        'info',
+                        false,
+                        updatedFeature.user_id,
+                        req.user.id
+                    ]
+                );
+            } catch (err) {
+                console.error('Failed to notify user about feature status update', err);
+            }
+        }
+
+        res.json({ success: true, message: 'Feature updated', feature: updatedFeature });
     } catch (error) {
         console.error('Error updating feature:', error);
         res.status(500).json({ error: 'Failed to update feature' });

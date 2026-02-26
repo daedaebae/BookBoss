@@ -159,6 +159,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             <span className="sidebar-icon" style={{ animation: 'bounce 2s infinite' }}>🧭</span>
                             <span className="sidebar-label" style={{ fontWeight: 'bold', color: 'var(--accent-color)' }}>User Guide / Help!</span>
                         </a>
+
+                        <a
+                            href="/features"
+                            className="sidebar-item"
+                            style={{
+                                textDecoration: 'none',
+                                marginTop: '10px',
+                                border: '1px solid var(--accent-color)',
+                                background: 'var(--glass-bg)',
+                                backdropFilter: 'blur(10px)'
+                            }}
+                        >
+                            <span className="sidebar-icon">💡</span>
+                            <span className="sidebar-label" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Feature Requests</span>
+                        </a>
                     </div>
 
                     {/* Libraries Section (Collapsible) */}

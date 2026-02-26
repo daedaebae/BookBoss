@@ -10,6 +10,8 @@ require('./src/config/env'); // Validate environment variables after loading the
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const morgan = require('morgan');
+const logger = require('./src/utils/logger');
 const db = require('./src/config/db'); // Ensure DB connection is initialized
 const apiRoutes = require('./src/routes');
 
@@ -17,6 +19,7 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 // Middleware
+app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 app.use(cors());
 app.use(helmet({
     contentSecurityPolicy: false, // Disable for development/images
@@ -44,21 +47,21 @@ app.use('/api', apiRoutes);
 const publicPath = path.join(__dirname, 'public');
 if (fs.existsSync(publicPath)) {
     app.use(express.static(publicPath));
-    console.log(`Serving static files from ${publicPath}`);
+    logger.info(`Serving static files from ${publicPath}`);
 
     app.get('*', (req, res) => {
         res.sendFile(path.join(publicPath, 'index.html'));
     });
 } else {
-    console.warn('Frontend build not found in public/ directory. API only mode.');
+    logger.warn('Frontend build not found in public/ directory. API only mode.');
 }
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
-    console.error('Unhandled Error:', err);
+    logger.error(`Unhandled Error: ${err.message}`, { stack: err.stack });
     res.status(500).json({ error: 'Internal Server Error' });
 });
 
 app.listen(port, '0.0.0.0', () => {
-    console.log(`Server running on port ${port}`);
+    logger.info(`Server running on port ${port}`);
 });
