@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { Toast } from '../common/Toast';
 import { ConfirmationModal } from '../common/ConfirmationModal';
-import LogViewerModal from '../common/LogViewerModal';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { exportService } from '../../services/exportService';
@@ -30,9 +29,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
 
 
-    // Logging
-    const [showLogs, setShowLogs] = useState(false);
-    const [logs, setLogs] = useState<string[]>([]);
 
     // Profile settings
     const [newPassword, setNewPassword] = useState('');
@@ -1089,11 +1085,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                 )
             }
 
-            <LogViewerModal
-                isOpen={showLogs}
-                onClose={() => setShowLogs(false)}
-                logs={logs}
-            />
 
             <Toast
                 message={toast.message}
