@@ -32,7 +32,8 @@ const getFeatureRequests = async (req, res) => {
 
 const createFeatureRequest = async (req, res) => {
     const userId = req.user.id;
-    const { title, description } = req.body;
+    const { title, description, type } = req.body;
+    const reqType = type === 'bug' ? 'bug' : 'feature';
 
     if (!title || !title.trim()) {
         return res.status(400).json({ error: 'Title is required' });
@@ -40,8 +41,8 @@ const createFeatureRequest = async (req, res) => {
 
     try {
         const [result] = await db.promise().query(
-            'INSERT INTO feature_requests (user_id, title, description) VALUES (?, ?, ?)',
-            [userId, title.trim(), description || '']
+            'INSERT INTO feature_requests (user_id, title, description, type) VALUES (?, ?, ?, ?)',
+            [userId, title.trim(), description || '', reqType]
         );
 
         // Auto-vote for own request
@@ -60,61 +61,81 @@ const createFeatureRequest = async (req, res) => {
 
         let warning = null;
 
+        // Fetch Settings for Integrations (Ntfy & GitHub)
+        let appSettings = {};
+        try {
+            const [settingsRows] = await db.promise().query(
+                "SELECT `key`, value FROM settings WHERE `key` IN ('github_enabled', 'github_repo', 'github_token', 'ntfy_enabled', 'ntfy_server_url', 'ntfy_topic', 'ntfy_sa_id', 'ntfy_sa_secret', 'ignore_env_integrations')"
+            );
+            appSettings = settingsRows.reduce((acc, curr) => {
+                acc[curr.key] = curr.value;
+                return acc;
+            }, {});
+        } catch (settingsErr) {
+            console.error('Failed to fetch integration settings:', settingsErr);
+        }
+
+        const ignoreEnv = appSettings.ignore_env_integrations === 'true';
+
         // Send notification to ntfy
         try {
-            const ntfyTopic = process.env.NTFY_TOPIC || 'bookboss_feature_requests';
-            const serverUrl = process.env.NTFY_SERVER_URL || 'https://ntfy.philemonsgarden.com';
-            const baseUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
-            const ntfyUrl = `${baseUrl}/${ntfyTopic}`;
+            // Check if Ntfy is enabled via DB or if a topic is set in ENV (legacy fallback)
+            const ntfyEnabled = appSettings.ntfy_enabled === 'true' || (!ignoreEnv && !appSettings.ntfy_enabled && process.env.NTFY_TOPIC);
 
-            const headers = {
-                'Title': 'BookBoss Feature Request',
-                'Tags': 'bulb,bookboss',
-                'Priority': 'default'
-            };
+            if (ntfyEnabled) {
+                const ntfyTopic = appSettings.ntfy_topic || (!ignoreEnv ? process.env.NTFY_TOPIC : null) || 'bookboss_feature_requests';
+                const serverUrl = appSettings.ntfy_server_url || (!ignoreEnv ? process.env.NTFY_SERVER_URL : null) || 'https://ntfy.sh';
+                const baseUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+                const ntfyUrl = `${baseUrl}/${ntfyTopic}`;
 
-            if (process.env.NTFY_SA_ID) {
-                const parts = process.env.NTFY_SA_ID.split(':');
-                if (parts.length >= 2) {
-                    headers[parts[0].trim()] = parts.slice(1).join(':').trim();
+                const headers = {
+                    'Title': `BookBoss ${reqType === 'bug' ? 'Bug Report' : 'Feature Request'}`,
+                    'Tags': reqType === 'bug' ? 'bug' : 'bulb',
+                    'Priority': 'default'
+                };
+
+                const saId = appSettings.ntfy_sa_id || (!ignoreEnv ? process.env.NTFY_SA_ID : null);
+                if (saId) {
+                    const parts = saId.split(':');
+                    if (parts.length >= 2) {
+                        headers[parts[0].trim()] = parts.slice(1).join(':').trim();
+                    }
                 }
-            }
 
-            if (process.env.NTFY_SA_SECRET) {
-                const parts = process.env.NTFY_SA_SECRET.split(':');
-                if (parts.length >= 2) {
-                    headers[parts[0].trim()] = parts.slice(1).join(':').trim();
+                const saSecret = appSettings.ntfy_sa_secret || (!ignoreEnv ? process.env.NTFY_SA_SECRET : null);
+                if (saSecret) {
+                    const parts = saSecret.split(':');
+                    if (parts.length >= 2) {
+                        headers[parts[0].trim()] = parts.slice(1).join(':').trim();
+                    }
                 }
-            }
 
-            await axios.post(ntfyUrl, `New Feature Request: ${title.trim()}\n\n${description || 'No description provided.'}`, {
-                headers: headers
-            });
-            console.log(`Notification sent to ${ntfyUrl}`);
+                await axios.post(ntfyUrl, `New ${reqType === 'bug' ? 'Bug Report' : 'Feature Request'}: ${title.trim()}\n\n${description || 'No description provided.'}`, {
+                    headers: headers
+                });
+                console.log(`Notification sent to ${ntfyUrl}`);
+            }
         } catch (ntfyError) {
             console.error('Failed to send ntfy notification:', ntfyError.message);
             warning = 'Suggestion saved, but failed to notify admin (NTFY unavailable).';
         }
 
-        // Fetch Settings for GitHub
+        // GitHub Integration
         try {
-            const [settingsRows] = await db.promise().query("SELECT `key`, value FROM settings WHERE `key` IN ('github_enabled', 'github_repo', 'github_token')");
-            const appSettings = settingsRows.reduce((acc, curr) => {
-                acc[curr.key] = curr.value;
-                return acc;
-            }, {});
+            const targetRepo = appSettings.github_repo || (!ignoreEnv ? process.env.GITHUB_REPO : null) || 'daedaebae/BookBoss';
+            const targetToken = appSettings.github_token || (!ignoreEnv ? process.env.GITHUB_TOKEN : null);
 
-            // GitHub Integration
-            if (appSettings.github_enabled === 'true' && appSettings.github_repo && appSettings.github_token) {
+            if (appSettings.github_enabled === 'true' && targetToken) {
+                const ghPrefix = reqType === 'bug' ? '[Bug]' : '[Feature]';
                 const response = await axios.post(
-                    `https://api.github.com/repos/${appSettings.github_repo}/issues`,
+                    `https://api.github.com/repos/${targetRepo}/issues`,
                     {
-                        title: `[Feature] ${title.trim()}`,
+                        title: `${ghPrefix} ${title.trim()}`,
                         body: `${description || 'No description provided.'}\n\n*Requested by @${newFeature[0].created_by} via BookBoss*`
                     },
                     {
                         headers: {
-                            'Authorization': `token ${appSettings.github_token}`,
+                            'Authorization': `token ${targetToken}`,
                             'Accept': 'application/vnd.github.v3+json'
                         }
                     }
@@ -144,7 +165,7 @@ const voteFeature = async (req, res) => {
 
     try {
         const [existing] = await db.promise().query(
-            'SELECT id FROM feature_votes WHERE user_id = ? AND feature_request_id = ?',
+            'SELECT 1 FROM feature_votes WHERE user_id = ? AND feature_request_id = ?',
             [userId, featureId]
         );
 

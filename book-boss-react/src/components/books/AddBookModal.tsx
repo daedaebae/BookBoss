@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { Toast } from '../common/Toast';
 import { BarcodeScanner } from './BarcodeScanner';
@@ -6,6 +6,8 @@ import { BookSearch } from './BookSearch';
 import { type Book } from '../../types/book';
 import { bookService } from '../../services/bookService';
 import { absService, type AbsSearchResult } from '../../services/absService';
+import { settingsService } from '../../services/settingsService';
+
 
 interface AddBookModalProps {
     isOpen: boolean;
@@ -21,6 +23,19 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
     const [activeTab, setActiveTab] = useState<Tab>('search'); // Default to search for better UX? Or keep manual. Let's stick to manual default for now, or maybe 'search' as requested in features.
     // Actually, let's make 'search' the default if that's the new primary way.
     // But for now, let's just add the tab.
+
+    const [isAbsConfigured, setIsAbsConfigured] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            settingsService.getAbsServers()
+                .then(servers => setIsAbsConfigured(Array.isArray(servers) && servers.length > 0))
+                .catch(err => {
+                    console.error('Failed to fetch ABS servers:', err);
+                    setIsAbsConfigured(false);
+                });
+        }
+    }, [isOpen]);
 
     // Toast State
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; isVisible: boolean }>({
@@ -65,7 +80,8 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
             Object.entries(formData).forEach(([key, value]) => {
                 if (value !== undefined && value !== null && value !== '') {
                     if (key === 'cover_url') {
-                        data.append('cover', value.toString());
+                        // The backend expects cover_url_remote to trigger download
+                        data.append('cover_url_remote', value.toString());
                     } else {
                         data.append(key, value.toString());
                     }
@@ -179,7 +195,12 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
                 {/* Legacy Google API removed */}
                 <button
                     className={`tab-btn ${activeTab === 'abs' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('abs')}
+                    onClick={() => {
+                        if (isAbsConfigured) setActiveTab('abs');
+                        else showToast('Audiobookshelf integration not configured. Please add a server in Settings -> Integrations.', 'error');
+                    }}
+                    style={{ opacity: isAbsConfigured ? 1 : 0.5, cursor: isAbsConfigured ? 'pointer' : 'not-allowed' }}
+                    title={!isAbsConfigured ? "Setup Audiobookshelf in Settings -> Integrations" : ""}
                 >
                     Audiobookshelf
                 </button>

@@ -33,4 +33,13 @@ Most endpoints require a JWT Bearer token, passed in the `Authorization` header:
 - \`GET /api/admin/libraries\` - (Admin) Get usage statistics for users
 - \`POST /api/backup\` - (Admin) Trigger database backup
 
+### 🎧 Integrations (Audiobookshelf)
+- \`GET /api/audiobookshelf/servers\` - Get connected ABS servers
+- \`POST /api/audiobookshelf/servers\` - (Admin) Add new ABS server
+- \`PUT /api/audiobookshelf/servers/:id\` - (Admin) Update ABS server
+- \`DELETE /api/audiobookshelf/servers/:id\` - (Admin) Remove ABS server
+- \`GET /api/audiobookshelf/search\` - Search books across ABS servers
+- \`POST /api/audiobookshelf/import\` - (Admin) Import book from ABS
+- \`POST /api/audiobookshelf/sync\` - (Admin) Sync library from ABS
+
 *This living document is continuously updated by the BookBoss team.*

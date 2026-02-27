@@ -31,27 +31,17 @@ export const bookService = {
 
     // Add new book (FormData support for file uploads)
     addBook: async (formData: FormData): Promise<Book> => {
-        const response = await apiClient.post<Book>('/books', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-        });
+        const response = await apiClient.post<Book>('/books', formData);
         return response.data;
     },
 
     // Update book (FormData support)
     // Update book (JSON)
     updateBook: async (id: number, data: Partial<Book> | FormData): Promise<Book> => {
-        // Check if data is FormData or plain object
         const isFormData = data instanceof FormData;
+        const config = isFormData ? {} : { headers: { 'Content-Type': 'application/json' } };
 
-        const response = await apiClient.put<Book>(`/books/${id}`, data, {
-            headers: isFormData ? {
-                'Content-Type': 'multipart/form-data',
-            } : {
-                'Content-Type': 'application/json',
-            },
-        });
+        const response = await apiClient.put<Book>(`/books/${id}`, data, config);
         return response.data;
     },
 
@@ -62,7 +52,7 @@ export const bookService = {
 
     // Bulk delete books
     bulkDeleteBooks: async (ids: number[]): Promise<void> => {
-        await apiClient.post('/books/bulk-delete', { ids });
+        await apiClient.delete('/books/bulk', { data: { ids } });
     },
 
     // Refresh Metadata

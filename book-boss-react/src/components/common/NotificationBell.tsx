@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { Modal } from './Modal';
 
 interface AppNotification {
     id: number;
@@ -14,6 +15,19 @@ export const NotificationBell: React.FC = () => {
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const [motdModalOpen, setMotdModalOpen] = useState(false);
+    const [motdsToShow, setMotdsToShow] = useState<AppNotification[]>([]);
+
+    const getColorForType = (type: string) => {
+        switch (type) {
+            case 'success': return 'var(--success-color, #10b981)';
+            case 'warning': return 'var(--danger-color)';
+            case 'info': return 'var(--warning-color, #eab308)';
+            case 'motd': return 'var(--accent-color)';
+            default: return 'var(--accent-color)';
+        }
+    };
 
     const fetchNotifications = async () => {
         if (!isAuthenticated) return;
@@ -35,7 +49,15 @@ export const NotificationBell: React.FC = () => {
         fetchNotifications();
         // Poll every 60 seconds
         const interval = setInterval(fetchNotifications, 60000);
-        return () => clearInterval(interval);
+
+        // Listen for internal broadcasts
+        const handleUpdate = () => fetchNotifications();
+        window.addEventListener('notificationsUpdated', handleUpdate);
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('notificationsUpdated', handleUpdate);
+        };
     }, [isAuthenticated]);
 
     // Close on outside click
@@ -61,6 +83,28 @@ export const NotificationBell: React.FC = () => {
             console.error('Failed to acknowledge notification', error);
         }
     };
+
+    useEffect(() => {
+        if (notifications.length > 0) {
+            const motds = notifications.filter(n => n.type === 'motd');
+            if (motds.length > 0) {
+                const storedValue = sessionStorage.getItem('bookboss_motds_shown');
+                let shownIds: number[] = [];
+                try {
+                    shownIds = storedValue ? JSON.parse(storedValue) : [];
+                } catch (e) { }
+
+                const newMotds = motds.filter(m => !shownIds.includes(m.id));
+                if (newMotds.length > 0) {
+                    setMotdsToShow(newMotds);
+                    setMotdModalOpen(true);
+
+                    const updatedIds = [...shownIds, ...newMotds.map(m => m.id)];
+                    sessionStorage.setItem('bookboss_motds_shown', JSON.stringify(updatedIds));
+                }
+            }
+        }
+    }, [notifications]);
 
     if (!isAuthenticated) return null;
 
@@ -134,7 +178,7 @@ export const NotificationBell: React.FC = () => {
                                     padding: '12px',
                                     background: 'rgba(255,255,255,0.05)',
                                     borderRadius: '8px',
-                                    borderLeft: `4px solid ${n.type === 'warning' ? 'var(--danger-color)' : 'var(--accent-color)'}`
+                                    borderLeft: `4px solid ${getColorForType(n.type)}`
                                 }}>
                                     <h5 style={{ margin: '0 0 4px', fontSize: '0.95rem' }}>{n.title}</h5>
                                     <p style={{ margin: '0 0 10px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
@@ -154,6 +198,43 @@ export const NotificationBell: React.FC = () => {
                     )}
                 </div>
             )}
+
+            <Modal
+                isOpen={motdModalOpen}
+                onClose={() => setMotdModalOpen(false)}
+                title="Message of the Day"
+                maxWidth="500px"
+            >
+                {motdsToShow.map(m => (
+                    <div key={m.id} style={{
+                        padding: '15px',
+                        background: 'var(--glass-bg)',
+                        border: '1px solid var(--glass-border)',
+                        borderRadius: '8px',
+                        marginBottom: '15px',
+                        borderLeft: `4px solid ${getColorForType('motd')}`
+                    }}>
+                        <h4 style={{ margin: '0 0 10px', color: 'var(--text-color)' }}>{m.title}</h4>
+                        <p style={{ margin: 0, color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                            {m.message}
+                        </p>
+                        <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '15px 0' }} />
+                        <button
+                            className="primary-btn small"
+                            onClick={() => {
+                                acknowledge(m.id);
+                                setMotdsToShow(prev => prev.filter(motd => motd.id !== m.id));
+                                if (motdsToShow.length <= 1) {
+                                    setMotdModalOpen(false);
+                                }
+                            }}
+                            style={{ margin: 0 }}
+                        >
+                            Understood
+                        </button>
+                    </div>
+                ))}
+            </Modal>
         </div>
     );
 };

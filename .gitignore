@@ -19,3 +19,4 @@ mysql-data/
 certs/
 backups/
 .env
+.docker_test/

@@ -42,9 +42,9 @@ export const Features: React.FC = () => {
         }
     };
 
-    const handleCreate = async (title: string, description: string) => {
+    const handleCreate = async (title: string, description: string, reqType: 'bug' | 'feature') => {
         try {
-            const response = await featureService.createFeature(title, description);
+            const response = await featureService.createFeature(title, description, reqType);
             if (response.warning) {
                 showToast(response.warning, 'info');
             } else {
@@ -135,7 +135,6 @@ export const Features: React.FC = () => {
                 user={user}
                 onLogout={logout}
                 onSettingsClick={() => setIsSettingsModalOpen(true)} // Connected
-                publicLibraries={[]}
             />
 
             <div className="content-area" style={{
@@ -144,7 +143,7 @@ export const Features: React.FC = () => {
                 transition: 'margin-left 0.3s ease'
             }}>
                 <Header
-                    title="Suggest a Change!"
+                    title="Requests"
                     onMobileSidebarToggle={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
                     onDesktopSidebarToggle={() => setIsSidebarVisible(!isSidebarVisible)}
                     isSidebarVisible={isSidebarVisible}

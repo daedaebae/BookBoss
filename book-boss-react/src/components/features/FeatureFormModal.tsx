@@ -3,12 +3,13 @@ import React, { useState } from 'react';
 interface FeatureFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (title: string, description: string) => Promise<void>;
+    onSubmit: (title: string, description: string, reqType: 'bug' | 'feature') => Promise<void>;
 }
 
 export const FeatureFormModal: React.FC<FeatureFormModalProps> = ({ isOpen, onClose, onSubmit }) => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [reqType, setReqType] = useState<'bug' | 'feature'>('feature');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     if (!isOpen) return null;
@@ -17,9 +18,10 @@ export const FeatureFormModal: React.FC<FeatureFormModalProps> = ({ isOpen, onCl
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            await onSubmit(title, description);
+            await onSubmit(title, description, reqType);
             setTitle('');
             setDescription('');
+            setReqType('feature');
             onClose();
         } catch (error) {
             console.error('Submit error:', error);
@@ -54,6 +56,34 @@ export const FeatureFormModal: React.FC<FeatureFormModalProps> = ({ isOpen, onCl
                             }}
                         />
                     </div>
+                    <div className="form-group" style={{ marginBottom: '15px' }}>
+                        <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Type</label>
+                        <div style={{ display: 'flex', gap: '15px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                                <input
+                                    type="radio"
+                                    name="reqType"
+                                    value="bug"
+                                    checked={reqType === 'bug'}
+                                    onChange={() => setReqType('bug')}
+                                    style={{ accentColor: 'var(--accent-color)' }}
+                                />
+                                Bug Report
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                                <input
+                                    type="radio"
+                                    name="reqType"
+                                    value="feature"
+                                    checked={reqType === 'feature'}
+                                    onChange={() => setReqType('feature')}
+                                    style={{ accentColor: 'var(--accent-color)' }}
+                                />
+                                Feature Request
+                            </label>
+                        </div>
+                    </div>
+
                     <div className="form-group">
                         <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Description</label>
                         <textarea

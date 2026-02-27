@@ -11,6 +11,7 @@ export interface FeatureRequest {
     created_at: string;
     admin_note?: string; // Optional admin note
     warning?: string; // Optional warning from backend (e.g. ntfy failure)
+    type?: 'bug' | 'feature';
 }
 
 export const featureService = {
@@ -19,8 +20,8 @@ export const featureService = {
         return response.data;
     },
 
-    createFeature: async (title: string, description: string): Promise<FeatureRequest> => {
-        const response = await apiClient.post('/features', { title, description });
+    createFeature: async (title: string, description: string, type: 'bug' | 'feature'): Promise<FeatureRequest> => {
+        const response = await apiClient.post('/features', { title, description, type });
         return response.data;
     },
 

@@ -52,6 +52,7 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
         binding_details: book?.binding_details || '',
         // Reviews and notes
         notes: book?.notes || '',
+        cover_url: book?.cover_url || '',
     });
 
 
@@ -64,6 +65,11 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
 
         try {
             const payload: any = { ...formData };
+            if (payload.cover_url !== undefined) {
+                payload.cover = payload.cover_url;
+                delete payload.cover_url;
+            }
+
             // Clean up empty strings or undefined logic if needed
             Object.keys(payload).forEach(key => {
                 if (payload[key] === '' || payload[key] === undefined) {
@@ -102,6 +108,27 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Edit Book">
             <form onSubmit={handleSubmit}>
+                {formData.cover_url && (
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+                        <img
+                            src={formData.cover_url.startsWith('http') ? formData.cover_url : (formData.cover_url.startsWith('/') ? formData.cover_url : `/${formData.cover_url}`)}
+                            alt="Cover Preview"
+                            style={{ height: '200px', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
+                            onError={(e) => e.currentTarget.style.display = 'none'}
+                        />
+                    </div>
+                )}
+
+                <div className="form-group">
+                    <label>Cover URL</label>
+                    <input
+                        type="text"
+                        value={formData.cover_url || ''}
+                        onChange={(e) => setFormData({ ...formData, cover_url: e.target.value })}
+                        placeholder="https://... or /uploads/..."
+                    />
+                </div>
+
                 <div className="form-group">
                     <label>Title *</label>
                     <input

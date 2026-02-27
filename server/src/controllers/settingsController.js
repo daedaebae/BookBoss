@@ -11,6 +11,13 @@ const getSettings = (req, res) => {
             acc[curr.key] = curr.value;
             return acc;
         }, {});
+
+        // Expose presence of env vars so UI can offer to "remove" (ignore) them
+        settings._env = {
+            has_github: !!process.env.GITHUB_TOKEN || !!process.env.GITHUB_REPO,
+            has_ntfy: !!process.env.NTFY_TOPIC || !!process.env.NTFY_SERVER_URL
+        };
+
         res.json(settings);
     });
 };

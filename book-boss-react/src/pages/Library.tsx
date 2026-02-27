@@ -1,6 +1,5 @@
 import React, { useState } from 'react'; // Fixed hooks imports
 import { type Book, type BookFilters } from '../types/book';
-import { bookService } from '../services/bookService';
 import { BookGrid } from '../components/books/BookGrid';
 import { AddBookModal } from '../components/books/AddBookModal';
 import { EditBookModal } from '../components/books/EditBookModal';
@@ -42,7 +41,7 @@ export const Library: React.FC = () => {
 
     // React Query Hooks (Dependent on sidebarFilter)
     const { data: books = [], isLoading: isBooksLoading, error: booksError } = useBooks(sidebarFilter.type === 'user' ? sidebarFilter.userId : undefined);
-    const { data: shelves = [] } = useShelves();
+    const { data: shelves = [], refetch: refetchShelves } = useShelves();
     const { deleteBook, bulkDeleteBooks, bulkUpdateShelf, addToShelf } = useBookMutations();
 
     // const [filteredBooks, setFilteredBooks] = useState<Book[]>([]); // Removed state
@@ -82,21 +81,11 @@ export const Library: React.FC = () => {
         setConfirmModal({ isOpen: true, title, message, onConfirm, isDanger });
     };
 
-    const [publicLibraries, setPublicLibraries] = useState<{ id: number; username: string; library_name?: string }[]>([]);
-
-    // Fetch shelves and public libs on mount
-    // Derived state for public libraries (still manual fetch for now or create hook?)
-    // Let's keep manual for this small part or quick hook.
-    // ...
-
-    const loadPublicLibraries = async () => {
-        try {
-            const libs = await bookService.getPublicUsers();
-            setPublicLibraries(libs);
-        } catch (err) {
-            console.error('Error loading public libraries:', err);
-        }
-    };
+    // Derive distinct libraries from the user's books
+    const userLibraries = React.useMemo(() => {
+        const libs = new Set(books.map(b => b.library).filter(Boolean));
+        return Array.from(libs) as string[];
+    }, [books]);
 
     const filteredBooks = React.useMemo(() => {
         let result = [...books];
@@ -315,7 +304,7 @@ export const Library: React.FC = () => {
                 onLogout={logout}
 
                 onSettingsClick={() => setIsSettingsModalOpen(true)}
-                publicLibraries={publicLibraries}
+                userLibraries={userLibraries}
             />
 
             <div className="content-area" style={{ marginLeft: isSidebarVisible ? 'var(--sidebar-width)' : '0', minHeight: '100vh', transition: 'margin-left 0.3s ease' }}>
@@ -471,20 +460,12 @@ export const Library: React.FC = () => {
                 <SettingsModal
                     isOpen={isSettingsModalOpen}
                     onClose={() => setIsSettingsModalOpen(false)}
-                    onSettingsChange={loadPublicLibraries}
                 />
 
                 <ShelfManagerModal
                     isOpen={isShelfManagerOpen}
                     onClose={() => setIsShelfManagerOpen(false)}
-                    onShelvesUpdated={() => { }} // Query invalidates auto if we hook it up, but ShelfManagerModal might still call this. 
-                // ShelfManagerModal likely calls shelfService manually. 
-                // We should pass a prop to invalidate query or just empty function if React Query invalidation is handled in mutation hook?
-                // Ideally ShelfManagerModal should also use hooks or we pass a refetch.
-                // For now, empty function as shelves will auto-refresh if mutation hooks invalidating 'shelves' are used used.
-                // But ShelfManagerModal probably uses internal state or calls service directly. 
-                // To be safe we should probably expose 'refetchShelves' or just ignore if not critical.
-                // Actually, useShelves can return 'refetch'.
+                    onShelvesUpdated={() => refetchShelves()}
                 />
 
                 <UpdateProgressModal

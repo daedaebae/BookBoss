@@ -27,15 +27,17 @@ const backupDatabase = async (req, res) => {
 };
 
 const exportCsv = (req, res) => {
+    const userId = req.user.id;
     const query = `
         SELECT b.title, b.author, b.isbn, b.publisher, b.publication_date, 
                b.page_count, b.description, b.status, b.rating, b.notes,
                b.physical_format, b.book_condition, b.is_signed, b.edition_type
         FROM books b
+        WHERE b.owner_id = ?
         ORDER BY b.title ASC
     `;
 
-    db.query(query, (err, results) => {
+    db.query(query, [userId], (err, results) => {
         if (err) {
             console.error('Error exporting CSV:', err);
             return res.status(500).json({ error: err.message });
@@ -77,14 +79,30 @@ const exportCsv = (req, res) => {
     });
 };
 
-const exportJson = (req, res) => {
-    const query = 'SELECT * FROM books ORDER BY title ASC';
-    db.query(query, (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
+const exportJson = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        const [books] = await db.promise().query('SELECT * FROM books WHERE owner_id = ? ORDER BY title ASC', [userId]);
+        const [shelves] = await db.promise().query('SELECT * FROM shelves WHERE user_id = ? ORDER BY name ASC', [userId]);
+
+        const exportData = {
+            metadata: {
+                exported_at: new Date().toISOString(),
+                user_id: userId,
+                book_count: books.length,
+                shelf_count: shelves.length
+            },
+            books: books,
+            shelves: shelves
+        };
+
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Content-Disposition', 'attachment; filename=library_export.json');
-        res.json(results);
-    });
+        res.json(exportData);
+    } catch (err) {
+        console.error('Error exporting JSON:', err);
+        res.status(500).json({ error: err.message });
+    }
 };
 
 const sqlBackup = (req, res) => {

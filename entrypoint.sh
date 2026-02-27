@@ -45,10 +45,10 @@ ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
 FLUSH PRIVILEGES;
 EOF
     
-    # Run the SQL schema script
+    # We no longer run raw schema.sql during the temporary instance start.
+    # We defer schema initialization and migrations to the migrate.js step below.
     if [ -f "/app/schema.sql" ]; then
-        echo "Running schema.sql..."
-        mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "${MYSQL_DATABASE}" < "/app/schema.sql"
+        echo "Warning: Leftover /app/schema.sql found. It is superseded by /app/src/config/migrate.js"
     fi
 
     echo "Stopping temporary MariaDB instance..."
@@ -71,11 +71,12 @@ while ! nc -z localhost 3306; do
 done
 echo "MariaDB is ready."
 
-# Ensure the DB schema is up to date (in case of updates using existing volume)
-if [ -f "/app/schema.sql" ]; then
-    echo "Applying schema.sql to ensure tables exist in case of updates..."
-    # The schema should use "CREATE TABLE IF NOT EXISTS"
-    mysql -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" "${MYSQL_DATABASE}" < "/app/schema.sql" || echo "Warning: Schema apply failed, might be okay if already initialized."
+# Ensure the DB schema is up to date via migrations
+if [ -f "/app/src/config/migrate.js" ]; then
+    echo "Running database migrations..."
+    export DB_HOST=127.0.0.1
+    export DB_PORT=3306
+    node /app/src/config/migrate.js || echo "Warning: Migrations failed."
 fi
 
 # Run the admin user creation script (it detects if it's docker and creates admin:admin if DB is empty)

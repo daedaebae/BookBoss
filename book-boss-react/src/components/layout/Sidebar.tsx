@@ -2,7 +2,7 @@ import React from 'react';
 import { type Shelf } from '../../types/shelf';
 
 export interface SidebarFilter {
-    type: 'all' | 'status' | 'format' | 'shelf' | 'series' | 'loaned' | 'user';
+    type: 'all' | 'status' | 'format' | 'shelf' | 'series' | 'loaned' | 'user' | 'library';
     value?: string;
     shelfId?: number;
     userId?: number;
@@ -34,8 +34,8 @@ interface SidebarProps {
     onLogout?: () => void;
 
     onSettingsClick?: () => void;
-    // New prop for user libraries
-    publicLibraries?: { id: number; username: string; library_name?: string }[];
+    // New prop for distinct user libraries
+    userLibraries?: string[];
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -52,10 +52,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
     user,
     onLogout,
     onSettingsClick,
-    publicLibraries = []
+    userLibraries = []
 }) => {
     // State for collapsible sections
     const [isLibrariesOpen, setIsLibrariesOpen] = React.useState(true);
+
+    // Parse privacy settings
+    let isLibraryShared = false;
+    try {
+        if (user && user.privacy_settings) {
+            const privacy = typeof user.privacy_settings === 'string'
+                ? JSON.parse(user.privacy_settings)
+                : user.privacy_settings;
+            isLibraryShared = !!privacy.share_library;
+        }
+    } catch (e) { console.error('Failed to parse privacy settings in sidebar', e); }
 
     const isActive = (type: string, value?: string | number) => {
         if (type === 'user') return activeFilter.type === 'user' && activeFilter.userId === value;
@@ -65,11 +76,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const handleFilterClick = (filter: SidebarFilter) => {
         onFilterChange(filter);
         onMobileClose?.();
-    };
-
-    // Helper to get initials
-    const getInitials = (name: string) => {
-        return name.slice(0, 2).toUpperCase();
     };
 
     return (
@@ -94,6 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, background: 'linear-gradient(to right, var(--title-gradient-start), var(--title-gradient-end))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                             BookBoss {import.meta.env.DEV && <span style={{ fontSize: '0.8rem', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '1px' }}>(Dev)</span>}
                         </h2>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>v1.0.3</span>
                         {user && (
                             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
                                 {user.username}
@@ -119,7 +126,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {/* Main Navigation */}
                     <div className="sidebar-section">
                         <button
-                            className={`sidebar-item ${isActive('all') && !window.location.pathname.includes('features') ? 'active' : ''}`}
+                            className={`sidebar-item ${isActive('all') && !window.location.pathname.includes('features') && activeFilter.type !== 'library' ? 'active' : ''}`}
                             onClick={() => {
                                 if (window.location.pathname !== '/') {
                                     window.location.href = '/';
@@ -128,7 +135,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             }}
                         >
                             <span className="sidebar-icon">📚</span>
-                            <span className="sidebar-label">My Library</span>
+                            <span className="sidebar-label">All Books</span>
                             <span className="sidebar-count">{bookCounts.total}</span>
                         </button>
 
@@ -140,7 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             }}
                         >
                             <span className="sidebar-icon">💡</span>
-                            <span className="sidebar-label">Suggest a Change!</span>
+                            <span className="sidebar-label">Bug report/Feature request</span>
                         </button>
 
                         {/* NEW HELP BUTTON (Links to User Wiki) */}
@@ -160,20 +167,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             <span className="sidebar-label" style={{ fontWeight: 'bold', color: 'var(--accent-color)' }}>User Guide / Help!</span>
                         </a>
 
-                        <a
-                            href="/features"
-                            className="sidebar-item"
-                            style={{
-                                textDecoration: 'none',
-                                marginTop: '10px',
-                                border: '1px solid var(--accent-color)',
-                                background: 'var(--glass-bg)',
-                                backdropFilter: 'blur(10px)'
-                            }}
-                        >
-                            <span className="sidebar-icon">💡</span>
-                            <span className="sidebar-label" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Feature Requests</span>
-                        </a>
+
                     </div>
 
                     {/* Libraries Section (Collapsible) */}
@@ -189,58 +183,46 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             }}
                             onClick={() => setIsLibrariesOpen(!isLibrariesOpen)}
                         >
-                            <span>Shared Libraries</span>
+                            <span>My Libraries</span>
                             <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>{isLibrariesOpen ? '▼' : '▶'}</span>
                         </div>
 
                         {isLibrariesOpen && (
                             <div style={{ maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
-                                {publicLibraries.length > 0 ? (
-                                    publicLibraries.sort((a, b) => (a.library_name || a.username).localeCompare(b.library_name || b.username)).map(lib => {
-                                        const displayName = lib.library_name || `${lib.username}'s Library`;
+                                {userLibraries.length > 0 ? (
+                                    userLibraries.sort((a, b) => a.localeCompare(b)).map(libName => {
                                         return (
                                             <button
-                                                key={lib.id}
-                                                className={`sidebar-item ${isActive('user', lib.id) ? 'active' : ''}`}
-                                                onClick={() => handleFilterClick({ type: 'user', userId: lib.id })}
-                                                title={displayName}
-                                                style={{
-                                                    paddingLeft: '16px',
-                                                    paddingTop: '12px',
-                                                    paddingBottom: '12px',
-                                                    gap: '12px'
-                                                }}
+                                                key={libName}
+                                                className={`sidebar-item ${isActive('library', libName) ? 'active' : ''}`}
+                                                onClick={() => handleFilterClick({ type: 'library', value: libName })}
+                                                title={libName}
                                             >
-                                                <span className="sidebar-icon" style={{
-                                                    fontSize: '1rem',
-                                                    background: 'var(--glass-border)',
-                                                    borderRadius: '6px',
-                                                    width: '32px',
-                                                    height: '32px',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    marginRight: '0', // handled by gap
-                                                    flexShrink: 0,
-                                                    fontWeight: 600,
-                                                    color: 'var(--accent-color)'
-                                                }}>
-                                                    {getInitials(lib.username)}
-                                                </span>
+                                                <span className="sidebar-icon">📚</span>
                                                 <span className="sidebar-label" style={{
                                                     whiteSpace: 'nowrap',
                                                     overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    fontSize: '1rem',
-                                                    fontWeight: 500
+                                                    textOverflow: 'ellipsis'
                                                 }}>
-                                                    {displayName}
+                                                    {libName}
                                                 </span>
+                                                {isLibraryShared && (
+                                                    <span
+                                                        title="Shared Library"
+                                                        style={{
+                                                            fontSize: '0.9rem',
+                                                            opacity: 0.7,
+                                                            marginLeft: 'auto'
+                                                        }}
+                                                    >
+                                                        👥
+                                                    </span>
+                                                )}
                                             </button>
                                         );
                                     })
                                 ) : (
-                                    <div style={{ padding: '4px 12px', fontSize: '0.8rem', opacity: 0.6, fontStyle: 'italic' }}>No shared libraries</div>
+                                    <div style={{ padding: '4px 12px', fontSize: '0.8rem', opacity: 0.6, fontStyle: 'italic' }}>No custom libraries</div>
                                 )}
                             </div>
                         )}

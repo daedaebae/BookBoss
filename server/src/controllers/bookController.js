@@ -194,7 +194,8 @@ const updateBook = (req, res) => {
         title, author, isbn, categories, cover, format, binding_type, descriptors,
         series, series_index, publisher, language, description,
         shelf, status, rating, page_count, publication_date,
-        is_loaned, borrower_name, loan_date, due_date
+        is_loaned, borrower_name, loan_date, due_date,
+        physical_format, book_condition, is_signed, edition_type, notes
     } = req.body;
 
     // Note: multer might populate req.files if we used upload.fields. 
@@ -204,10 +205,16 @@ const updateBook = (req, res) => {
     let parsedCategories = '[]';
     try { parsedCategories = typeof categories === 'string' ? JSON.parse(categories) : JSON.stringify(categories || []); } catch (e) { }
 
-    const finalCover = coverFile ? `/uploads/${coverFile.filename}` : (cover || null);
-    // Note: server.js line 520 used coverFile.path directly, which might be absolute or relative. 
-    // Usually we want relative web path '/uploads/...'. 
-    // Assuming Multer config keeps filenames clean.
+    let coverUrlUpdate = '';
+    let coverUrlValue = null;
+
+    if (coverFile) {
+        coverUrlUpdate = ', cover_url = ?';
+        coverUrlValue = `/uploads/${coverFile.filename}`;
+    } else if (cover !== undefined) {
+        coverUrlUpdate = ', cover_url = ?';
+        coverUrlValue = cover || null;
+    }
 
     const descriptorsJson = descriptors ? descriptors : '[]';
 
@@ -216,21 +223,21 @@ const updateBook = (req, res) => {
         format = ?, binding_type = ?, descriptors = ?,
         series = ?, series_index = ?, publisher = ?, language = ?, description = ?,
         shelf = ?, status = ?, rating = ?, page_count = ?, publication_date = ?,
-        is_loaned = ?, borrower_name = ?, loan_date = ?, due_date = ?`;
+        is_loaned = ?, borrower_name = ?, loan_date = ?, due_date = ?,
+        physical_format = ?, book_condition = ?, is_signed = ?, edition_type = ?, notes = ?`;
 
     let values = [
-        title, author, isbn, parsedCategories,
-        format || 'Physical', binding_type, descriptorsJson,
+        title || null, author || null, isbn || null, parsedCategories,
+        format || 'Physical', binding_type || null, descriptorsJson,
         series || null, series_index || null, publisher || null, language || 'en', description || null,
         shelf || null, status || 'Not Started', rating || 0, page_count || 0, publication_date || null,
-        is_loaned || false, borrower_name || null, loan_date || null, due_date || null
+        is_loaned || false, borrower_name || null, loan_date || null, due_date || null,
+        physical_format || null, book_condition || null, is_signed || false, edition_type || null, notes || null
     ];
 
-    if (finalCover) {
-        query += ', cover_url = ?'; // Simplified. server.js had both cover_url and cover_image_path? 
-        // Line 539: query += ', cover_url = ?, cover_image_path = ?';
-        // Let's stick to cover_url for now unless we see cover_image_path usage.
-        values.push(finalCover);
+    if (coverUrlUpdate) {
+        query += coverUrlUpdate;
+        values.push(coverUrlValue);
     }
 
     query += ' WHERE id = ?';

@@ -1,6 +1,7 @@
 services:
   bookboss:
     image: ghcr.io/daedaebae/bookboss:latest
+    build: .
     container_name: bookboss
     restart: unless-stopped
     ports:

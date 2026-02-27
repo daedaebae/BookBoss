@@ -148,6 +148,7 @@ CREATE TABLE IF NOT EXISTS feature_requests (
     user_id INT NOT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
+    type VARCHAR(50) DEFAULT 'feature',
     status VARCHAR(50) DEFAULT 'open', -- open, planned, in_progress, completed, rejected
     admin_note TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -161,6 +162,32 @@ CREATE TABLE IF NOT EXISTS feature_votes (
     PRIMARY KEY (user_id, feature_request_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (feature_request_id) REFERENCES feature_requests(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    type VARCHAR(50) DEFAULT 'info',
+    is_global BOOLEAN DEFAULT FALSE,
+    target_user_id INT NULL,
+    requires_ack BOOLEAN DEFAULT FALSE,
+    scheduled_for DATETIME NULL,
+    expires_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INT,
+    FOREIGN KEY (target_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS notification_acknowledgements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    notification_id INT NOT NULL,
+    user_id INT NOT NULL,
+    acknowledged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_ack (notification_id, user_id)
 );
 
 

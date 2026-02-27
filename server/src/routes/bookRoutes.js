@@ -14,20 +14,16 @@ router.get('/:bookId/photos', authenticateToken, bookController.getBookPhotos);
 router.get('/search/advanced', authenticateToken, bookController.advancedSearch);
 router.get('/duplicates', authenticateToken, bookController.findDuplicates);
 
+// Bulk Ops
+router.delete('/bulk', authenticateToken, requireAdmin, bookController.bulkDeleteBooks); // DELETE /api/books/bulk
+router.patch('/bulk', authenticateToken, requireAdmin, bookController.bulkUpdateBooks);
+router.post('/refresh-metadata', authenticateToken, requireAdmin, bookController.refreshMetadata);
+
 // Admin Operations
-router.post('/', authenticateToken, upload.single('coverFile'), bookController.addBook); // Note: server.js didn't use multer for ADD? 
-// server.js line 155: app.post('/api/books', ... upload.single('coverFile') ...
-// Yes it did.
+router.post('/', authenticateToken, upload.single('coverFile'), bookController.addBook);
 
 router.put('/:id', authenticateToken, requireAdmin, upload.fields([{ name: 'coverFile', maxCount: 1 }]), bookController.updateBook);
 router.delete('/:id', authenticateToken, requireAdmin, bookController.deleteBook);
-
-// Bulk Ops
-router.delete('/bulk', authenticateToken, requireAdmin, bookController.bulkDeleteBooks); // DELETE /api/books/bulk
-// Common issue: DELETE with body. Express supports it, but some clients don't.
-// server.js had it as DELETE.
-router.patch('/bulk', authenticateToken, requireAdmin, bookController.bulkUpdateBooks);
-router.post('/refresh-metadata', authenticateToken, requireAdmin, bookController.refreshMetadata);
 
 // ABS Integration
 router.post('/:id/link/abs', authenticateToken, requireAdmin, absController.linkBookToAbs);

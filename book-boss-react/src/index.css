@@ -1546,7 +1546,7 @@ input[type="file"]::file-selector-button:hover {
 
   /* Full-width content on mobile */
   .content-area {
-    margin-left: 0;
+    margin-left: 0 !important;
     width: 100%;
   }
 
