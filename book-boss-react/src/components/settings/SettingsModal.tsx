@@ -136,6 +136,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     const [backupStatus, setBackupStatus] = useState('');
     const [isRestoring, setIsRestoring] = useState(false);
 
+
     useEffect(() => {
         if (isOpen) {
             fetchSettings();
@@ -614,7 +615,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                         form.reset();
                                         window.dispatchEvent(new CustomEvent('notificationsUpdated'));
                                         alert('Notification broadcasted globally!');
-                                    } catch (err) {
+                                    } catch {
                                         alert('Failed to broadcast');
                                     }
                                 }}>

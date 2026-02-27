@@ -46,6 +46,7 @@ export const NotificationBell: React.FC = () => {
     };
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchNotifications();
         // Poll every 60 seconds
         const interval = setInterval(fetchNotifications, 60000);
@@ -92,10 +93,13 @@ export const NotificationBell: React.FC = () => {
                 let shownIds: number[] = [];
                 try {
                     shownIds = storedValue ? JSON.parse(storedValue) : [];
-                } catch (e) { }
+                } catch {
+                    // Ignore parsing errors for session storage
+                }
 
                 const newMotds = motds.filter(m => !shownIds.includes(m.id));
                 if (newMotds.length > 0) {
+                    // eslint-disable-next-line react-hooks/set-state-in-effect
                     setMotdsToShow(newMotds);
                     setMotdModalOpen(true);
 

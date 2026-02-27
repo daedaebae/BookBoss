@@ -216,7 +216,7 @@ export const IntegrationsTab: React.FC = () => {
         try {
             await updateSettingsMut.mutateAsync(updates);
             showToast('Integration settings saved successfully', 'success');
-        } catch (error) {
+        } catch {
             showToast('Failed to save integration settings', 'error');
         }
     };
