@@ -39,8 +39,12 @@ jobs:
       run: npm ci
 
     - name: Initialize Database
+        DB_HOST: 127.0.0.1
+        MYSQL_USER: test_user
+        MYSQL_PASSWORD: password
+        MYSQL_DATABASE: bookboss
       run: |
-        mysql -h 127.0.0.1 -u test_user -ppassword bookboss < schema.sql
+        node src/config/migrate.js
 
     - name: Start Backend & Run Tests
       env:
