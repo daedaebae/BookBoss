@@ -450,7 +450,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     const visibleTabs = tabs.filter(tab => !tab.adminOnly || user?.is_admin);
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Settings (Dev Mode)" maxWidth="800px">
+        <Modal isOpen={isOpen} onClose={onClose} title="Settings" maxWidth="800px">
             <div className="settings-layout">
                 {/* Sidebar */}
                 {/* Sidebar Navigation 
