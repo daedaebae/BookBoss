@@ -21,23 +21,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
-    fileFilter: (req, file, cb) => {
-        const allowedMimeTypes = [
-            'image/jpeg',
-            'image/png',
-            'image/webp',
-            'image/gif',
-            'application/epub+zip',
-            'application/pdf'
-        ];
-
-        if (allowedMimeTypes.includes(file.mimetype)) {
-            cb(null, true);
-        } else {
-            cb(new Error(`Invalid file type: ${file.mimetype}. Only images, EPUBs, and PDFs are allowed.`), false);
-        }
-    }
+    limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
 });
 
 module.exports = upload;

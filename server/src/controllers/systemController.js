@@ -2,6 +2,20 @@ const db = require('../config/db');
 const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcryptjs');
+
+const resetAdminPasswordAfterRestore = async () => {
+    try {
+        const hash = await bcrypt.hash('admin', 10);
+        await db.promise().query(
+            'UPDATE users SET password = ? WHERE username = ? AND is_admin = 1',
+            [hash, 'admin']
+        );
+        console.log('Admin password re-set to "admin" post-restore.');
+    } catch (err) {
+        console.warn('Warning: Could not reset admin password after restore:', err.message);
+    }
+};
 
 const backupDatabase = async (req, res) => {
     try {
@@ -129,22 +143,66 @@ const sqlBackup = (req, res) => {
     });
 };
 
-const sqlRestore = (req, res) => {
+const sqlRestore = async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No backup file provided' });
 
+    const filepath = req.file.path;
+
+    // Check if it's an older JSON backup
+    if (req.file.originalname.endsWith('.json') || req.file.mimetype === 'application/json') {
+        try {
+            const data = JSON.parse(fs.readFileSync(filepath, 'utf8'));
+
+            await db.promise().query('SET FOREIGN_KEY_CHECKS = 0');
+            for (const table of Object.keys(data)) {
+                if (table === 'metadata') continue; // exportJson has metadata
+                const rows = data[table];
+                if (!Array.isArray(rows) || rows.length === 0) continue;
+
+                // check if table exists
+                const [tableExists] = await db.promise().query(`SHOW TABLES LIKE '${table}'`);
+                if (tableExists.length > 0) {
+                    await db.promise().query(`TRUNCATE TABLE \`${table}\``);
+                    for (const row of rows) {
+                        const keys = Object.keys(row);
+                        const values = Object.values(row);
+                        const placeholders = keys.map(() => '?').join(',');
+                        const query = `INSERT INTO \`${table}\` (${keys.map(k => `\`${k}\``).join(',')}) VALUES (${placeholders})`;
+                        await db.promise().query(query, values);
+                    }
+                }
+            }
+            await db.promise().query('SET FOREIGN_KEY_CHECKS = 1');
+            fs.unlinkSync(filepath);
+            await resetAdminPasswordAfterRestore();
+            return res.json({ message: 'Database restored successfully from JSON backup' });
+        } catch (err) {
+            console.error('JSON Restore failed:', err);
+            try { await db.promise().query('SET FOREIGN_KEY_CHECKS = 1'); } catch (e) { }
+            try { fs.unlinkSync(filepath); } catch (e) { }
+            return res.status(500).json({ error: 'JSON Restore failed', details: err.message });
+        }
+    }
+
+    // Otherwise, assume it's a MySQL dump (.sql)
     const mysql = process.env.MYSQL_PATH || 'mysql';
     const dbUser = process.env.MYSQL_USER || 'root';
     const dbPassword = process.env.MYSQL_PASSWORD;
     const dbName = process.env.MYSQL_DATABASE || 'bookboss';
     const dbHost = process.env.DB_HOST || 'localhost';
 
-    const filepath = req.file.path;
     const cmd = `${mysql} -h ${dbHost} -u ${dbUser} -p${dbPassword} ${dbName} < "${filepath}"`;
 
-    exec(cmd, (error) => {
-        fs.unlinkSync(filepath);
-        if (error) return res.status(500).json({ error: 'Restore failed', details: error.message });
-        res.json({ message: 'Database restored successfully' });
+    exec(cmd, (error, stdout, stderr) => {
+        console.log("sqlRestore output:", stdout);
+        if (stderr) console.error("sqlRestore stderr:", stderr);
+        if (error) console.error("sqlRestore error:", error);
+
+        try { fs.unlinkSync(filepath); } catch (e) { }
+        if (error) return res.status(500).json({ error: 'Restore failed', details: error.message, stderr: stderr });
+        resetAdminPasswordAfterRestore().then(() => {
+            res.json({ message: 'Database restored successfully' });
+        });
     });
 };
 
