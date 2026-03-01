@@ -88,6 +88,12 @@ if [ -f "/app/create_docker_admin.js" ]; then
    node /app/create_docker_admin.js
 fi
 
+# Auto-configure Audiobookshelf server from environment variables (if provided)
+if [ -f "/app/setup_abs_from_env.js" ]; then
+    echo "Checking ABS integration environment variables..."
+    node /app/setup_abs_from_env.js
+fi
+
 # Start the backup script in the background
 echo "Starting background backup service..."
 (

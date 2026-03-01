@@ -21,6 +21,11 @@ services:
       - NTFY_SERVER_URL=${NTFY_SERVER_URL}
       - NTFY_SA_ID=${NTFY_SA_ID}
       - NTFY_SA_SECRET=${NTFY_SA_SECRET}
+
+      # Audiobookshelf Integration (Optional - pre-configure a default ABS server for the admin)
+      - ABS_SERVER_URL=${ABS_SERVER_URL}
+      - ABS_SERVER_NAME=${ABS_SERVER_NAME:-Audiobookshelf}
+      - ABS_API_KEY=${ABS_API_KEY}
       - PORT=3000
     volumes:
       # Persist the MariaDB database files

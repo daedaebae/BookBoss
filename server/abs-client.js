@@ -16,8 +16,9 @@ class AudiobookshelfClient {
         this.apiToken = apiToken;
         this.client = axios.create({
             baseURL: this.baseUrl,
+            timeout: 30000, // 30-second timeout
             headers: {
-                'Authorization': `Bearer ${apiToken} `
+                'Authorization': `Bearer ${apiToken}`
             }
         });
     }

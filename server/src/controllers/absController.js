@@ -32,8 +32,19 @@ const addAbsServer = async (req, res) => {
             }
         );
     } catch (error) {
-        console.error('ABS Connection Error:', error);
-        res.status(500).json({ error: 'Failed to connect to Audiobookshelf server. Please check URL and API Key.' });
+        console.error('ABS Connection Error:', error.message);
+        const status = error.response?.status;
+        let message = 'Failed to connect to Audiobookshelf server.';
+        if (status === 401 || status === 403) {
+            message = 'Invalid API key — please check your Audiobookshelf API token.';
+        } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+            message = 'Could not reach the server — please check the URL.';
+        } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
+            message = 'Connection timed out — the server took too long to respond.';
+        } else if (status) {
+            message = `Server returned HTTP ${status} — please check the URL and API key.`;
+        }
+        res.status(500).json({ error: message });
     }
 };
 
