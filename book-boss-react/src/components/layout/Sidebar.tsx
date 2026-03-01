@@ -252,7 +252,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, background: 'linear-gradient(to right, var(--title-gradient-start), var(--title-gradient-end))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                             BookBoss {import.meta.env.DEV && <span style={{ fontSize: '0.8rem', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '1px' }}>(Dev)</span>}
                         </h2>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>v1.1.7</span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>v{APP_VERSION}</span>
                         {user && <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{user.username}</p>}
                     </div>
                     {onToggleSidebar && (

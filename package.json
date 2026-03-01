@@ -1,6 +1,6 @@
 {
   "name": "bookboss",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "scripts": {
     "docs:dev": "vitepress dev Design",
     "docs:build": "vitepress build Design",
