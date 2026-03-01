@@ -19,6 +19,10 @@ router.delete('/bulk', authenticateToken, requireAdmin, bookController.bulkDelet
 router.patch('/bulk', authenticateToken, requireAdmin, bookController.bulkUpdateBooks);
 router.post('/refresh-metadata', authenticateToken, requireAdmin, bookController.refreshMetadata);
 
+// User's own library management (no admin required)
+router.post('/libraries/rename', authenticateToken, bookController.renameLibrary);
+router.delete('/libraries/:name', authenticateToken, bookController.deleteLibrary);
+
 // Admin Operations
 router.post('/', authenticateToken, upload.single('coverFile'), bookController.addBook);
 

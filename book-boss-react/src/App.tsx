@@ -6,21 +6,11 @@ import { Library } from './pages/Library';
 import { Features } from './pages/Features';
 import { Login } from './pages/Login';
 
-import { soundService } from './services/soundService';
-
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const isInteractive = target.closest('button, a, [role="button"], input[type="submit"], input[type="button"], select, .sidebar-item');
-      if (isInteractive) {
-        soundService.playPop();
-      }
-    };
-    document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
+    // URL change listener for SPA navigation
   }, []);
 
   if (isLoading) {

@@ -5,6 +5,7 @@ const { authenticateToken } = require('../middleware/authMiddleware');
 
 router.get('/', authenticateToken, shelfController.getShelves);
 router.post('/', authenticateToken, shelfController.createShelf);
+router.put('/:id', authenticateToken, shelfController.renameShelf);
 router.delete('/:id', authenticateToken, shelfController.deleteShelf);
 router.post('/:id/books', authenticateToken, shelfController.addBookToShelf);
 router.delete('/:id/books/:bookId', authenticateToken, shelfController.removeBookFromShelf);

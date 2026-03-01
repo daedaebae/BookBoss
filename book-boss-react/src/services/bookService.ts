@@ -96,5 +96,14 @@ export const bookService = {
     getJobs: async (): Promise<any[]> => {
         const response = await apiClient.get('/jobs');
         return response.data;
+    },
+
+    // Library management
+    renameLibrary: async (oldName: string, newName: string): Promise<void> => {
+        await apiClient.post('/books/libraries/rename', { oldName, newName });
+    },
+
+    deleteLibrary: async (name: string): Promise<void> => {
+        await apiClient.delete(`/books/libraries/${encodeURIComponent(name)}`);
     }
 };

@@ -56,9 +56,23 @@ const removeBookFromShelf = (req, res) => {
     });
 };
 
+const renameShelf = (req, res) => {
+    const userId = req.user.id;
+    const shelfId = req.params.id;
+    const { name } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Shelf name is required' });
+
+    db.query('UPDATE shelves SET name = ? WHERE id = ? AND user_id = ?', [name.trim(), shelfId, userId], (err, result) => {
+        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+        if (result.affectedRows === 0) return res.status(404).json({ error: 'Shelf not found' });
+        res.json({ id: parseInt(shelfId), name: name.trim(), user_id: userId });
+    });
+};
+
 module.exports = {
     getShelves,
     createShelf,
+    renameShelf,
     deleteShelf,
     addBookToShelf,
     removeBookFromShelf

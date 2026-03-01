@@ -294,7 +294,8 @@ export const Library: React.FC = () => {
                 onFilterChange={setSidebarFilter}
                 shelves={shelves}
                 seriesList={seriesList}
-                onManageShelves={() => setIsShelfManagerOpen(true)}
+                onShelvesChanged={() => refetchShelves()}
+                onLibrariesChanged={() => refetchShelves()} // books refetch is auto via React Query
                 bookCounts={bookCounts}
                 isMobileOpen={isMobileSidebarOpen}
                 onMobileClose={() => setIsMobileSidebarOpen(false)}
@@ -302,7 +303,6 @@ export const Library: React.FC = () => {
                 isVisible={isSidebarVisible}
                 user={user}
                 onLogout={logout}
-
                 onSettingsClick={() => setIsSettingsModalOpen(true)}
                 userLibraries={userLibraries}
             />

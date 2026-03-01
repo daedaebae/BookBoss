@@ -1,5 +1,7 @@
 import React from 'react';
 import { type Shelf } from '../../types/shelf';
+import { shelfService } from '../../services/shelfService';
+import { bookService } from '../../services/bookService';
 
 export interface SidebarFilter {
     type: 'all' | 'status' | 'format' | 'shelf' | 'series' | 'loaned' | 'user' | 'library';
@@ -13,7 +15,8 @@ interface SidebarProps {
     onFilterChange: (filter: SidebarFilter) => void;
     shelves: Shelf[];
     seriesList: string[];
-    onManageShelves: () => void;
+    onShelvesChanged: () => void;
+    onLibrariesChanged: () => void;
     bookCounts: {
         total: number;
         notStarted: number;
@@ -32,10 +35,72 @@ interface SidebarProps {
     isVisible?: boolean;
     user?: any;
     onLogout?: () => void;
-
     onSettingsClick?: () => void;
-    // New prop for distinct user libraries
     userLibraries?: string[];
+}
+
+// ── inline mini-prompt ────────────────────────────────────────────────────────
+function InlineInput({
+    placeholder,
+    defaultValue = '',
+    onConfirm,
+    onCancel,
+}: {
+    placeholder: string;
+    defaultValue?: string;
+    onConfirm: (val: string) => void;
+    onCancel: () => void;
+}) {
+    const [val, setVal] = React.useState(defaultValue);
+    return (
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '4px 0' }}>
+            <input
+                autoFocus
+                type="text"
+                value={val}
+                onChange={(e) => setVal(e.target.value)}
+                placeholder={placeholder}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' && val.trim()) onConfirm(val.trim());
+                    if (e.key === 'Escape') onCancel();
+                }}
+                style={{
+                    flex: 1,
+                    padding: '4px 8px',
+                    borderRadius: 6,
+                    border: '1px solid var(--accent-color)',
+                    background: 'var(--input-bg)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85rem',
+                }}
+            />
+            <button
+                onClick={() => val.trim() && onConfirm(val.trim())}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-color)', fontWeight: 700 }}
+            >✓</button>
+            <button
+                onClick={onCancel}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger-color)' }}
+            >✕</button>
+        </div>
+    );
+}
+
+// ── icon button helper ─────────────────────────────────────────────────────────
+function IconBtn({ title, onClick, children }: { title: string; onClick: (e: React.MouseEvent) => void; children: React.ReactNode }) {
+    return (
+        <button
+            title={title}
+            onClick={(e) => { e.stopPropagation(); onClick(e); }}
+            style={{
+                background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
+                color: 'var(--text-secondary)', fontSize: '0.8rem', opacity: 0, transition: 'opacity 0.15s',
+            }}
+            className="action-btn"
+        >
+            {children}
+        </button>
+    );
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -43,7 +108,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onFilterChange,
     shelves,
     seriesList,
-    onManageShelves,
+    onShelvesChanged,
+    onLibrariesChanged,
     bookCounts,
     isMobileOpen = false,
     onMobileClose,
@@ -52,21 +118,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
     user,
     onLogout,
     onSettingsClick,
-    userLibraries = []
+    userLibraries = [],
 }) => {
-    // State for collapsible sections
     const [isLibrariesOpen, setIsLibrariesOpen] = React.useState(true);
+    const [expandedLibraries, setExpandedLibraries] = React.useState<Set<string>>(new Set());
+    const [error, setError] = React.useState<string | null>(null);
+
+    // UI editing state
+    const [creatingLibrary, setCreatingLibrary] = React.useState(false);
+    const [renamingLibrary, setRenamingLibrary] = React.useState<string | null>(null);
+
+    const [creatingShelfUnder, setCreatingShelfUnder] = React.useState<string | null>(null); // libraryName
+    const [renamingShelf, setRenamingShelf] = React.useState<Shelf | null>(null);
+
+    const clearError = () => setError(null);
 
     // Parse privacy settings
     let isLibraryShared = false;
     try {
-        if (user && user.privacy_settings) {
+        if (user?.privacy_settings) {
             const privacy = typeof user.privacy_settings === 'string'
                 ? JSON.parse(user.privacy_settings)
                 : user.privacy_settings;
             isLibraryShared = !!privacy.share_library;
         }
-    } catch (e) { console.error('Failed to parse privacy settings in sidebar', e); }
+    } catch (e) { /* */ }
 
     const isActive = (type: string, value?: string | number) => {
         if (type === 'user') return activeFilter.type === 'user' && activeFilter.userId === value;
@@ -78,48 +154,119 @@ export const Sidebar: React.FC<SidebarProps> = ({
         onMobileClose?.();
     };
 
+    const toggleLibrary = (lib: string) => {
+        setExpandedLibraries(prev => {
+            const next = new Set(prev);
+            if (next.has(lib)) next.delete(lib); else next.add(lib);
+            return next;
+        });
+    };
+
+    // ── library CRUD ──────────────────────────────────────────────────────────
+    const handleCreateLibrary = async (name: string) => {
+        setCreatingLibrary(false);
+        // Libraries are just a 'library' tag on books. Creating one means the user
+        // will assign it via Edit Book. We just expand the "empty" sub-menu.
+        // If there are genuinely no books yet, nothing happens visually until a book is assigned.
+        // Here we treat it as selecting the (empty) library filter to signal intent.
+        handleFilterClick({ type: 'library', value: name });
+    };
+
+    const handleRenameLibrary = async (oldName: string, newName: string) => {
+        setRenamingLibrary(null);
+        try {
+            await bookService.renameLibrary(oldName, newName);
+            onLibrariesChanged();
+            // If the active filter was this library, update it
+            if (activeFilter.type === 'library' && activeFilter.value === oldName) {
+                onFilterChange({ type: 'library', value: newName });
+            }
+        } catch (e: any) {
+            setError(e?.response?.data?.error || 'Failed to rename library');
+        }
+    };
+
+    const handleDeleteLibrary = async (name: string) => {
+        if (!confirm(`Remove library "${name}"? Books will keep their existing library tag value but the library will no longer appear in the sidebar. This cannot be undone.`)) return;
+        try {
+            await bookService.deleteLibrary(name);
+            onLibrariesChanged();
+            if (activeFilter.type === 'library' && activeFilter.value === name) {
+                onFilterChange({ type: 'all' });
+            }
+        } catch (e: any) {
+            setError(e?.response?.data?.error || 'Failed to delete library');
+        }
+    };
+
+    // ── shelf CRUD ────────────────────────────────────────────────────────────
+    const handleCreateShelf = async (name: string, _libraryName: string) => {
+        setCreatingShelfUnder(null);
+        try {
+            await shelfService.createShelf(name);
+            onShelvesChanged();
+        } catch (e: any) {
+            setError(e?.response?.data?.error || 'Failed to create shelf');
+        }
+    };
+
+    const handleRenameShelf = async (shelf: Shelf, newName: string) => {
+        setRenamingShelf(null);
+        try {
+            await shelfService.renameShelf(shelf.id, newName);
+            onShelvesChanged();
+        } catch (e: any) {
+            setError(e?.response?.data?.error || 'Failed to rename shelf');
+        }
+    };
+
+    const handleDeleteShelf = async (shelf: Shelf) => {
+        if (!confirm(`Delete shelf "${shelf.name}"? Books will not be deleted.`)) return;
+        try {
+            await shelfService.deleteShelf(shelf.id);
+            onShelvesChanged();
+            if (activeFilter.type === 'shelf' && activeFilter.shelfId === shelf.id) {
+                onFilterChange({ type: 'all' });
+            }
+        } catch (e: any) {
+            setError(e?.response?.data?.error || 'Failed to delete shelf');
+        }
+    };
+
+    const sortedLibraries = [...userLibraries].sort((a, b) => a.localeCompare(b));
+
     return (
         <>
-            {/* Mobile overlay */}
-            {isMobileOpen && (
-                <div
-                    className="sidebar-overlay"
-                    onClick={onMobileClose}
-                />
-            )}
+            {/* Global CSS for hover-reveal action buttons */}
+            <style>{`
+                .lib-row:hover .action-btn,
+                .shelf-row:hover .action-btn { opacity: 1 !important; }
+            `}</style>
+
+            {isMobileOpen && <div className="sidebar-overlay" onClick={onMobileClose} />}
 
             <aside className={`sidebar ${isMobileOpen ? 'open' : ''}`} style={{ display: isVisible ? 'flex' : 'none', flexDirection: 'column' }}>
                 {/* Sidebar Header */}
-                <div className="sidebar-header" style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'start',
-                    flexShrink: 0
-                }}>
+                <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexShrink: 0 }}>
                     <div>
                         <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, background: 'linear-gradient(to right, var(--title-gradient-start), var(--title-gradient-end))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                             BookBoss {import.meta.env.DEV && <span style={{ fontSize: '0.8rem', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '1px' }}>(Dev)</span>}
                         </h2>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>v1.0.3</span>
-                        {user && (
-                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                                {user.username}
-                            </p>
-                        )}
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>v1.1.7</span>
+                        {user && <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{user.username}</p>}
                     </div>
                     {onToggleSidebar && (
-                        <button
-                            className="secondary-btn small"
-                            onClick={onToggleSidebar}
-                            title="Hide Sidebar"
-                            style={{ padding: '4px 8px', height: 'fit-content' }}
-                        >
-                            ◀
-                        </button>
+                        <button className="secondary-btn small" onClick={onToggleSidebar} title="Hide Sidebar" style={{ padding: '4px 8px', height: 'fit-content' }}>◀</button>
                     )}
                 </div>
 
-
+                {/* Error banner */}
+                {error && (
+                    <div style={{ margin: '4px 8px', padding: '6px 10px', background: 'var(--danger-color)', color: '#fff', borderRadius: 6, fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{error}</span>
+                        <button onClick={clearError} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}>✕</button>
+                    </div>
+                )}
 
                 <div className="sidebar-nav" style={{ flex: 1, overflowY: 'auto' }}>
 
@@ -128,9 +275,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <button
                             className={`sidebar-item ${isActive('all') && !window.location.pathname.includes('features') && activeFilter.type !== 'library' ? 'active' : ''}`}
                             onClick={() => {
-                                if (window.location.pathname !== '/') {
-                                    window.location.href = '/';
-                                }
+                                if (window.location.pathname !== '/') window.location.href = '/';
                                 handleFilterClick({ type: 'all' });
                             }}
                         >
@@ -141,89 +286,156 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                         <button
                             className={`sidebar-item ${window.location.pathname.includes('features') ? 'active' : ''}`}
-                            onClick={() => {
-                                window.location.href = '/features';
-                                onMobileClose?.();
-                            }}
+                            onClick={() => { window.location.href = '/features'; onMobileClose?.(); }}
                         >
                             <span className="sidebar-icon">💡</span>
                             <span className="sidebar-label">Bug report/Feature request</span>
                         </button>
 
-                        {/* NEW HELP BUTTON (Links to User Wiki) */}
                         <a
                             href="https://daedaebae.github.io/BookBoss/User-Wiki/1-Getting-Started.html"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="sidebar-item"
-                            style={{
-                                textDecoration: 'none',
-                                marginTop: '10px',
-                                border: '2px dashed var(--accent-color)',
-                                background: 'rgba(var(--accent-color-rgb), 0.1)'
-                            }}
+                            style={{ textDecoration: 'none', marginTop: '10px', border: '2px dashed var(--accent-color)', background: 'rgba(var(--accent-color-rgb), 0.1)' }}
                         >
                             <span className="sidebar-icon" style={{ animation: 'bounce 2s infinite' }}>🧭</span>
                             <span className="sidebar-label" style={{ fontWeight: 'bold', color: 'var(--accent-color)' }}>User Guide / Help!</span>
                         </a>
-
-
                     </div>
 
-                    {/* Libraries Section (Collapsible) */}
+                    {/* ── My Libraries (with shelves as sub-items) ──────────────────── */}
                     <div className="sidebar-section">
                         <div
                             className="sidebar-section-title"
-                            style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                cursor: 'pointer',
-                                userSelect: 'none'
-                            }}
+                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
                             onClick={() => setIsLibrariesOpen(!isLibrariesOpen)}
                         >
                             <span>My Libraries</span>
-                            <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>{isLibrariesOpen ? '▼' : '▶'}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} onClick={(e) => e.stopPropagation()}>
+                                <button
+                                    title="New Library"
+                                    onClick={() => setCreatingLibrary(true)}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--accent-color)', lineHeight: 1, padding: '0 2px' }}
+                                >+</button>
+                                <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>{isLibrariesOpen ? '▼' : '▶'}</span>
+                            </div>
                         </div>
 
                         {isLibrariesOpen && (
-                            <div style={{ maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
-                                {userLibraries.length > 0 ? (
-                                    userLibraries.sort((a, b) => a.localeCompare(b)).map(libName => {
-                                        return (
-                                            <button
-                                                key={libName}
-                                                className={`sidebar-item ${isActive('library', libName) ? 'active' : ''}`}
-                                                onClick={() => handleFilterClick({ type: 'library', value: libName })}
-                                                title={libName}
-                                            >
-                                                <span className="sidebar-icon">📚</span>
-                                                <span className="sidebar-label" style={{
-                                                    whiteSpace: 'nowrap',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis'
-                                                }}>
-                                                    {libName}
-                                                </span>
-                                                {isLibraryShared && (
-                                                    <span
-                                                        title="Shared Library"
-                                                        style={{
-                                                            fontSize: '0.9rem',
-                                                            opacity: 0.7,
-                                                            marginLeft: 'auto'
-                                                        }}
-                                                    >
-                                                        👥
-                                                    </span>
-                                                )}
-                                            </button>
-                                        );
-                                    })
-                                ) : (
+                            <div style={{ paddingRight: 4 }}>
+                                {/* Create new library input */}
+                                {creatingLibrary && (
+                                    <div style={{ padding: '0 4px' }}>
+                                        <InlineInput
+                                            placeholder="Library name…"
+                                            onConfirm={(name) => handleCreateLibrary(name)}
+                                            onCancel={() => setCreatingLibrary(false)}
+                                        />
+                                    </div>
+                                )}
+
+                                {sortedLibraries.length === 0 && !creatingLibrary && (
                                     <div style={{ padding: '4px 12px', fontSize: '0.8rem', opacity: 0.6, fontStyle: 'italic' }}>No custom libraries</div>
                                 )}
+
+                                {sortedLibraries.map(libName => {
+                                    const isExpanded = expandedLibraries.has(libName);
+                                    const libShelves = shelves; // shelves don't have a library field; show all under each lib
+
+                                    return (
+                                        <div key={libName}>
+                                            {/* Library row */}
+                                            {renamingLibrary === libName ? (
+                                                <div style={{ padding: '0 4px' }}>
+                                                    <InlineInput
+                                                        placeholder="New name…"
+                                                        defaultValue={libName}
+                                                        onConfirm={(name) => handleRenameLibrary(libName, name)}
+                                                        onCancel={() => setRenamingLibrary(null)}
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <div
+                                                    className={`sidebar-item lib-row ${isActive('library', libName) ? 'active' : ''}`}
+                                                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                                    onClick={() => handleFilterClick({ type: 'library', value: libName })}
+                                                    title={libName}
+                                                >
+                                                    {/* expand shelves toggle */}
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); toggleLibrary(libName); }}
+                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.65rem', opacity: 0.6, padding: '0 4px 0 0', flexShrink: 0 }}
+                                                    >{isExpanded ? '▼' : '▶'}</button>
+                                                    <span className="sidebar-icon">📚</span>
+                                                    <span className="sidebar-label" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                                                        {libName}
+                                                    </span>
+                                                    {isLibraryShared && <span title="Shared" style={{ fontSize: '0.9rem', opacity: 0.7 }}>👥</span>}
+                                                    {/* action buttons (visible on hover) */}
+                                                    <IconBtn title="Rename library" onClick={() => setRenamingLibrary(libName)}>✏️</IconBtn>
+                                                    <IconBtn title="Delete library" onClick={() => handleDeleteLibrary(libName)}>🗑️</IconBtn>
+                                                </div>
+                                            )}
+
+                                            {/* Shelf sub-list */}
+                                            {isExpanded && (
+                                                <div style={{ paddingLeft: 20 }}>
+                                                    {/* Add shelf button */}
+                                                    {creatingShelfUnder === libName ? (
+                                                        <div style={{ padding: '0 4px' }}>
+                                                            <InlineInput
+                                                                placeholder="Shelf name…"
+                                                                onConfirm={(name) => handleCreateShelf(name, libName)}
+                                                                onCancel={() => setCreatingShelfUnder(null)}
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setCreatingShelfUnder(libName); }}
+                                                            style={{
+                                                                width: '100%', textAlign: 'left', padding: '4px 8px',
+                                                                background: 'none', border: '1px dashed var(--glass-border)',
+                                                                borderRadius: 6, color: 'var(--accent-color)', cursor: 'pointer',
+                                                                fontSize: '0.8rem', marginBottom: 4
+                                                            }}
+                                                        >+ New shelf</button>
+                                                    )}
+
+                                                    {libShelves.length === 0 && !creatingShelfUnder && (
+                                                        <div style={{ fontSize: '0.75rem', opacity: 0.5, fontStyle: 'italic', padding: '2px 8px' }}>No shelves</div>
+                                                    )}
+
+                                                    {libShelves.map(shelf => (
+                                                        <div key={shelf.id}>
+                                                            {renamingShelf?.id === shelf.id ? (
+                                                                <div style={{ padding: '0 4px' }}>
+                                                                    <InlineInput
+                                                                        placeholder="New name…"
+                                                                        defaultValue={shelf.name}
+                                                                        onConfirm={(name) => handleRenameShelf(shelf, name)}
+                                                                        onCancel={() => setRenamingShelf(null)}
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <div
+                                                                    className={`sidebar-item shelf-row ${activeFilter.type === 'shelf' && activeFilter.shelfId === shelf.id ? 'active' : ''}`}
+                                                                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                                                    onClick={() => handleFilterClick({ type: 'shelf', value: shelf.name, shelfId: shelf.id })}
+                                                                >
+                                                                    <span className="sidebar-icon" style={{ fontSize: '0.85rem' }}>🔖</span>
+                                                                    <span className="sidebar-label" style={{ flex: 1, fontSize: '0.85rem' }}>{shelf.name}</span>
+                                                                    <IconBtn title="Rename shelf" onClick={() => setRenamingShelf(shelf)}>✏️</IconBtn>
+                                                                    <IconBtn title="Delete shelf" onClick={() => handleDeleteShelf(shelf)}>🗑️</IconBtn>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
@@ -261,12 +473,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <span className="sidebar-label">
                                     Loaned Out
                                     {bookCounts.overdue > 0 && (
-                                        <span style={{
-                                            marginLeft: '4px',
-                                            color: 'var(--danger-color)',
-                                            fontSize: '0.85em',
-                                            fontWeight: 600
-                                        }}>
+                                        <span style={{ marginLeft: '4px', color: 'var(--danger-color)', fontSize: '0.85em', fontWeight: 600 }}>
                                             (! {bookCounts.overdue})
                                         </span>
                                     )}
@@ -296,59 +503,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         ))}
                     </div>
 
-                    {/* Shelves */}
-                    <div className="sidebar-section">
-                        <div className="sidebar-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>Shelves</span>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onManageShelves(); }}
-                                style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    fontSize: '1.4rem',
-                                    padding: '0 4px',
-                                    color: 'var(--accent-color)',
-                                    fontWeight: 'bold',
-                                    lineHeight: 1
-                                }}
-                                title="Create Shelf"
-                            >
-                                +
-                            </button>
-                        </div>
-                        {shelves.length > 0 ? (
-                            shelves.map(shelf => (
-                                <button
-                                    key={shelf.id}
-                                    className={`sidebar-item ${activeFilter.type === 'shelf' && activeFilter.shelfId === shelf.id ? 'active' : ''}`}
-                                    onClick={() => handleFilterClick({ type: 'shelf', value: shelf.name, shelfId: shelf.id })}
-                                >
-                                    <span className="sidebar-icon">📚</span>
-                                    <span className="sidebar-label">{shelf.name}</span>
-                                </button>
-                            ))
-                        ) : (
-                            <button
-                                onClick={onManageShelves}
-                                style={{
-                                    width: '100%',
-                                    textAlign: 'left',
-                                    padding: '8px 12px',
-                                    background: 'none',
-                                    border: '1px dashed var(--glass-border)',
-                                    borderRadius: '8px',
-                                    color: 'var(--accent-color)',
-                                    cursor: 'pointer',
-                                    fontSize: '0.9rem',
-                                    marginTop: '8px'
-                                }}
-                            >
-                                + Create new shelf
-                            </button>
-                        )}
-                    </div>
-
                     {/* Series */}
                     {seriesList.length > 0 && (
                         <div className="sidebar-section">
@@ -368,19 +522,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
 
                 {/* System Section - Sticky Footer */}
-                <div className="sidebar-footer" style={{
-                    marginTop: 'auto',
-                    paddingTop: '15px',
-                    borderTop: '1px solid var(--glass-border)',
-                    flexShrink: 0
-                }}>
+                <div className="sidebar-footer" style={{ marginTop: 'auto', paddingTop: '15px', borderTop: '1px solid var(--glass-border)', flexShrink: 0 }}>
                     {onSettingsClick && (
                         <button className="sidebar-item" onClick={() => { onSettingsClick(); onMobileClose?.(); }}>
                             <span className="sidebar-icon">⚙️</span>
                             <span className="sidebar-label">Settings</span>
                         </button>
                     )}
-
                     {onLogout && (
                         <button className="sidebar-item" onClick={onLogout}>
                             <span className="sidebar-icon">🚪</span>
@@ -388,7 +536,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </button>
                     )}
                 </div>
-            </aside >
+            </aside>
         </>
     );
 };

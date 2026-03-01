@@ -461,6 +461,43 @@ const updateBookPhoto = (req, res) => {
     });
 };
 
+/**
+ * Rename a library: updates the `library` field on all books the user owns in `oldName`.
+ */
+const renameLibrary = (req, res) => {
+    const userId = req.user.id;
+    const { oldName, newName } = req.body;
+    if (!oldName || !newName || !newName.trim()) {
+        return res.status(400).json({ error: 'oldName and newName are required' });
+    }
+    db.query(
+        'UPDATE books SET library = ? WHERE library = ? AND owner_id = ?',
+        [newName.trim(), oldName, userId],
+        (err, result) => {
+            if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+            res.json({ message: `Library renamed to "${newName}"`, affected: result.affectedRows });
+        }
+    );
+};
+
+/**
+ * Delete a library: clears the `library` field on all books in that library for the current user.
+ * Books themselves are NOT deleted.
+ */
+const deleteLibrary = (req, res) => {
+    const userId = req.user.id;
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Library name is required' });
+    db.query(
+        'UPDATE books SET library = NULL WHERE library = ? AND owner_id = ?',
+        [name, userId],
+        (err, result) => {
+            if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+            res.json({ message: `Library "${name}" removed`, affected: result.affectedRows });
+        }
+    );
+};
+
 module.exports = {
     getBooks,
     addBook,
@@ -475,5 +512,7 @@ module.exports = {
     findDuplicates,
     advancedSearch,
     refreshMetadata,
-    updateBookPhoto
+    updateBookPhoto,
+    renameLibrary,
+    deleteLibrary
 };

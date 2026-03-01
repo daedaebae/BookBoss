@@ -12,6 +12,11 @@ export const shelfService = {
         return response.data;
     },
 
+    renameShelf: async (id: number, name: string): Promise<Shelf> => {
+        const response = await apiClient.put<Shelf>(`/shelves/${id}`, { name });
+        return response.data;
+    },
+
     deleteShelf: async (id: number): Promise<void> => {
         await apiClient.delete(`/shelves/${id}`);
     },
