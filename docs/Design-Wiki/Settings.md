@@ -9,8 +9,7 @@ The Settings module allows users to customize their BookBoss experience and allo
 These settings are specific to the logged-in user and are stored in the browser (localStorage) or database.
 
 ### General
-- **Theme**: Toggle between Light and Dark modes.
-- **Accent Color**: Choose a primary color for buttons and highlights.
+- **Theme/Accent Color**: Choose a primary visual theme and background variant (e.g., Jenn's Theme (Default), Purple, Ocean, Midnight).
 - **Default View**: Set the preferred library layout (Grid vs. List - planned).
 - **Books Per Page**: Control pagination size.
 

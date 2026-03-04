@@ -119,18 +119,6 @@
   --title-gradient-end: #0891b2;
 }
 
-/* Art Deco (Red/Gold) */
-.theme-artdeco {
-  --accent-color: #d4af37;
-  --accent-hover: #f1c40f;
-  --bg-color: #2b0a0a;
-  --bg-gradient: linear-gradient(-45deg, #1a0505, #3d0c0c, #2b0a0a, #4a0404, #1a0505);
-  --sidebar-bg: rgba(43, 10, 10, 0.7);
-  --card-bg: rgba(61, 12, 12, 0.5);
-  --title-gradient-start: #f1c40f;
-  --title-gradient-end: #d4af37;
-  --glass-border: 1px solid rgba(212, 175, 55, 0.2);
-}
 
 /* Jenn's Theme (Red/Gold Art Deco Custom) - Velvet Texture */
 .theme-jenns {
@@ -140,7 +128,7 @@
   --bg-size: 200% 200%, auto;
   --bg-blend-mode: overlay, multiply;
   --bg-animation: velvetShimmer 15s ease-in-out infinite;
-  --bg-gradient: 
+  --bg-gradient:
     radial-gradient(circle at 50% 50%, rgba(220, 20, 50, 0.25) 0%, rgba(50, 0, 10, 0.6) 80%),
     url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.3'/%3E%3C/svg%3E");
   --sidebar-bg: rgba(30, 2, 8, 0.85);
@@ -255,9 +243,11 @@ body {
   0% {
     background-position: 0% 50%, 0 0;
   }
+
   50% {
     background-position: 100% 50%, 0 0;
   }
+
   100% {
     background-position: 0% 50%, 0 0;
   }

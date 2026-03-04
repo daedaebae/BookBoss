@@ -24,7 +24,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     const [activeTab, setActiveTab] = useState<SettingsTab>('general');
 
     // General settings
-    const [accentColor, setAccentColor] = useState('theme-purple');
+    const [accentColor, setAccentColor] = useState('theme-jenns');
     const [allowRegistration, setAllowRegistration] = useState(false);
     const [debugMode, setDebugMode] = useState(false);
 
@@ -544,8 +544,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                     <option value="theme-forest">Forest</option>
                                     <option value="theme-sunset">Sunset</option>
                                     <option value="theme-ocean">Ocean</option>
-                                    <option value="theme-artdeco">Art Deco (Red/Gold)</option>
-                                    <option value="theme-jenns">Jenn's Theme (Red/Gold)</option>
+                                    <option value="theme-jenns">Jenn's Theme (Red/Gold Velvet)</option>
                                 </select>
                             </div>
                             <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

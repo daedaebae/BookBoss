@@ -16,7 +16,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         return (localStorage.getItem('bookboss_theme') as 'light' | 'dark') || 'dark';
     });
     const [accentColor, setAccentColorState] = useState<string>(() => {
-        return localStorage.getItem('bookboss_accent') || 'theme-purple';
+        return localStorage.getItem('bookboss_accent') || 'theme-jenns';
     });
 
     useEffect(() => {
@@ -55,7 +55,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     useEffect(() => {
         // Apply accent color class
-        document.body.classList.remove('theme-purple', 'theme-blue', 'theme-green', 'theme-orange', 'theme-pink', 'theme-midnight', 'theme-forest', 'theme-sunset', 'theme-ocean');
+        document.body.classList.remove('theme-purple', 'theme-blue', 'theme-green', 'theme-orange', 'theme-pink', 'theme-midnight', 'theme-forest', 'theme-sunset', 'theme-ocean', 'theme-jenns', 'theme-artdeco');
         if (accentColor && accentColor !== 'default') {
             document.body.classList.add(accentColor);
         }
