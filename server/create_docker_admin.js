@@ -38,10 +38,10 @@ db.connect(async err => {
         }
 
         if (results.length > 0) {
-            console.log('User "admin" already exists. Updating password...');
-            db.query('UPDATE users SET password = ?, is_admin = 1 WHERE username = ?', [hashedPassword, username], (err) => {
+            console.log('User "admin" already exists. Ensuring admin role...');
+            db.query('UPDATE users SET is_admin = 1 WHERE username = ?', [username], (err) => {
                 if (err) console.error(err);
-                else console.log('Password updated to "admin".');
+                else console.log('Role updated to admin. Custom password retained.');
                 db.end();
             });
         } else {
