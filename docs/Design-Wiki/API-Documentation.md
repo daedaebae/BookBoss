@@ -191,9 +191,15 @@ Add a new book to the library.
 **Response:**
 ```json
 {
+  "message": "Book added",
   "id": 123,
-  "title": "New Book",
-  ...
+  "book": {
+    "id": 123,
+    "title": "New Book",
+    "shelf_ids": [],
+    "categories": [],
+    "descriptors": []
+  }
 }
 ```
 
@@ -204,7 +210,16 @@ Update an existing book.
 
 **Request Body:** Same as POST /api/books
 
-**Response:** Updated book object
+**Response:** 
+```json
+{
+  "message": "Book updated successfully",
+  "book": {
+    "id": 123,
+    "title": "Updated Book"
+  }
+}
+```
 
 ---
 
@@ -745,9 +760,11 @@ Currently no rate limiting is implemented. Consider adding rate limiting for pro
 
 ## Pagination
 
-Pagination is not yet implemented but planned for future releases. Will use query parameters:
+Pagination is fully supported on the `GET /api/books` endpoint for large library performance (e.g. mobile apps). Use query parameters:
 - `page`: Page number (default: 1)
-- `limit`: Items per page (default: 50)
+- `limit`: Items per page (default: 0, which means no limit)
+
+The total count of items in the library matching the query is returned in the `X-Total-Count` HTTP response header.
 
 ## Filtering & Sorting
 

@@ -76,6 +76,12 @@ Admins have a dedicated interface in the Settings area to:
 - Delete users.
 - Reset passwords (planned).
 
+## Mobile App Authentication (iOS)
+
+When BookBoss runs in a mobile app wrapper like **Capacitor**, third-party OAuth providers (e.g., Google Sign-In) enforce strict "secure browser" policies that block embedded WebViews. 
+
+To prevent the **403: disallowed_useragent** error from Google when logging in through integrations (like Audiobookshelf), the Capacitor User-Agent in `capacitor.config.ts` must be overridden to spoof a standard native Safari browser (e.g. `Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1`).
+
 ## Future Enhancements
 - [ ] Password reset via email.
 - [ ] OAuth integration (Google, GitHub).
