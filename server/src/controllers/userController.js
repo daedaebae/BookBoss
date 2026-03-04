@@ -77,19 +77,40 @@ const getProfile = (req, res) => {
 
 const updateProfile = async (req, res) => {
     const userId = req.user.id;
-    const { privacy_settings } = req.body;
+    const { privacy_settings, password } = req.body;
 
     try {
         const [results] = await db.promise().query('SELECT privacy_settings FROM users WHERE id = ?', [userId]);
         if (results.length === 0) return res.status(404).json({ error: 'User not found' });
 
-        let current = {};
-        try { current = JSON.parse(results[0].privacy_settings || '{}'); } catch (e) { }
+        let updates = [];
+        let values = [];
 
-        const updated = { ...current, ...(privacy_settings || {}) };
+        if (privacy_settings !== undefined) {
+            let current = {};
+            try { current = JSON.parse(results[0].privacy_settings || '{}'); } catch (e) { }
+            const updated = { ...current, ...(privacy_settings || {}) };
+            updates.push('privacy_settings = ?');
+            values.push(JSON.stringify(updated));
+        }
 
-        await db.promise().query('UPDATE users SET privacy_settings = ? WHERE id = ?', [JSON.stringify(updated), userId]);
-        res.json({ message: 'Profile updated', privacy_settings: updated });
+        if (password) {
+            updates.push('password = ?');
+            values.push(await bcrypt.hash(password, 10));
+        }
+
+        if (updates.length === 0) return res.status(400).json({ error: 'No updates provided' });
+
+        values.push(userId);
+        await db.promise().query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, values);
+
+        let responseJson = { message: 'Profile updated' };
+        if (privacy_settings !== undefined) {
+            let current = {};
+            try { current = JSON.parse(results[0].privacy_settings || '{}'); } catch (e) { }
+            responseJson.privacy_settings = { ...current, ...(privacy_settings || {}) };
+        }
+        res.json(responseJson);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
