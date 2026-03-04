@@ -115,7 +115,8 @@ export const Features: React.FC = () => {
                 }}
                 shelves={[]} // Stub
                 seriesList={[]} // Stub
-                onManageShelves={() => { }} // Stub
+                onShelvesChanged={() => { }} // Stub
+                onLibrariesChanged={() => { }} // Stub
                 bookCounts={{
                     total: 0,
                     notStarted: 0,

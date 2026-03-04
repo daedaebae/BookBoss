@@ -4,6 +4,11 @@ const systemController = require('../controllers/systemController');
 const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
+// Health check (public - used by Docker healthcheck and monitoring)
+router.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString(), version: process.env.npm_package_version || '1.x' });
+});
+
 // Exports
 router.get('/export/csv', authenticateToken, systemController.exportCsv);
 router.get('/export/json', authenticateToken, systemController.exportJson);

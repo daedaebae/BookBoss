@@ -10,6 +10,7 @@ import { MetadataDiffModal } from './MetadataDiffModal';
 import { StarRating } from '../common/StarRating';
 import { absService, type AbsSearchResult } from '../../services/absService';
 import { bookService } from '../../services/bookService';
+import { SendToKindleModal } from './SendToKindleModal';
 
 interface BookDetailModalProps {
     isOpen: boolean;
@@ -39,6 +40,7 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
     const [localRating, setLocalRating] = useState<number | undefined>(undefined);
     const [isSyncingMetadata, setIsSyncingMetadata] = useState(false);
     const [metadataChanges, setMetadataChanges] = useState<Record<string, { old: any; new: any }> | null>(null);
+    const [showSendToKindle, setShowSendToKindle] = useState(false);
 
     // Toast State
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; isVisible: boolean }>({
@@ -450,13 +452,23 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
                         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '20px', borderTop: '1px solid var(--glass-border)' }}>
                             <div style={{ display: 'flex', gap: '10px' }}>
                                 {(book.format === 'Ebook' || book.epub_file_path) && (
-                                    <button
-                                        className="primary-btn"
-                                        onClick={() => onRead(book)}
-                                        style={{ flex: 1 }}
-                                    >
-                                        📖 Read
-                                    </button>
+                                    <>
+                                        <button
+                                            className="primary-btn"
+                                            onClick={() => onRead(book)}
+                                            style={{ flex: 1 }}
+                                        >
+                                            📖 Read
+                                        </button>
+                                        <button
+                                            className="secondary-btn"
+                                            onClick={() => setShowSendToKindle(true)}
+                                            style={{ flex: 1 }}
+                                            title="Send to Kindle / E-Reader"
+                                        >
+                                            📨 Send to Device
+                                        </button>
+                                    </>
                                 )}
 
                                 {onUpdateProgress && book.status === 'In Progress' && (
@@ -575,6 +587,16 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
                     />
                 )
 
+            }
+
+            {
+                book && (
+                    <SendToKindleModal
+                        isOpen={showSendToKindle}
+                        onClose={() => setShowSendToKindle(false)}
+                        book={book}
+                    />
+                )
             }
 
             {

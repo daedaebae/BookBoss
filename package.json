@@ -2,9 +2,9 @@
   "name": "bookboss",
   "version": "1.1.9",
   "scripts": {
-    "docs:dev": "vitepress dev Design",
-    "docs:build": "vitepress build Design",
-    "docs:preview": "vitepress preview Design"
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "dependencies": {
     "dotenv": "^17.3.1",

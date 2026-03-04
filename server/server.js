@@ -38,8 +38,18 @@ if (!fs.existsSync(coversDir)) fs.mkdirSync(coversDir);
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+const opdsRoutes = require('./src/routes/opdsRoutes');
+const emailRoutes = require('./src/routes/emailRoutes');
+
 // API Routes
+app.use('/api/opds', opdsRoutes);
+app.use('/api/email', emailRoutes);
 app.use('/api', apiRoutes);
+
+// 404 handler for unknown /api routes — must come AFTER apiRoutes and BEFORE the SPA fallback
+app.use('/api', (req, res) => {
+    res.status(404).json({ error: `API route not found: ${req.method} ${req.path}` });
+});
 
 // ABS Proxy (if passing through audio?) - Not implemented in this refactor, relying on direct ABS client or frontend.
 
@@ -49,7 +59,7 @@ if (fs.existsSync(publicPath)) {
     app.use(express.static(publicPath));
     logger.info(`Serving static files from ${publicPath}`);
 
-    app.get('*', (req, res) => {
+    app.get(/(.*)/, (req, res) => {
         res.sendFile(path.join(publicPath, 'index.html'));
     });
 } else {

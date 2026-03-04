@@ -9,6 +9,7 @@ import { userService } from '../../services/userService';
 import { settingsService } from '../../services/settingsService';
 import { MetadataRefreshModal } from '../books/MetadataRefreshModal';
 import { IntegrationsTab } from './tabs/IntegrationsTab';
+import { EmailTab } from './tabs/EmailTab';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -16,7 +17,7 @@ interface SettingsModalProps {
     onSettingsChange?: () => void;
 }
 
-type SettingsTab = 'general' | 'profile' | 'filters' | 'export' | 'users' | 'backup' | 'integrations';
+type SettingsTab = 'general' | 'profile' | 'filters' | 'export' | 'users' | 'backup' | 'integrations' | 'notifications' | 'email';
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSettingsChange }) => {
     const { user } = useAuth();
     const { setAccentColor: setGlobalAccentColor } = useTheme();
@@ -225,10 +226,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
         updateGeneralSettings({ allow_registration: newVal.toString() });
     };
 
-    const handleDebugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleDebugChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const newVal = e.target.checked;
         setDebugMode(newVal);
         localStorage.setItem('bookboss_debug_mode', String(newVal));
+
+        // Let the server know to change its Winston log level
+        try {
+            await fetch('/api/settings/log-level', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('bookboss_token')}`
+                },
+                body: JSON.stringify({ level: newVal ? 'debug' : 'info' })
+            });
+        } catch (err) {
+            console.error('Failed to sync debug level to server:', err);
+        }
     };
 
     /**
@@ -439,6 +454,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
     const tabs = [
         { id: 'general' as SettingsTab, label: 'General', adminOnly: true },
+        { id: 'notifications' as SettingsTab, label: 'Notifications', adminOnly: true },
+        { id: 'email' as SettingsTab, label: 'Email SMTP', adminOnly: true },
         { id: 'profile' as SettingsTab, label: 'Profile', adminOnly: false },
         { id: 'filters' as SettingsTab, label: 'Filters', adminOnly: false },
         { id: 'export' as SettingsTab, label: 'Export', adminOnly: false },
@@ -527,6 +544,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                     <option value="theme-forest">Forest</option>
                                     <option value="theme-sunset">Sunset</option>
                                     <option value="theme-ocean">Ocean</option>
+                                    <option value="theme-artdeco">Art Deco (Red/Gold)</option>
+                                    <option value="theme-jenns">Jenn's Theme (Red/Gold)</option>
                                 </select>
                             </div>
                             <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -592,7 +611,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                 </p>
                             </div>
 
-                            <div className="form-group" style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid var(--glass-border)' }}>
+                        </div>
+                    )}
+
+                    {activeTab === 'notifications' && (
+                        <div className="settings-section">
+                            <h3 className="settings-section-title">System Announcements</h3>
+                            <div className="form-group">
                                 <h4>Broadcast Notification (MOTD)</h4>
                                 <form onSubmit={async (e) => {
                                     e.preventDefault();
@@ -614,9 +639,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                         });
                                         form.reset();
                                         window.dispatchEvent(new CustomEvent('notificationsUpdated'));
-                                        alert('Notification broadcasted globally!');
+                                        showToast('Notification broadcasted globally!', 'success');
                                     } catch {
-                                        alert('Failed to broadcast');
+                                        showToast('Failed to broadcast', 'error');
                                     }
                                 }}>
                                     <input name="motd_title" className="form-input" style={{ width: '100%', marginBottom: '10px' }} placeholder="Title" required />
@@ -630,10 +655,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                     <button type="submit" className="primary-btn" style={{ width: '100%' }}>Broadcast to All Users</button>
                                 </form>
                             </div>
+
                         </div>
                     )}
 
                     {activeTab === 'integrations' && <IntegrationsTab />}
+
+                    {activeTab === 'email' && <EmailTab />}
 
                     {activeTab === 'profile' && (
                         <div>

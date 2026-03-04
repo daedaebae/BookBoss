@@ -2,7 +2,7 @@
 FROM node:18-alpine AS frontend-builder
 WORKDIR /app/frontend
 COPY book-boss-react/package*.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 COPY book-boss-react/ .
 # Since the backend will serve this directly, VITE_API_TARGET isn't strictly needed for same-origin,
 # but we'll let it use relative paths or the same host.

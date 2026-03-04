@@ -9,10 +9,10 @@ Most endpoints require a JWT Bearer token, passed in the `Authorization` header:
 ## Key Endpoints
 
 ### 📚 Books
-- \`GET /api/books\` - List all books (supports pagination, filtering)
+- \`GET /api/books\` - List all books (Supports \`?page=\` and \`?limit=\` for pagination, returns \`X-Total-Count\` header)
 - \`GET /api/books/:id\` - Get book details
-- \`POST /api/books\` - Create a new book
-- \`PUT /api/books/:id\` - Update book
+- \`POST /api/books\` - Create a new book (Returns the fully hydrated \`book\` object)
+- \`PUT /api/books/:id\` - Update book (Returns the fully hydrated \`book\` object)
 - \`DELETE /api/books/:id\` - Delete book
 
 ### 👤 Users

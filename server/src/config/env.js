@@ -1,4 +1,6 @@
 // server/src/config/env.js
+const logger = require('../utils/logger');
+
 const requiredVars = [
     'MYSQL_USER',
     'MYSQL_PASSWORD',
@@ -9,16 +11,16 @@ const requiredVars = [
 const missingVars = requiredVars.filter(key => !process.env[key]);
 
 if (missingVars.length > 0) {
-    console.error(`CRITICAL ERROR: Missing required environment variables: ${missingVars.join(', ')}`);
-    console.error('Please ensure these are set in your .env file or environment.');
+    logger.error(`CRITICAL ERROR: Missing required environment variables: ${missingVars.join(', ')}`);
+    logger.error('Please ensure these are set in your .env file or environment.');
     process.exit(1);
 }
 
-// Check for default/insecure values in production (optional warning)
+// Check for default/insecure values in production
 if (process.env.NODE_ENV === 'production') {
     if (process.env.JWT_SECRET === 'change_me_jwt_secret_key_ensure_this_is_long_and_random') {
-        console.warn('SECURITY WARNING: You are using the default JWT_SECRET in production. Please rotate this secret immediately.');
+        logger.warn('SECURITY WARNING: You are using the default JWT_SECRET in production. Please rotate this secret immediately.');
     }
 }
 
-console.log('Environment variables validated successfully.');
+logger.info('Environment variables validated successfully.');

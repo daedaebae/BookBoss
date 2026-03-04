@@ -22,6 +22,9 @@
   --font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --radius: 16px;
   --sidebar-width: 280px;
+  --bg-size: 400% 400%;
+  --bg-blend-mode: normal;
+  --bg-animation: gradientBG 15s ease infinite;
 }
 
 
@@ -30,6 +33,8 @@
 .theme-purple {
   --accent-color: #8b5cf6;
   --accent-hover: #7c3aed;
+  --bg-color: #0f172a;
+  --bg-gradient: linear-gradient(-45deg, #0f172a, #2e1065, #020617, #1e1b4b, #0f172a);
   --title-gradient-start: #c084fc;
   --title-gradient-end: #6366f1;
 }
@@ -37,6 +42,8 @@
 .theme-blue {
   --accent-color: #3b82f6;
   --accent-hover: #2563eb;
+  --bg-color: #0f172a;
+  --bg-gradient: linear-gradient(-45deg, #0f172a, #1e3a8a, #020617, #172554, #0f172a);
   --title-gradient-start: #60a5fa;
   --title-gradient-end: #2563eb;
 }
@@ -44,6 +51,8 @@
 .theme-green {
   --accent-color: #22c55e;
   --accent-hover: #16a34a;
+  --bg-color: #0f172a;
+  --bg-gradient: linear-gradient(-45deg, #0f172a, #064e3b, #020617, #022c22, #0f172a);
   --title-gradient-start: #4ade80;
   --title-gradient-end: #16a34a;
 }
@@ -51,6 +60,8 @@
 .theme-orange {
   --accent-color: #f97316;
   --accent-hover: #ea580c;
+  --bg-color: #0f172a;
+  --bg-gradient: linear-gradient(-45deg, #0f172a, #7c2d12, #020617, #431407, #0f172a);
   --title-gradient-start: #fb923c;
   --title-gradient-end: #ea580c;
 }
@@ -58,6 +69,8 @@
 .theme-pink {
   --accent-color: #ec4899;
   --accent-hover: #db2777;
+  --bg-color: #0f172a;
+  --bg-gradient: linear-gradient(-45deg, #0f172a, #831843, #020617, #4c0519, #0f172a);
   --title-gradient-start: #f472b6;
   --title-gradient-end: #db2777;
 }
@@ -67,6 +80,7 @@
   --accent-color: #6366f1;
   --accent-hover: #4f46e5;
   --bg-color: #020617;
+  --bg-gradient: linear-gradient(-45deg, #020617, #0f172a, #020617, #1e1b4b, #020617);
   --sidebar-bg: #0f172a;
   --title-gradient-start: #818cf8;
   --title-gradient-end: #4f46e5;
@@ -75,15 +89,21 @@
 .theme-forest {
   --accent-color: #10b981;
   --accent-hover: #059669;
+  --bg-color: #022c22;
+  --bg-gradient: linear-gradient(-45deg, #022c22, #064e3b, #020617, #064e3b, #022c22);
+  --sidebar-bg: rgba(6, 78, 59, 0.4);
+  --card-bg: rgba(2, 44, 34, 0.4);
   --title-gradient-start: #34d399;
   --title-gradient-end: #059669;
-  /* Dark green tint for backgrounds could be added here if full theme support existed, 
-       but we mostly swap accents. */
 }
 
 .theme-sunset {
   --accent-color: #f43f5e;
   --accent-hover: #e11d48;
+  --bg-color: #2e0916;
+  --bg-gradient: linear-gradient(-45deg, #4c0519, #881337, #7c2d12, #4c0519);
+  --sidebar-bg: rgba(76, 5, 25, 0.4);
+  --card-bg: rgba(136, 19, 55, 0.3);
   --title-gradient-start: #fb7185;
   --title-gradient-end: #e11d48;
 }
@@ -91,11 +111,47 @@
 .theme-ocean {
   --accent-color: #06b6d4;
   --accent-hover: #0891b2;
+  --bg-color: #083344;
+  --bg-gradient: linear-gradient(-45deg, #083344, #164e63, #020617, #164e63, #083344);
+  --sidebar-bg: rgba(8, 51, 68, 0.5);
+  --card-bg: rgba(22, 78, 99, 0.4);
   --title-gradient-start: #22d3ee;
   --title-gradient-end: #0891b2;
 }
 
+/* Art Deco (Red/Gold) */
+.theme-artdeco {
+  --accent-color: #d4af37;
+  --accent-hover: #f1c40f;
+  --bg-color: #2b0a0a;
+  --bg-gradient: linear-gradient(-45deg, #1a0505, #3d0c0c, #2b0a0a, #4a0404, #1a0505);
+  --sidebar-bg: rgba(43, 10, 10, 0.7);
+  --card-bg: rgba(61, 12, 12, 0.5);
+  --title-gradient-start: #f1c40f;
+  --title-gradient-end: #d4af37;
+  --glass-border: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+/* Jenn's Theme (Red/Gold Art Deco Custom) - Velvet Texture */
+.theme-jenns {
+  --accent-color: #eab308;
+  --accent-hover: #fef08a;
+  --bg-color: #3b0711;
+  --bg-size: 200% 200%, auto;
+  --bg-blend-mode: overlay, multiply;
+  --bg-animation: velvetShimmer 15s ease-in-out infinite;
+  --bg-gradient: 
+    radial-gradient(circle at 50% 50%, rgba(220, 20, 50, 0.25) 0%, rgba(50, 0, 10, 0.6) 80%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.3'/%3E%3C/svg%3E");
+  --sidebar-bg: rgba(30, 2, 8, 0.85);
+  --card-bg: rgba(45, 5, 12, 0.6);
+  --title-gradient-start: #fef08a;
+  --title-gradient-end: #ca8a04;
+  --glass-border: 1px solid rgba(234, 179, 8, 0.35);
+}
+
 .sidebar-icon {
+
   font-size: 1.2rem;
   margin-right: 12px;
   color: var(--icon-color);
@@ -171,9 +227,11 @@ html {
 
 body {
   font-family: var(--font-family);
-  background: var(--bg-gradient);
-  background-size: 400% 400%;
-  animation: gradientBG 15s ease infinite;
+  background-color: var(--bg-color);
+  background-image: var(--bg-gradient);
+  background-size: var(--bg-size, 400% 400%);
+  background-blend-mode: var(--bg-blend-mode, normal);
+  animation: var(--bg-animation, gradientBG 15s ease infinite);
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
@@ -190,6 +248,18 @@ body {
 
   100% {
     background-position: 0% 50%;
+  }
+}
+
+@keyframes velvetShimmer {
+  0% {
+    background-position: 0% 50%, 0 0;
+  }
+  50% {
+    background-position: 100% 50%, 0 0;
+  }
+  100% {
+    background-position: 0% 50%, 0 0;
   }
 }
 

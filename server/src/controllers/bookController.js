@@ -61,51 +61,73 @@ const getBooks = (req, res) => {
     const isOwner = parseInt(targetUserId) === userId;
 
     const fetchBooks = () => {
-        const query = `
-            SELECT b.*,
-            (SELECT JSON_ARRAYAGG(shelf_id) FROM shelf_books WHERE book_id = b.id) as shelf_ids,
-            abm.abs_server_id, abm.abs_library_item_id, abm.abs_library_id
-            FROM books b
-            LEFT JOIN abs_book_mappings abm ON b.id = abm.book_id
-            WHERE b.owner_id = ?
-            ORDER BY b.added_at DESC
-        `;
+        // Pagination logic
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 0; // 0 means no limit (return all)
+        const offset = (page - 1) * limit;
 
-        db.query(query, [targetUserId], (err, results) => {
-            if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+        const countQuery = `SELECT COUNT(*) as total FROM books WHERE owner_id = ?`;
+        
+        db.query(countQuery, [targetUserId], (countErr, countResults) => {
+            if (countErr) { console.error(countErr); return res.status(500).json({ error: countErr.message || 'Internal Server Error' }); }
+            
+            const total = countResults[0].total;
 
-            const books = results.map(book => {
-                // Safely parse JSON fields, handling null, empty strings, and invalid JSON
-                let shelf_ids = [];
-                let categories = [];
-                let descriptors = [];
+            let query = `
+                SELECT b.*,
+                (SELECT JSON_ARRAYAGG(shelf_id) FROM shelf_books WHERE book_id = b.id) as shelf_ids,
+                abm.abs_server_id, abm.abs_library_item_id, abm.abs_library_id
+                FROM books b
+                LEFT JOIN abs_book_mappings abm ON b.id = abm.book_id
+                WHERE b.owner_id = ?
+                ORDER BY b.added_at DESC
+            `;
 
-                try {
-                    shelf_ids = book.shelf_ids && book.shelf_ids !== '' ? JSON.parse(book.shelf_ids) : [];
-                } catch (e) {
-                    console.error('Error parsing shelf_ids:', e);
-                }
+            const queryParams = [targetUserId];
 
-                try {
-                    categories = book.categories && book.categories !== '' ? JSON.parse(book.categories) : [];
-                } catch (e) {
-                    console.error('Error parsing categories:', e);
-                }
+            if (limit > 0) {
+                query += ` LIMIT ? OFFSET ?`;
+                queryParams.push(limit, offset);
+            }
 
-                try {
-                    descriptors = book.descriptors && book.descriptors !== '' ? JSON.parse(book.descriptors) : [];
-                } catch (e) {
-                    console.error('Error parsing descriptors:', e);
-                }
+            db.query(query, queryParams, (err, results) => {
+                if (err) { console.error(err); return res.status(500).json({ error: err.message || 'Internal Server Error' }); }
 
-                return {
-                    ...book,
-                    shelf_ids,
-                    categories,
-                    descriptors
-                };
+                const books = results.map(book => {
+                    // Safely parse JSON fields, handling null, empty strings, and invalid JSON
+                    let shelf_ids = [];
+                    let categories = [];
+                    let descriptors = [];
+
+                    try {
+                        shelf_ids = book.shelf_ids && book.shelf_ids !== '' ? JSON.parse(book.shelf_ids) : [];
+                    } catch (e) {
+                        console.error('Error parsing shelf_ids:', e);
+                    }
+
+                    try {
+                        categories = book.categories && book.categories !== '' ? JSON.parse(book.categories) : [];
+                    } catch (e) {
+                        console.error('Error parsing categories:', e);
+                    }
+
+                    try {
+                        descriptors = book.descriptors && book.descriptors !== '' ? JSON.parse(book.descriptors) : [];
+                    } catch (e) {
+                        console.error('Error parsing descriptors:', e);
+                    }
+
+                    return {
+                        ...book,
+                        shelf_ids,
+                        categories,
+                        descriptors
+                    };
+                });
+                res.set('X-Total-Count', total);
+                res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
+                res.json(books);
             });
-            res.json(books);
         });
     };
 
@@ -178,13 +200,38 @@ const addBook = async (req, res) => {
         ];
 
         db.query(query, values, (err, result) => {
-            if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
-            res.status(201).json({ message: 'Book added', id: result.insertId });
+            if (err) { console.error(err); return res.status(500).json({ error: err.message || 'Internal Server Error' }); }
+            
+            // Refetch the fully hydrated book for the client
+            const fetchQuery = `
+                SELECT b.*,
+                (SELECT JSON_ARRAYAGG(shelf_id) FROM shelf_books WHERE book_id = b.id) as shelf_ids,
+                abm.abs_server_id, abm.abs_library_item_id, abm.abs_library_id
+                FROM books b
+                LEFT JOIN abs_book_mappings abm ON b.id = abm.book_id
+                WHERE b.id = ?
+            `;
+            
+            db.query(fetchQuery, [result.insertId], (fetchErr, fetchResults) => {
+                if (fetchErr) {
+                    // Fallback to basic success if fetch fails
+                    return res.status(201).json({ message: 'Book added', id: result.insertId });
+                }
+                
+                const book = fetchResults[0];
+                if (book) {
+                    try { book.shelf_ids = book.shelf_ids ? JSON.parse(book.shelf_ids) : []; } catch(e) { book.shelf_ids = []; }
+                    try { book.categories = book.categories ? JSON.parse(book.categories) : []; } catch(e) { book.categories = []; }
+                    try { book.descriptors = book.descriptors ? JSON.parse(book.descriptors) : []; } catch(e) { book.descriptors = []; }
+                }
+                
+                res.status(201).json({ message: 'Book added', id: result.insertId, book });
+            });
         });
 
     } catch (error) {
         console.error('Error adding book:', error);
-        res.status(500).json({ error: 'Failed to add book' });
+        res.status(500).json({ error: error.message || 'Failed to add book' });
     }
 };
 
@@ -244,8 +291,33 @@ const updateBook = (req, res) => {
     values.push(id);
 
     db.query(query, values, (err, result) => {
-        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
-        res.json({ message: 'Book updated successfully' });
+        if (err) { console.error(err); return res.status(500).json({ error: err.message || 'Internal Server Error' }); }
+        
+        // Refetch the fully hydrated book for the client
+        const fetchQuery = `
+            SELECT b.*,
+            (SELECT JSON_ARRAYAGG(shelf_id) FROM shelf_books WHERE book_id = b.id) as shelf_ids,
+            abm.abs_server_id, abm.abs_library_item_id, abm.abs_library_id
+            FROM books b
+            LEFT JOIN abs_book_mappings abm ON b.id = abm.book_id
+            WHERE b.id = ?
+        `;
+        
+        db.query(fetchQuery, [id], (fetchErr, fetchResults) => {
+            if (fetchErr) {
+                // Fallback to basic success if fetch fails
+                return res.json({ message: 'Book updated successfully' });
+            }
+            
+            const book = fetchResults[0];
+            if (book) {
+                try { book.shelf_ids = book.shelf_ids ? JSON.parse(book.shelf_ids) : []; } catch(e) { book.shelf_ids = []; }
+                try { book.categories = book.categories ? JSON.parse(book.categories) : []; } catch(e) { book.categories = []; }
+                try { book.descriptors = book.descriptors ? JSON.parse(book.descriptors) : []; } catch(e) { book.descriptors = []; }
+            }
+            
+            res.json({ message: 'Book updated successfully', book });
+        });
     });
 };
 

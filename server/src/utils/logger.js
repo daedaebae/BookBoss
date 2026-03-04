@@ -21,4 +21,20 @@ const logger = winston.createLogger({
     ]
 });
 
+/**
+ * Dynamically set the logger level at runtime.
+ * Used by the debug mode toggle in Settings.
+ * @param {'debug'|'info'|'warn'|'error'} level
+ */
+logger.setLevel = (level) => {
+    const validLevels = ['debug', 'info', 'warn', 'error'];
+    if (!validLevels.includes(level)) {
+        logger.warn(`setLevel called with invalid level: ${level}`);
+        return;
+    }
+    logger.level = level;
+    logger.transports.forEach(t => { t.level = level; });
+    logger.info(`Log level changed to: ${level}`);
+};
+
 module.exports = logger;

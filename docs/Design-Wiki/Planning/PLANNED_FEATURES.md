@@ -40,7 +40,7 @@
   - Explicitly distinguish between Physical, Ebook, and Audiobook.
   - Add format-specific metadata (e.g., Location/Shelf for physical, Duration for audio, File size for digital).
 
-- [ ] **Custom Shelves & Collections**
+- [x] **Custom Shelves & Collections**
   - Allow users to create custom shelves (e.g., "Favorites", "To Read", "History").
   - Ability to move books between shelves or add to multiple collections.
 
@@ -101,7 +101,7 @@
   - Search bar in top navigation
 
 ### UI/UX Enhancements
-- [ ] **Mobile Menu Toggle**
+- [x] **Mobile Menu Toggle**
   - Hamburger menu for mobile devices
   - Sidebar overlay for small screens
 
@@ -119,12 +119,12 @@
 ## Calibre-Web Inspired Features
 
 ### eBook Distribution & Sharing
-- [ ] **Send to E-Reader**
+- [x] **Send to E-Reader**
   - One-click send to Kindle via email
   - Support for multiple e-reader email addresses
   - Email configuration in settings
 
-- [ ] **OPDS Feed**
+- [x] **OPDS Feed**
   - Generate OPDS catalog feed
   - Allow e-reader apps to browse library
   - Download books directly from compatible apps
