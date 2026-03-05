@@ -103,4 +103,4 @@ jobs:
     - name: Install dependencies
       run: npm ci
     - name: Syntax Check
-      run: ./node_modules/.bin/tsc --noEmit
+      run: ./node_modules/.bin/tsc --noEmit -p tsconfig.json

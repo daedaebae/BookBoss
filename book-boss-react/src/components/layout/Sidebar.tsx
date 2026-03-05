@@ -142,7 +142,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 : user.privacy_settings;
             isLibraryShared = !!privacy.share_library;
         }
-    } catch (e) { /* */ }
+    } catch { /* */ }
 
     const isActive = (type: string, value?: string | number) => {
         if (type === 'user') return activeFilter.type === 'user' && activeFilter.userId === value;
@@ -200,7 +200,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     };
 
     // ── shelf CRUD ────────────────────────────────────────────────────────────
-    const handleCreateShelf = async (name: string, _libraryName: string) => {
+    const handleCreateShelf = async (name: string) => {
         setCreatingShelfUnder(null);
         try {
             await shelfService.createShelf(name);
@@ -386,7 +386,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                                         <div style={{ padding: '0 4px' }}>
                                                             <InlineInput
                                                                 placeholder="Shelf name…"
-                                                                onConfirm={(name) => handleCreateShelf(name, libName)}
+                                                                onConfirm={(name) => handleCreateShelf(name)}
                                                                 onCancel={() => setCreatingShelfUnder(null)}
                                                             />
                                                         </div>
