@@ -38,6 +38,9 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Build Backend
+      run: npm run build
+
     - name: Initialize Database
       env:
         DB_HOST: 127.0.0.1
@@ -45,7 +48,7 @@ jobs:
         MYSQL_PASSWORD: password
         MYSQL_DATABASE: bookboss
       run: |
-        node src/config/migrate.js
+        node dist/src/config/migrate.js
 
     - name: Start Backend & Run Tests
       env:
@@ -76,7 +79,7 @@ jobs:
         cache-dependency-path: book-boss-react/package-lock.json
         
     - name: Install dependencies
-      run: npm ci
+      run: npm ci --legacy-peer-deps
       
     - name: Run Linter
       run: npm run lint
@@ -96,4 +99,4 @@ jobs:
       with:
         node-version: '18.x'
     - name: Syntax Check
-      run: node --check server.js
+      run: npx tsc --noEmit
