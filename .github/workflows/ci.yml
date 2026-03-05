@@ -33,25 +33,26 @@ jobs:
         cache-dependency-path: server/package-lock.json
         
     - name: Install dependencies
-      working-directory: ./server
-      run: npm ci
+      run: |
+        cd server
+        npm ci
 
     - name: Build Backend
-      working-directory: ./server
-      run: npm run build
+      run: |
+        cd server
+        npm run build
 
     - name: Initialize Database
-      working-directory: ./server
       env:
         DB_HOST: 127.0.0.1
         MYSQL_USER: test_user
         MYSQL_PASSWORD: password
         MYSQL_DATABASE: bookboss
       run: |
+        cd server
         node dist/src/config/migrate.js
 
     - name: Start Backend & Run Tests
-      working-directory: ./server
       env:
         DB_HOST: 127.0.0.1
         MYSQL_USER: test_user
@@ -60,6 +61,7 @@ jobs:
         JWT_SECRET: test_secret_key
         PORT: 5000
       run: |
+        cd server
         npm start &
         sleep 10
         npm test
@@ -99,8 +101,10 @@ jobs:
         cache: 'npm'
         cache-dependency-path: server/package-lock.json
     - name: Install dependencies
-      working-directory: ./server
-      run: npm ci
+      run: |
+        cd server
+        npm ci
     - name: Syntax Check
-      working-directory: ./server
-      run: npm run build
+      run: |
+        cd server
+        npm run build
