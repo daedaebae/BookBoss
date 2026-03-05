@@ -9,9 +9,6 @@ on:
 jobs:
   backend-test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./server
     
     services:
       db:
@@ -36,12 +33,15 @@ jobs:
         cache-dependency-path: server/package-lock.json
         
     - name: Install dependencies
+      working-directory: ./server
       run: npm ci
 
     - name: Build Backend
+      working-directory: ./server
       run: npm run build
 
     - name: Initialize Database
+      working-directory: ./server
       env:
         DB_HOST: 127.0.0.1
         MYSQL_USER: test_user
@@ -51,6 +51,7 @@ jobs:
         node dist/src/config/migrate.js
 
     - name: Start Backend & Run Tests
+      working-directory: ./server
       env:
         DB_HOST: 127.0.0.1
         MYSQL_USER: test_user
@@ -89,9 +90,6 @@ jobs:
 
   backend-syntax-check:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./server
     steps:
     - uses: actions/checkout@v4
     - name: Use Node.js
@@ -101,6 +99,8 @@ jobs:
         cache: 'npm'
         cache-dependency-path: server/package-lock.json
     - name: Install dependencies
+      working-directory: ./server
       run: npm ci
     - name: Syntax Check
-      run: ./node_modules/.bin/tsc --noEmit -p tsconfig.json
+      working-directory: ./server
+      run: npm run build
