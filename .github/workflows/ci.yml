@@ -103,4 +103,4 @@ jobs:
     - name: Install dependencies
       run: npm ci
     - name: Syntax Check
-      run: npx tsc --noEmit
+      run: ./node_modules/.bin/tsc --noEmit
