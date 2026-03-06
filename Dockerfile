@@ -25,10 +25,11 @@ RUN mkdir -p /run/mysqld && \
 
 # Copy backend package files and install dependencies
 COPY server/package*.json ./
-RUN npm install --production
+RUN npm install
 
 # Copy backend source
 COPY server/ .
+RUN npm run build && npm prune --omit=dev
 
 # Ensure uploads and backups directories exist with correct permissions
 RUN mkdir -p uploads backups && chown -R node:node /app/uploads /app/backups
