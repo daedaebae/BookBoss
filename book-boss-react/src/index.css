@@ -1,25 +1,25 @@
 :root {
-  /* Dark Theme (Default) - Premium Glassmorphism */
-  --bg-color: #0f172a;
-  --bg-gradient: linear-gradient(-45deg, #0f172a, #1e1b4b, #020617, #0f172a);
-  --sidebar-bg: rgba(15, 23, 42, 0.4);
-  --card-bg: rgba(30, 41, 59, 0.4);
+  /* Dark Theme (Default) - Red Velvet & Gold */
+  --bg-color: #3b0711;
+  --bg-gradient: linear-gradient(-45deg, #2b0307, #4a0512, #1f0104, #2b0307);
+  --sidebar-bg: rgba(43, 3, 7, 0.85);
+  --card-bg: rgba(45, 5, 12, 0.6);
   --text-primary: #f8fafc;
   --text-secondary: #cbd5e1;
-  --accent-color: #a855f7;
-  --accent-hover: #c084fc;
+  --accent-color: #d4af37;
+  --accent-hover: #fef08a;
   --danger-color: #ef4444;
   --success-color: #10b981;
-  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
-  --glass-bg: rgba(15, 23, 42, 0.5);
-  --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --glass-border: 1px solid rgba(212, 175, 55, 0.25);
+  --glass-bg: rgba(30, 2, 8, 0.65);
+  --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
   --icon-color: #e2e8f0;
 
-  /* Default Gradient (Vibrant Purple) */
-  --title-gradient-start: #d8b4fe;
-  --title-gradient-end: #818cf8;
+  /* Default Gradient (Gold) */
+  --title-gradient-start: #fef08a;
+  --title-gradient-end: #ca8a04;
 
-  --font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family: 'Academy Engraved LET', 'Academy Engraved LET Plain', 'Apple Chancery', serif;
   --radius: 16px;
   --sidebar-width: 280px;
   --bg-size: 400% 400%;
@@ -1828,6 +1828,7 @@ input[type="file"]::file-selector-button:hover {
 .sidebar-label {
   flex: 1;
   font-size: 0.9rem;
+  font-family: var(--font-family);
 }
 
 .sidebar-count {

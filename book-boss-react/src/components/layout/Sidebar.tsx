@@ -123,6 +123,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const [isLibrariesOpen, setIsLibrariesOpen] = React.useState(true);
     const [expandedLibraries, setExpandedLibraries] = React.useState<Set<string>>(new Set());
     const [error, setError] = React.useState<string | null>(null);
+    const [randomGreeting, setRandomGreeting] = React.useState('Welcome back');
+    const [githubVersion, setGithubVersion] = React.useState<string>(APP_VERSION);
+    const [githubReleaseUrl, setGithubReleaseUrl] = React.useState<string>(
+        'https://github.com/daedaebae/BookBoss/releases'
+    );
+
+    React.useEffect(() => {
+        const greetings = [
+            "Welcome back",
+            "Time for another chapter",
+            "Ready to read",
+            "Lost in a book",
+            "Hello there",
+            "Your next page awaits",
+            "Welcome to your library"
+        ];
+        setRandomGreeting(greetings[Math.floor(Math.random() * greetings.length)]);
+    }, []);
+
+    React.useEffect(() => {
+        fetch('https://api.github.com/repos/daedaebae/BookBoss/releases/latest')
+            .then(r => r.json())
+            .then(data => {
+                if (data?.tag_name) {
+                    setGithubVersion(data.tag_name.replace(/^v/, ''));
+                    setGithubReleaseUrl(data.html_url);
+                }
+            })
+            .catch(() => { /* fall back to build-time APP_VERSION */ });
+    }, []);
 
     // UI editing state
     const [creatingLibrary, setCreatingLibrary] = React.useState(false);
@@ -247,16 +277,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             <aside className={`sidebar ${isMobileOpen ? 'open' : ''}`} style={{ display: isVisible ? 'flex' : 'none', flexDirection: 'column' }}>
                 {/* Sidebar Header */}
-                <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexShrink: 0 }}>
-                    <div>
-                        <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, background: 'linear-gradient(to right, var(--title-gradient-start), var(--title-gradient-end))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                            BookBoss {import.meta.env.DEV && <span style={{ fontSize: '0.8rem', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '1px' }}>(Dev)</span>}
-                        </h2>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>v{APP_VERSION}</span>
-                        {user && <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{user.username}</p>}
+                <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexShrink: 0, paddingBottom: 0 }}>
+                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <img src="/logo.jpg" alt="BookBoss Logo" style={{ height: '180px', width: 'auto', objectFit: 'contain', marginBottom: '5px' }} />
+                        {import.meta.env.DEV && <span style={{ fontSize: '0.8rem', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '15px' }}>(Dev)</span>}
+                        {user && (
+                            <p
+                                className="welcome-greeting"
+                                style={{
+                                    fontSize: '1.2rem',
+                                    fontWeight: 'bold',
+                                    color: 'var(--accent-color)',
+                                    marginTop: '8px',
+                                    marginBottom: '15px',
+                                    textAlign: 'center',
+                                    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                                    animation: 'fadeInUp 0.8s ease-out'
+                                }}
+                            >
+                                {randomGreeting}, {user.username}!
+                            </p>
+                        )}
                     </div>
                     {onToggleSidebar && (
-                        <button className="secondary-btn small" onClick={onToggleSidebar} title="Hide Sidebar" style={{ padding: '4px 8px', height: 'fit-content' }}>◀</button>
+                        <button className="secondary-btn small" onClick={onToggleSidebar} title="Hide Sidebar" style={{ position: 'absolute', top: '15px', right: '15px', padding: '4px 8px' }}>◀</button>
                     )}
                 </div>
 
@@ -537,6 +581,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     )}
                 </div>
             </aside>
+            <div style={{
+                position: 'fixed',
+                bottom: '10px',
+                right: '15px',
+                color: 'var(--text-secondary)',
+                opacity: 0.3,
+                fontSize: '0.8rem',
+                zIndex: 1000
+            }}>
+                <a
+                    href={githubReleaseUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                        color: 'inherit',
+                        textDecoration: 'none',
+                        cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.3')}
+                    title={`View changelog for v${githubVersion}`}
+                >
+                    v{githubVersion}
+                </a>
+            </div>
         </>
     );
 };

@@ -72,11 +72,11 @@ done
 echo "MariaDB is ready."
 
 # Ensure the DB schema is up to date via migrations
-if [ -f "/app/src/config/migrate.js" ]; then
+if [ -f "/app/dist/src/config/migrate.js" ]; then
     echo "Running database migrations..."
     export DB_HOST=127.0.0.1
     export DB_PORT=3306
-    node /app/src/config/migrate.js || echo "Warning: Migrations failed."
+    node /app/dist/src/config/migrate.js || echo "Warning: Migrations failed."
 fi
 
 # Run the admin user creation script (it detects if it's docker and creates admin:admin if DB is empty)

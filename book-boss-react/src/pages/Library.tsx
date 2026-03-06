@@ -1,4 +1,5 @@
 import React, { useState } from 'react'; // Fixed hooks imports
+import { useQueryClient } from '@tanstack/react-query';
 import { type Book, type BookFilters } from '../types/book';
 import { BookGrid } from '../components/books/BookGrid';
 import { AddBookModal } from '../components/books/AddBookModal';
@@ -21,6 +22,7 @@ import { MetadataRefreshModal } from '../components/books/MetadataRefreshModal';
 export const Library: React.FC = () => {
     // const { theme, setTheme } = useTheme(); // Moved to Header
     const { user, logout } = useAuth();
+    const queryClient = useQueryClient();
 
     // Sidebar state
     const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>(() => {
@@ -158,12 +160,12 @@ export const Library: React.FC = () => {
     };
 
     const handleBookAdded = () => {
-        // loadBooks(); // Query auto invalidates
+        queryClient.invalidateQueries({ queryKey: ['books'] });
         showToast('Book added successfully!', 'success');
     };
 
     const handleBookUpdated = () => {
-        // loadBooks();
+        queryClient.invalidateQueries({ queryKey: ['books'] });
         showToast('Book updated successfully!', 'success');
     };
 

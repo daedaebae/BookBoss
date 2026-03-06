@@ -29,7 +29,7 @@ export const Login: React.FC = () => {
         <div className="login-overlay">
             <div className="login-container">
                 <div className="login-greeting">
-                    <h1>BookBoss</h1>
+                    <img src="/logo.jpg" alt="BookBoss Logo" style={{ width: '100%', maxWidth: '300px', marginBottom: '1rem', objectFit: 'contain' }} />
                     <p>Manage your personal library</p>
                 </div>
                 <div className="login-box">

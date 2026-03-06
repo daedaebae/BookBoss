@@ -102,7 +102,7 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        handleSave(false);
+        handleSave(true);
     };
 
     return (
@@ -462,9 +462,6 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
                         Cancel
                     </button>
                     <div style={{ display: 'flex', gap: '10px' }}>
-                        <button type="button" className="btn-primary" onClick={() => handleSave(true)}>
-                            Save & Close
-                        </button>
                         <button type="submit" className="btn-primary">
                             Save Changes
                         </button>

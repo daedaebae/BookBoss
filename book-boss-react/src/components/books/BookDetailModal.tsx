@@ -8,7 +8,6 @@ import { getSafeCoverUrl } from '../../utils/coverUrlGuard';
 import { PhotoGalleryModal } from '../photos/PhotoGalleryModal';
 import { MetadataDiffModal } from './MetadataDiffModal';
 import { StarRating } from '../common/StarRating';
-import { absService, type AbsSearchResult } from '../../services/absService';
 import { bookService } from '../../services/bookService';
 import { SendToKindleModal } from './SendToKindleModal';
 
@@ -74,58 +73,6 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
             console.error('Failed to update rating:', error);
             setLocalRating(undefined);
         }
-    };
-
-    // ABS Linking
-    const [isLinking, setIsLinking] = useState(false);
-    const [linkSearchQuery, setLinkSearchQuery] = useState('');
-    const [linkSearchResults, setLinkSearchResults] = useState<AbsSearchResult[]>([]);
-
-    const handleLinkSearch = async () => {
-        if (!linkSearchQuery.trim()) return;
-        try {
-            const results = await absService.search(linkSearchQuery);
-            setLinkSearchResults(results);
-        } catch (error) {
-            console.error('Link Search Error:', error);
-        }
-    };
-
-    const handleLink = async (item: AbsSearchResult) => {
-        if (!book) return;
-        try {
-            await absService.linkBook(book.id, item);
-            setIsLinking(false);
-            // We should ideally reload the book or update local state
-            // For now, let's close the search; the parent might need to refresh data
-            // If onEdit triggers a refresh, we could call it? 
-            // Better: call onEdit with updated book? No, that opens edit modal.
-            // We just updated the backend. If we close and reopen, it will be there.
-            // But for UX, let's try to update locally if possible, or trigger refresh.
-            // Since we don't have a refresh callback, we'll rely on the user refreshing or reopening.
-            // Or maybe onClose then reopen? No.
-            // Let's just reset UI and maybe alert success.
-            onClose(); // Force close to refresh list when reopened
-        } catch (error) {
-            console.error('Link Error:', error);
-        }
-    };
-
-    const handleUnlink = async () => {
-        if (!book) return;
-        openConfirm(
-            'Unlink Book',
-            'Are you sure you want to unlink from Audiobookshelf?',
-            async () => {
-                try {
-                    await absService.unlinkBook(book.id);
-                    onClose();
-                } catch (error) {
-                    console.error('Unlink Error:', error);
-                }
-            },
-            true
-        );
     };
 
     const handleSyncMetadata = async () => {
@@ -324,96 +271,6 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
                                 )}
                             </div>
                         )}
-
-                        {/* Audiobookshelf Integration */}
-                        <div style={{
-                            padding: '15px',
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            borderRadius: '8px',
-                            border: '1px solid var(--glass-border)',
-                            marginTop: '15px'
-                        }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                <strong style={{ color: 'var(--text-primary)' }}>Audiobookshelf</strong>
-                                {book.abs_metadata ? (
-                                    <span style={{ fontSize: '0.8rem', color: '#4ade80' }}>● Linked</span>
-                                ) : (
-                                    <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>○ Not Linked</span>
-                                )}
-                            </div>
-
-                            {book.abs_metadata ? (
-                                <div>
-                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>
-                                        Linked to Item ID: {book.abs_metadata.libraryItemId}
-                                    </div>
-                                    <button
-                                        className="secondary-btn small"
-                                        onClick={() => handleUnlink()}
-                                        style={{ borderColor: '#ef4444', color: '#ef4444' }}
-                                    >
-                                        Unlink
-                                    </button>
-                                </div>
-                            ) : (
-                                <div>
-                                    {!isLinking ? (
-                                        <button
-                                            className="secondary-btn small"
-                                            onClick={() => setIsLinking(true)}
-                                        >
-                                            🔗 Link to Audiobookshelf
-                                        </button>
-                                    ) : (
-                                        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '4px' }}>
-                                            <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Search ABS..."
-                                                    value={linkSearchQuery}
-                                                    onChange={(e) => setLinkSearchQuery(e.target.value)}
-                                                    onKeyPress={(e) => e.key === 'Enter' && handleLinkSearch()}
-                                                    style={{ flex: 1, padding: '6px', fontSize: '0.9rem', borderRadius: '4px', border: 'none' }}
-                                                />
-                                                <button
-                                                    onClick={() => handleLinkSearch()}
-                                                    style={{ background: 'var(--accent-color)', border: 'none', color: 'white', borderRadius: '4px', padding: '0 10px', cursor: 'pointer' }}
-                                                >
-                                                    🔍
-                                                </button>
-                                                <button
-                                                    onClick={() => { setIsLinking(false); setLinkSearchResults([]); setLinkSearchQuery(''); }}
-                                                    style={{ background: 'transparent', border: '1px solid var(--text-secondary)', color: 'var(--text-secondary)', borderRadius: '4px', padding: '0 10px', cursor: 'pointer' }}
-                                                >
-                                                    ✕
-                                                </button>
-                                            </div>
-
-                                            {linkSearchResults.length > 0 && (
-                                                <div style={{ maxHeight: '150px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                                                    {linkSearchResults.map(item => (
-                                                        <div
-                                                            key={item.id}
-                                                            onClick={() => handleLink(item)}
-                                                            style={{
-                                                                padding: '8px',
-                                                                background: 'rgba(255,255,255,0.05)',
-                                                                borderRadius: '4px',
-                                                                cursor: 'pointer',
-                                                                fontSize: '0.85rem'
-                                                            }}
-                                                        >
-                                                            <div style={{ fontWeight: 600 }}>{item.media.metadata.title || item.name}</div>
-                                                            <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{item._server.name}</div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
 
                         {/* Rating and Review Section */}
                         <div style={{
