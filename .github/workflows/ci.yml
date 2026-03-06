@@ -40,7 +40,7 @@ jobs:
     - name: Build Backend
       run: |
         cd server
-        npm run build
+        ./node_modules/.bin/tsc -p $GITHUB_WORKSPACE/server/tsconfig.json
 
     - name: Initialize Database
       env:
@@ -107,4 +107,4 @@ jobs:
     - name: Syntax Check
       run: |
         cd server
-        npm run build
+        ./node_modules/.bin/tsc -p $GITHUB_WORKSPACE/server/tsconfig.json
