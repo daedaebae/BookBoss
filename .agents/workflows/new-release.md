@@ -98,3 +98,10 @@ EOF
 
 ### 9. Notify the user that the release is live.
 Report the new version, tag, and the GitHub release URL.
+
+### 10. Build the production Docker image.
+```bash
+cd /Users/user/Projects/BookBoss
+VERSION=$(node -p "require('./book-boss-react/package.json').version")
+docker build -t daedaebae/bookboss:latest -t daedaebae/bookboss:v${VERSION} .
+```
