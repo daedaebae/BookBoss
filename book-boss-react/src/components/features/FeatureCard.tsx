@@ -64,6 +64,11 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({ feature, onVote, isAdm
                     ) : (
                         <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: 'rgba(139, 92, 246, 0.1)', color: 'var(--accent-color)', border: '1px solid rgba(139, 92, 246, 0.2)' }}>Feature</span>
                     )}
+                    {feature.github_issue_url && (
+                        <a href={feature.github_issue_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.1)', color: 'var(--text-secondary)', border: '1px solid rgba(255, 255, 255, 0.2)', textDecoration: 'none' }}>
+                            ⎇ GitHub
+                        </a>
+                    )}
                 </div>
                 <span style={{
                     fontSize: '0.8rem',

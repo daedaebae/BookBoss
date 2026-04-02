@@ -12,6 +12,14 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+
+// Support BigInt serialization for JSON (e.g. COUNT queries from mysql2)
+if (!('toJSON' in BigInt.prototype)) {
+    (BigInt.prototype as any).toJSON = function () {
+        return Number(this);
+    };
+}
+
 import logger from './src/utils/logger';
 import db from './src/config/db'; // Ensure DB connection is initialized
 import apiRoutes from './src/routes';

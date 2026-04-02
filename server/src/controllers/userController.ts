@@ -88,7 +88,12 @@ const updateProfile = async (req, res) => {
 
         if (privacy_settings !== undefined) {
             let current = {};
-            try { current = JSON.parse(results[0].privacy_settings || '{}'); } catch (e) { }
+            const dbVal = results[0].privacy_settings;
+            if (typeof dbVal === 'string') {
+                try { current = JSON.parse(dbVal || '{}'); } catch (e) { }
+            } else if (typeof dbVal === 'object' && dbVal !== null) {
+                current = dbVal;
+            }
             const updated = { ...current, ...(privacy_settings || {}) };
             updates.push('privacy_settings = ?');
             values.push(JSON.stringify(updated));
@@ -107,7 +112,12 @@ const updateProfile = async (req, res) => {
         let responseJson = { message: 'Profile updated' };
         if (privacy_settings !== undefined) {
             let current = {};
-            try { current = JSON.parse(results[0].privacy_settings || '{}'); } catch (e) { }
+            const dbVal = results[0].privacy_settings;
+            if (typeof dbVal === 'string') {
+                try { current = JSON.parse(dbVal || '{}'); } catch (e) { }
+            } else if (typeof dbVal === 'object' && dbVal !== null) {
+                current = dbVal;
+            }
             (responseJson as any).privacy_settings = { ...current, ...(privacy_settings || {}) };
         }
         res.json(responseJson);

@@ -141,6 +141,12 @@ const createFeatureRequest = async (req, res) => {
                     }
                 );
                 console.log(`Created GitHub Issue: ${response.data.html_url}`);
+                await db.promise().query(
+                    'UPDATE feature_requests SET github_issue_number = ?, github_issue_url = ? WHERE id = ?',
+                    [response.data.number, response.data.html_url, (result as any).insertId]
+                );
+                newFeature[0].github_issue_number = response.data.number;
+                newFeature[0].github_issue_url = response.data.html_url;
             }
         } catch (ghError) {
             console.error('Failed to create GitHub issue:', ghError.response ? ghError.response.data : ghError.message);
@@ -268,9 +274,82 @@ const updateFeature = async (req, res) => {
     }
 };
 
+const syncFeatures = async (req, res) => {
+    // Admin Check
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ error: 'Only admins can trigger GitHub sync' });
+    }
+
+    try {
+        let appSettings = {};
+        const [settingsRows] = await db.promise().query(
+            "SELECT `key`, value FROM settings WHERE `key` IN ('github_enabled', 'github_repo', 'github_token', 'ignore_env_integrations')"
+        );
+        appSettings = (settingsRows as any[]).reduce((acc, curr) => {
+            acc[curr.key] = curr.value;
+            return acc;
+        }, {});
+
+        const ignoreEnv = (appSettings as any).ignore_env_integrations === 'true';
+        const targetRepo = (appSettings as any).github_repo || (!ignoreEnv ? process.env.GITHUB_REPO : null) || 'daedaebae/BookBoss';
+        const targetToken = (appSettings as any).github_token || (!ignoreEnv ? process.env.GITHUB_TOKEN : null);
+
+        if (!targetToken) {
+            return res.status(400).json({ error: 'GitHub Integration is not fully configured (Missing Token).' });
+        }
+
+        const [features] = await db.promise().query(
+            "SELECT id, github_issue_number, status FROM feature_requests WHERE github_issue_number IS NOT NULL AND status != 'completed' AND status != 'rejected'"
+        );
+
+        let updatedCount = 0;
+
+        for (const feature of (features as any[])) {
+            try {
+                const response = await axios.get(
+                    `https://api.github.com/repos/${targetRepo}/issues/${feature.github_issue_number}`,
+                    {
+                        headers: {
+                            'Authorization': `token ${targetToken}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    }
+                );
+                
+                let newStatus = feature.status;
+                const state = response.data.state;
+                const labels = response.data.labels.map((l: any) => l.name.toLowerCase());
+
+                if (state === 'closed') {
+                    newStatus = 'completed';
+                } else if (labels.includes('in progress') || labels.includes('in-progress')) {
+                    newStatus = 'in_progress';
+                } else if (labels.includes('planned')) {
+                    newStatus = 'planned';
+                } else if (labels.includes('wontfix') || labels.includes('rejected')) {
+                    newStatus = 'rejected';
+                }
+
+                if (newStatus !== feature.status) {
+                    await db.promise().query('UPDATE feature_requests SET status = ? WHERE id = ?', [newStatus, feature.id]);
+                    updatedCount++;
+                }
+            } catch (err) {
+                console.error(`Failed to sync issue #${feature.github_issue_number}`, err.message);
+            }
+        }
+
+        res.json({ success: true, message: `Synced successfully. Updated ${updatedCount} features.` });
+    } catch (error) {
+        console.error('Error syncing features:', error);
+        res.status(500).json({ error: 'Failed to sync with GitHub' });
+    }
+};
+
 export default {
     getFeatureRequests,
     createFeatureRequest,
     voteFeature,
-    updateFeature
+    updateFeature,
+    syncFeatures
 };

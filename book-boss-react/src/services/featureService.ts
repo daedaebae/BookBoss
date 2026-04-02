@@ -12,6 +12,8 @@ export interface FeatureRequest {
     admin_note?: string; // Optional admin note
     warning?: string; // Optional warning from backend (e.g. ntfy failure)
     type?: 'bug' | 'feature';
+    github_issue_number?: number;
+    github_issue_url?: string;
 }
 
 export const featureService = {
@@ -32,5 +34,10 @@ export const featureService = {
 
     updateFeature: async (id: number, updates: { status?: string; admin_note?: string }): Promise<void> => {
         await apiClient.put(`/features/${id}`, updates);
+    },
+
+    syncGithubFeatures: async (): Promise<{ success: boolean, message: string }> => {
+        const response = await apiClient.post('/features/sync');
+        return response.data;
     }
 };

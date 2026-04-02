@@ -83,6 +83,19 @@ export const Features: React.FC = () => {
         }
     };
 
+    const handleSyncGithub = async () => {
+        try {
+            setIsLoading(true);
+            const data = await featureService.syncGithubFeatures();
+            showToast(data.message, 'success');
+            await loadFeatures();
+        } catch (err: any) {
+            console.error('Error syncing features:', err);
+            showToast(err.response?.data?.error || 'Failed to sync with GitHub', 'error');
+            setIsLoading(false);
+        }
+    };
+
     const showToast = (message: string, type: 'success' | 'error' | 'info') => {
         setToast({ message, type, isVisible: true });
     };
@@ -149,13 +162,24 @@ export const Features: React.FC = () => {
                     onDesktopSidebarToggle={() => setIsSidebarVisible(!isSidebarVisible)}
                     isSidebarVisible={isSidebarVisible}
                 >
-                    <button
-                        className="primary-btn"
-                        onClick={() => setIsFormOpen(true)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                    >
-                        <span>+</span> New Request
-                    </button>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        {user?.is_admin && (
+                            <button
+                                className="secondary-btn"
+                                onClick={handleSyncGithub}
+                                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                            >
+                                ⎇ Sync GitHub
+                            </button>
+                        )}
+                        <button
+                            className="primary-btn"
+                            onClick={() => setIsFormOpen(true)}
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                        >
+                            <span>+</span> New Request
+                        </button>
+                    </div>
                 </Header>
 
                 <div style={{ padding: '30px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>

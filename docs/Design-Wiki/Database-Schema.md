@@ -337,6 +337,29 @@ Tracks individual reading sessions for analytics.
 
 ---
 
+### feature_requests
+
+Stores user-created feature requests and bug reports syncing against external GitHub issue lifecycles.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | INT | PRIMARY KEY, AUTO_INCREMENT | Unique request identifier |
+| user_id | INT | FOREIGN KEY → users(id) ON DELETE CASCADE | Request owner |
+| title | VARCHAR(255) | NOT NULL | High level bug or feature summary |
+| description | TEXT | | Detailed markdown request body |
+| type | VARCHAR(50) | DEFAULT 'feature' | bug, feature |
+| status | VARCHAR(50) | DEFAULT 'open' | open, planned, in_progress, completed, rejected |
+| admin_note | TEXT | | Administrator contextual notes |
+| github_issue_number | INT | DEFAULT NULL | Mapped external GitHub upstream reference ID |
+| github_issue_url | VARCHAR(500) | DEFAULT NULL | URI mapping back to upstream thread |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Request creation time |
+
+**Indexes:**
+- PRIMARY KEY on `id`
+- INDEX on `user_id`
+
+---
+
 ## Relationships
 
 ### One-to-Many Relationships

@@ -64,6 +64,7 @@ router.use('/photos', photoRoutes);
 // Feature Requests
 router.get('/features', authenticateToken, featureController.getFeatureRequests);
 router.post('/features', authenticateToken, featureController.createFeatureRequest);
+router.post('/features/sync', authenticateToken, requireAdmin, featureController.syncFeatures);
 router.post('/features/:id/vote', authenticateToken, featureController.voteFeature);
 router.put('/features/:id', authenticateToken, featureController.updateFeature); // Unified update (status + note)
 

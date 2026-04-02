@@ -135,7 +135,11 @@ const sqlBackup = (req, res) => {
     const filename = `backup-${timestamp}.sql`;
     const filepath = path.join(backupDir, filename);
 
-    const cmd = `${mysqldump} -h ${dbHost} -u ${dbUser} -p${dbPassword} --no-tablespaces ${dbName} > "${filepath}"`;
+    // Escape or spawn properly, but here we can just ensure dbName doesn't contain spaces/quotes if strictly env 
+    // In exec, wrap the variables in quotes or use safer mechanisms. The simplest is ensuring no malicious env vars.
+    // However, for best security, exec should not just concatenate. Since these are ENV vars, it's low risk unless user sets them via API.
+    // We'll wrap in quotes as a basic mitigation against spaces, though child_process.spawn is ideal.
+    const cmd = `${mysqldump} -h "${dbHost}" -u "${dbUser}" -p"${dbPassword}" --no-tablespaces "${dbName}" > "${filepath}"`;
 
     exec(cmd, (error) => {
         if (error) return res.status(500).json({ error: 'Backup failed', details: error.message });
@@ -156,15 +160,17 @@ const sqlRestore = async (req, res) => {
             await db.promise().query('SET FOREIGN_KEY_CHECKS = 0');
             for (const table of Object.keys(data)) {
                 if (table === 'metadata') continue; // exportJson has metadata
+                if (!/^[a-zA-Z0-9_]+$/.test(table)) throw new Error(`Security Violation: Invalid table name format`);
                 const rows = data[table];
                 if (!Array.isArray(rows) || rows.length === 0) continue;
 
                 // check if table exists
-                const [tableExists] = await db.promise().query(`SHOW TABLES LIKE '${table}'`);
+                const [tableExists] = await db.promise().query(`SHOW TABLES LIKE ?`, [table]);
                 if ((tableExists as any[]).length > 0) {
                     await db.promise().query(`TRUNCATE TABLE \`${table}\``);
                     for (const row of rows) {
                         const keys = Object.keys(row);
+                        if (!keys.every(k => /^[a-zA-Z0-9_]+$/.test(k))) throw new Error(`Security Violation: Invalid column name`);
                         const values = Object.values(row);
                         const placeholders = keys.map(() => '?').join(',');
                         const query = `INSERT INTO \`${table}\` (${keys.map(k => `\`${k}\``).join(',')}) VALUES (${placeholders})`;
@@ -191,7 +197,7 @@ const sqlRestore = async (req, res) => {
     const dbName = process.env.MYSQL_DATABASE || 'bookboss';
     const dbHost = process.env.DB_HOST || 'localhost';
 
-    const cmd = `${mysql} -h ${dbHost} -u ${dbUser} -p${dbPassword} ${dbName} < "${filepath}"`;
+    const cmd = `"${mysql}" -h "${dbHost}" -u "${dbUser}" -p"${dbPassword}" "${dbName}" < "${filepath}"`;
 
     exec(cmd, (error, stdout, stderr) => {
         console.log("sqlRestore output:", stdout);
