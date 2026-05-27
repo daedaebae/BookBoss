@@ -1,8 +1,7 @@
 # GitHub Security Audit Report
 **Target:** github.com/daedaebae  
 **Date:** 2026-05-18  
-**Scope:** All public repositories, commit history, profile metadata, GitHub Actions, and publicly visible activity  
-**Auditor:** Claude Code (automated + manual analysis)
+**Scope:** All public repositories, commit history, profile metadata, GitHub Actions, and publicly visible activity
 
 ---
 

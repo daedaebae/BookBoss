@@ -34,7 +34,8 @@ router.post('/send/:bookId', authenticateToken, async (req, res) => {
     }
 
     try {
-        const [books] = await db.promise().query('SELECT * FROM books WHERE id = ?', [bookId]);
+        const userId = (req as any).user.id;
+        const [books] = await db.promise().query('SELECT * FROM books WHERE id = ? AND owner_id = ?', [bookId, userId]);
         if ((books as any[]).length === 0) {
             return res.status(404).json({ error: 'Book not found' });
         }

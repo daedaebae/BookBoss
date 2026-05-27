@@ -388,7 +388,8 @@ const bulkUpdateBooks = (req, res) => {
 
 const downloadBook = (req, res) => {
     const bookId = req.params.id;
-    db.query('SELECT file_path, title, format FROM books WHERE id = ?', [bookId], (err, results) => {
+    const userId = req.user.id;
+    db.query('SELECT file_path, title, format FROM books WHERE id = ? AND owner_id = ?', [bookId, userId], (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
         if ((results as any[]).length === 0 || !results[0].file_path) return res.status(404).json({ error: 'File not found' });
 

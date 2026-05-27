@@ -99,7 +99,7 @@ router.get('/books', async (req, res) => {
         // We probably only want books with digital formats for OPDS downloads, 
         // but showing physical books is okay for cataloging too. 
         // We'll show all books, but only digital ones get acquisition links.
-        const [books] = await db.promise().query(`SELECT * FROM books ${sort}`);
+        const [books] = await db.promise().query(`SELECT * FROM books WHERE owner_id = ? ${sort}`, [req.user.id]);
 
         const entries = (books as any[]).map(book => {
             let acqLink = '';
@@ -171,7 +171,7 @@ router.get('/books', async (req, res) => {
 router.get('/download/:id', async (req, res) => {
     try {
         const bookId = req.params.id;
-        const [books] = await db.promise().query('SELECT * FROM books WHERE id = ?', [bookId]);
+        const [books] = await db.promise().query('SELECT * FROM books WHERE id = ? AND owner_id = ?', [bookId, req.user.id]);
 
         if ((books as any[]).length === 0) {
             return res.status(404).send('Book not found');
