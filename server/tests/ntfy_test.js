@@ -4,7 +4,8 @@ const jwt = require('jsonwebtoken');
 const db = require('../src/config/db');
 
 const API_URL = process.env.API_URL || 'http://127.0.0.1:5000/api';
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('JWT_SECRET must be set before running tests');
 
 async function runNtfyTest() {
     console.log('Starting NTFY System Test...');

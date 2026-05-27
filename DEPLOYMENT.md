@@ -33,10 +33,14 @@ This guide describes how to deploy BookBoss in a production environment using Do
 BookBoss is configured to automatically create a default admin user on the first run of the backend container if one does not exist.
 
 **Default Credentials:**
-- **Username**: `admin`
-- **Password**: `admin`
 
-> **Security Warning**: You must change this password immediately after logging in for the first time.
+A default admin account is created on first run. The username is `admin` and the password is randomly generated and printed to the container logs on first startup:
+
+```bash
+docker compose logs backend | grep "Admin password"
+```
+
+Copy the generated password, log in, then change it immediately under **Settings → Profile**.
 
 ## 3. Launching the Stack
 
@@ -77,7 +81,7 @@ docker compose logs -f db
 ```
 
 ### "Admin user not found"
-If you cannot login with `admin:admin`:
+If you cannot login with the generated admin password:
 1. Check the backend logs to see if the creation script ran:
    ```bash
    docker compose logs backend | grep "User created"

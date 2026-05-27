@@ -10,12 +10,12 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
+    - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
     - name: Audit Backend Dependencies
       working-directory: ./server
-      run: npm audit --audit-level=high
-      
+      run: npm audit --audit-level=moderate
+
     - name: Audit Frontend Dependencies
       working-directory: ./book-boss-react
-      run: npm audit --audit-level=high
+      run: npm audit --audit-level=moderate

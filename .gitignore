@@ -25,3 +25,6 @@ certs/
 backups/
 .env
 .docker_test/
+
+# Agent workflow planning docs (internal only)
+.agents/

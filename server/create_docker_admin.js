@@ -1,19 +1,16 @@
 const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
-// Explicit credentials from docker-compose.yml
-// Determine connection details
-// If DB_HOST is set (e.g. 'db' in Docker), use it and default port 3306.
-// Otherwise assume localhost and mapped port 3307.
 const host = process.env.DB_HOST || 'localhost';
 const port = host === 'localhost' ? 3307 : 3306;
 
 const db = mysql.createConnection({
     host: host,
-    user: process.env.MYSQL_USER || process.env.MYSQL_USER || 'root',
-    password: process.env.MYSQL_PASSWORD || process.env.MYSQL_PASSWORD || 'rootpassword',
+    user: process.env.MYSQL_USER || 'root',
+    password: process.env.MYSQL_PASSWORD || 'rootpassword',
     database: process.env.MYSQL_DATABASE || 'bookboss',
     port: port
 });
@@ -23,14 +20,10 @@ db.connect(async err => {
         console.error('Connection failed:', err);
         process.exit(1);
     }
-    console.log('Connected to Docker database on port 3307.');
 
     const username = 'admin';
-    const password = 'admin';
-    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Check if exists
-    db.query('SELECT * FROM users WHERE username = ?', [username], (err, results) => {
+    db.query('SELECT * FROM users WHERE username = ?', [username], async (err, results) => {
         if (err) {
             console.error('Query error:', err);
             db.end();
@@ -38,17 +31,23 @@ db.connect(async err => {
         }
 
         if (results.length > 0) {
-            console.log('User "admin" already exists. Ensuring admin role...');
-            db.query('UPDATE users SET is_admin = 1 WHERE username = ?', [username], (err) => {
-                if (err) console.error(err);
-                else console.log('Role updated to admin. Custom password retained.');
-                db.end();
-            });
+            console.log('Admin user already exists. Custom password retained.');
+            db.end();
         } else {
-            console.log('Creating user "admin"...');
+            // Generate a random 16-character password on first run
+            const generatedPassword = crypto.randomBytes(12).toString('base64url');
+            const hashedPassword = await bcrypt.hash(generatedPassword, 10);
+
             db.query('INSERT INTO users (username, password, is_admin) VALUES (?, ?, 1)', [username, hashedPassword], (err) => {
-                if (err) console.error(err);
-                else console.log('User created.');
+                if (err) {
+                    console.error('Failed to create admin user:', err);
+                } else {
+                    console.log('========================================');
+                    console.log('Admin user created.');
+                    console.log(`Admin password: ${generatedPassword}`);
+                    console.log('Change this password immediately after first login.');
+                    console.log('========================================');
+                }
                 db.end();
             });
         }

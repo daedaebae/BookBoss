@@ -12,6 +12,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
 
 // Support BigInt serialization for JSON (e.g. COUNT queries from mysql2)
 if (!('toJSON' in BigInt.prototype)) {
@@ -27,9 +28,24 @@ import apiRoutes from './src/routes';
 const app = express();
 const port = process.env.PORT ? Number(process.env.PORT) : 5000;
 
+// Auth rate limiter: 20 attempts per 15 minutes per IP
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many login attempts. Please try again later.' },
+});
+
 // Middleware
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
-app.use(cors());
+app.use(cors({
+    origin: process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+        : ['http://localhost:5173', 'http://localhost:5000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+}));
 app.use(helmet({
     contentSecurityPolicy: false, // Disable for development/images
     crossOriginResourcePolicy: { policy: "cross-origin" }
@@ -53,6 +69,8 @@ import emailRoutes from './src/routes/emailRoutes';
 // API Routes
 app.use('/api/opds', opdsRoutes);
 app.use('/api/email', emailRoutes);
+app.use('/api/login', authLimiter);
+app.use('/api/register', authLimiter);
 app.use('/api', apiRoutes);
 
 // 404 handler for unknown /api routes — must come AFTER apiRoutes and BEFORE the SPA fallback
