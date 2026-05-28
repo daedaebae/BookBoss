@@ -618,25 +618,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 position: 'fixed',
                 bottom: '10px',
                 right: '15px',
-                color: 'var(--text-secondary)',
-                opacity: 0.3,
-                fontSize: '0.8rem',
-                zIndex: 1000
+                zIndex: 1000,
             }}>
                 <a
                     href={githubReleaseUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{
-                        color: 'inherit',
-                        textDecoration: 'none',
-                        cursor: 'pointer',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.3')}
                     title={`View changelog for v${githubVersion}`}
+                    style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '3px 10px',
+                        background: 'rgba(var(--accent-color-rgb, 212, 175, 55), 0.12)',
+                        border: '1px solid rgba(var(--accent-color-rgb, 212, 175, 55), 0.35)',
+                        borderRadius: '12px',
+                        color: 'var(--accent-color)',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        letterSpacing: '0.03em',
+                        textDecoration: 'none',
+                        opacity: 0.75,
+                        transition: 'opacity 0.2s, background 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.opacity = '1';
+                        e.currentTarget.style.background = 'rgba(var(--accent-color-rgb, 212, 175, 55), 0.22)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.opacity = '0.75';
+                        e.currentTarget.style.background = 'rgba(var(--accent-color-rgb, 212, 175, 55), 0.12)';
+                    }}
                 >
-                    v{githubVersion}
+                    🏷️ v{githubVersion}
                 </a>
             </div>
         </>
