@@ -6,8 +6,13 @@ on:
       - 'v*'
 
 jobs:
+  test:
+    uses: ./.github/workflows/backend-test.yml
+    secrets: inherit
+
   release:
     name: Create GitHub Release
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -1,0 +1,70 @@
+name: Backend Test
+
+on:
+  workflow_call:
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ secrets.CI_MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE: bookboss
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: ${{ secrets.CI_MYSQL_PASSWORD }}
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Validate required secrets
+        env:
+          CI_JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
+          CI_MYSQL_PASSWORD: ${{ secrets.CI_MYSQL_PASSWORD }}
+          CI_MYSQL_ROOT_PASSWORD: ${{ secrets.CI_MYSQL_ROOT_PASSWORD }}
+        run: |
+          fail=0
+          [[ -z "$CI_JWT_SECRET" ]]          && echo "::error::CI_JWT_SECRET is not configured"          && fail=1
+          [[ -z "$CI_MYSQL_PASSWORD" ]]      && echo "::error::CI_MYSQL_PASSWORD is not configured"      && fail=1
+          [[ -z "$CI_MYSQL_ROOT_PASSWORD" ]] && echo "::error::CI_MYSQL_ROOT_PASSWORD is not configured" && fail=1
+          exit $fail
+
+      - name: Use Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        run: cd server && npm ci
+
+      - name: Build backend
+        run: cd server && ./node_modules/.bin/tsc -p tsconfig.json
+
+      - name: Initialize database
+        env:
+          DB_HOST: 127.0.0.1
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: ${{ secrets.CI_MYSQL_PASSWORD }}
+          MYSQL_DATABASE: bookboss
+        run: cd server && node dist/src/config/migrate.js
+
+      - name: Start server and run tests
+        env:
+          DB_HOST: 127.0.0.1
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: ${{ secrets.CI_MYSQL_PASSWORD }}
+          MYSQL_DATABASE: bookboss
+          JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
+          PORT: 5000
+        run: |
+          cd server
+          npm start &
+          npx wait-on http://localhost:5000/api/health --timeout 60000
+          npm test
