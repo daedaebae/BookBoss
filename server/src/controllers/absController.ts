@@ -4,6 +4,21 @@ import * as fileUtils from '../utils/fileUtils';
 const { downloadImage } = fileUtils as any;
 import path from 'path';
 
+const isInternalUrl = (urlStr: string): boolean => {
+    try {
+        const { protocol, hostname } = new URL(urlStr);
+        if (protocol !== 'http:' && protocol !== 'https:') return true;
+        if (/^(localhost|127\.|0\.0\.0\.0|::1$)/.test(hostname)) return true;
+        if (/^10\./.test(hostname)) return true;
+        if (/^172\.(1[6-9]|2\d|3[01])\./.test(hostname)) return true;
+        if (/^192\.168\./.test(hostname)) return true;
+        if (/^169\.254\./.test(hostname)) return true;
+        return false;
+    } catch {
+        return true;
+    }
+};
+
 const getAbsServers = (req, res) => {
     const userId = req.user.id;
     db.query('SELECT id, server_name, server_url, is_active, created_at FROM audiobookshelf_servers WHERE user_id = ?', [userId], (err, results) => {
@@ -18,6 +33,10 @@ const addAbsServer = async (req, res) => {
 
     if (!server_name || !server_url || !api_key) {
         return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    if (isInternalUrl(server_url)) {
+        return res.status(400).json({ error: 'Invalid server URL' });
     }
 
     try {
@@ -57,6 +76,10 @@ const updateAbsServer = async (req, res) => {
     try {
         let updateQuery = 'UPDATE audiobookshelf_servers SET server_name = ?, server_url = ?, is_active = ?';
         let queryParams = [server_name, server_url, is_active];
+
+        if (server_url && isInternalUrl(server_url)) {
+            return res.status(400).json({ error: 'Invalid server URL' });
+        }
 
         if (api_key) {
             console.log('Verifying new API Key for update...');

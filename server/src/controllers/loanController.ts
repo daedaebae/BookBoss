@@ -11,14 +11,18 @@ const getLoans = (req, res) => {
 const createLoan = (req, res) => {
     const userId = req.user.id;
     const { book_id, borrower_name, due_date, notes } = req.body;
-    db.query('INSERT INTO loans (user_id, book_id, borrower_name, due_date, notes) VALUES (?, ?, ?, ?, ?)',
-        [userId, book_id, borrower_name, due_date, notes], (err, result) => {
-            if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
-            // Update book is_loaned status as well for legacy compatibility
-            db.query('UPDATE books SET is_loaned = 1, borrower_name = ?, loan_date = CURRENT_DATE, due_date = ? WHERE id = ?',
-                [borrower_name, due_date, book_id]);
-            res.status(201).json({ message: 'Loan created' });
-        });
+    db.query('SELECT id FROM books WHERE id = ? AND owner_id = ?', [book_id, userId], (err, books) => {
+        if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+        if ((books as any[]).length === 0) return res.status(404).json({ error: 'Book not found' });
+        db.query('INSERT INTO loans (user_id, book_id, borrower_name, due_date, notes) VALUES (?, ?, ?, ?, ?)',
+            [userId, book_id, borrower_name, due_date, notes], (err, result) => {
+                if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+                // Update book is_loaned status as well for legacy compatibility
+                db.query('UPDATE books SET is_loaned = 1, borrower_name = ?, loan_date = CURRENT_DATE, due_date = ? WHERE id = ?',
+                    [borrower_name, due_date, book_id]);
+                res.status(201).json({ message: 'Loan created' });
+            });
+    });
 };
 
 const returnLoan = (req, res) => {

@@ -445,20 +445,21 @@ const deleteBookPhoto = (req, res) => {
 // Duplicates
 const findDuplicates = (req, res) => {
     const { method } = req.query; // 'isbn' or 'title-author'
+    const userId = req.user.id;
     let query;
     if (method === 'isbn') {
         query = `
             SELECT isbn, GROUP_CONCAT(id) as book_ids, GROUP_CONCAT(title SEPARATOR ' | ') as titles, COUNT(*) as count
-            FROM books WHERE isbn IS NOT NULL AND isbn != '' GROUP BY isbn HAVING count > 1
+            FROM books WHERE isbn IS NOT NULL AND isbn != '' AND owner_id = ? GROUP BY isbn HAVING count > 1
         `;
     } else {
         query = `
             SELECT CONCAT(title, ' - ', author) as book_key, GROUP_CONCAT(id) as book_ids, title, author, COUNT(*) as count
-            FROM books WHERE title IS NOT NULL AND author IS NOT NULL GROUP BY title, author HAVING count > 1
+            FROM books WHERE title IS NOT NULL AND author IS NOT NULL AND owner_id = ? GROUP BY title, author HAVING count > 1
         `;
     }
 
-    db.query(query, (err, results) => {
+    db.query(query, [userId], (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(results);
     });
@@ -467,12 +468,13 @@ const findDuplicates = (req, res) => {
 const advancedSearch = (req, res) => {
     const { query } = req.query;
     if (!query) return res.status(400).json({ error: 'Query required' });
+    const userId = req.user.id;
     const sql = `
         SELECT *, MATCH(title, author) AGAINST(? IN NATURAL LANGUAGE MODE) as relevance
-        FROM books WHERE MATCH(title, author) AGAINST(? IN NATURAL LANGUAGE MODE)
+        FROM books WHERE MATCH(title, author) AGAINST(? IN NATURAL LANGUAGE MODE) AND owner_id = ?
         ORDER BY relevance DESC LIMIT 100
     `;
-    db.query(sql, [query, query], (err, results) => {
+    db.query(sql, [query, query, userId], (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(results);
     });

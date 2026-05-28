@@ -108,9 +108,14 @@ const searchOnline = async (req, res) => {
     }
 };
 
+const WORK_ID_RE = /^\/works\/OL\d+W$/;
+
 const getEditions = async (req, res) => {
     const { workId } = req.query;
     if (!workId) return res.status(400).json({ error: 'Work ID required' });
+    if (!WORK_ID_RE.test(workId as string)) {
+        return res.status(400).json({ error: 'Invalid work ID format' });
+    }
 
     try {
         console.log(`[Editions] Fetching editions for: ${workId}`);

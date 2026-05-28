@@ -1,8 +1,9 @@
 import db from '../config/db';
 
 const getBookStats = (req, res) => {
+    const userId = req.user.id;
     const statsQuery = `
-        SELECT 
+        SELECT
             COUNT(*) as total_books,
             COUNT(CASE WHEN status = 'Completed' THEN 1 END) as completed_books,
             COUNT(CASE WHEN status = 'In Progress' THEN 1 END) as in_progress_books,
@@ -13,47 +14,50 @@ const getBookStats = (req, res) => {
             AVG(rating) as average_rating,
             SUM(page_count) as total_pages
         FROM books
+        WHERE owner_id = ?
     `;
-    db.query(statsQuery, (err, results) => {
+    db.query(statsQuery, [userId], (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(results[0]);
     });
 };
 
 const getReadingByMonth = (req, res) => {
+    const userId = req.user.id;
     const { year } = req.query;
     const currentYear = year || new Date().getFullYear();
 
     const query = `
-        SELECT 
+        SELECT
             MONTH(added_at) as month,
             COUNT(*) as books_added,
             COUNT(CASE WHEN status = 'Completed' THEN 1 END) as books_completed
         FROM books
-        WHERE YEAR(added_at) = ?
+        WHERE owner_id = ? AND YEAR(added_at) = ?
         GROUP BY MONTH(added_at)
         ORDER BY month
     `;
-    db.query(query, [currentYear], (err, results) => {
+    db.query(query, [userId, currentYear], (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(results);
     });
 };
 
 const getAuthorStats = (req, res) => {
+    const userId = req.user.id;
     const query = `
-        SELECT 
+        SELECT
             author,
             COUNT(*) as book_count,
             AVG(rating) as average_rating,
             COUNT(CASE WHEN status = 'Completed' THEN 1 END) as completed_count
         FROM books
-        WHERE author IS NOT NULL AND author != ''
+        WHERE owner_id = ? AND author IS NOT NULL AND author != ''
         GROUP BY author
         ORDER BY book_count DESC
         LIMIT 20
     `;
-    db.query(query, (err, results) => {
+    db.query(query, [userId], (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(results);
     });
