@@ -50,7 +50,7 @@ jobs:
         env:
           DB_HOST: 127.0.0.1
           MYSQL_USER: test_user
-          MYSQL_PASSWORD: ${{ secrets.CI_MYSQL_PASSWORD }}
+          MYSQL_PASSWORD: ${{ secrets.CI_MYSQL_PASSWORD || 'ci_app_pw' }}
           MYSQL_DATABASE: bookboss
         run: cd server && node dist/src/config/migrate.js
 
@@ -58,7 +58,7 @@ jobs:
         env:
           DB_HOST: 127.0.0.1
           MYSQL_USER: test_user
-          MYSQL_PASSWORD: ${{ secrets.CI_MYSQL_PASSWORD }}
+          MYSQL_PASSWORD: ${{ secrets.CI_MYSQL_PASSWORD || 'ci_app_pw' }}
           MYSQL_DATABASE: bookboss
           JWT_SECRET: ${{ secrets.CI_JWT_SECRET || 'ci-jwt-secret-for-testing-only-32ch' }}
           PORT: 5000
