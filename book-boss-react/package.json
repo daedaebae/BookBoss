@@ -10,7 +10,8 @@
     "preview": "vite preview"
   },
   "overrides": {
-    "tar": "^7.5.10"
+    "tar": "^7.5.10",
+    "@xmldom/xmldom": "^0.8.13"
   },
   "dependencies": {
     "@capacitor/core": "^8.1.0",

@@ -355,10 +355,10 @@ This enables an attacker to aggregate activity, spending patterns, patron lists,
 **Details:**  
 The README explicitly states:
 
-> "This is a completely AI Generated game using **Antigravity** and **Cursor**. Models used: **GPT 4.1**, **Gemini Pro 3**, **GPT-OSS 120B**, **Claude 4.5**, and **Vertex/Lyria2** for music."
+> "This is a completely AI Generated game using **Antigravity** and **Cursor**. Models used: [redacted], and **Vertex/Lyria2** for music."
 
 This discloses:
-- Active subscriptions/API access to OpenAI, Google Gemini/Vertex, and Anthropic
+- Active subscriptions/API access to multiple AI providers
 - IDE tooling (Cursor with AI integration)
 - Internal development automation platform (Antigravity by Google)
 - That AI-generated code exists in your repos — a targeted attacker may attempt to inject malicious prompts via issues, PRs, or contributed files knowing AI tooling will process them
