@@ -38,9 +38,19 @@ Accessible only to users with the `Admin` role.
 ## Audiobookshelf Integration
 
 Settings for connecting to an external Audiobookshelf server.
-- **Server URL**: Address of the ABS instance.
-- **API Key**: Token for authentication.
-- **Sync Settings**: specificSync individual libraries or all content.
+- **Server URL**: Address of the ABS instance (e.g. `http://audiobookshelf:13378`).
+- **API Key**: Token for authentication. Find it in ABS under **Settings → Users → your username → API Token**.
+- **Test Connection**: Verifies the stored credentials are valid. Returns a descriptive error if the token is wrong or the server is unreachable.
+- **Sync Settings**: Sync individual libraries or all content.
+
+### Error Messages (Test Connection)
+
+| Condition | Message |
+|-----------|---------|
+| Wrong API token | `Invalid API key — please check your Audiobookshelf API token.` |
+| Server unreachable | `Could not reach the server — please check the URL.` |
+| Timeout | `Connection timed out — the server took too long to respond.` |
+| Other HTTP error | `Server returned HTTP {status} — please check the URL and API key.` |
 
 ## Implementation
 

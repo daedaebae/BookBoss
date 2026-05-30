@@ -179,7 +179,19 @@ const checkAbsStatus = (req, res) => {
             const status = await client.getServerStatus();
             res.json({ status: 'connected', info: status });
         } catch (error) {
-            res.status(500).json({ status: 'error', error: error.message });
+            console.error('ABS Status Check Error:', error.message);
+            const status = error.response?.status;
+            let message = 'Failed to connect to Audiobookshelf server.';
+            if (status === 401 || status === 403) {
+                message = 'Invalid API key — please check your Audiobookshelf API token.';
+            } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+                message = 'Could not reach the server — please check the URL.';
+            } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
+                message = 'Connection timed out — the server took too long to respond.';
+            } else if (status) {
+                message = `Server returned HTTP ${status} — please check the URL and API key.`;
+            }
+            res.status(400).json({ status: 'error', error: message });
         }
     });
 };

@@ -730,6 +730,23 @@ Link an existing book to an ABS item.
 
 ---
 
+#### GET /api/audiobookshelf/servers/:id/status
+Test the connection to a configured ABS server using its stored API token.
+
+**Response (success):**
+```json
+{ "status": "connected", "info": { ... } }
+```
+
+**Response (failure):**
+```json
+{ "status": "error", "error": "Invalid API key — please check your Audiobookshelf API token." }
+```
+
+Error messages are descriptive: invalid token (401/403), unreachable server (ECONNREFUSED/ENOTFOUND), timeout (ETIMEDOUT/ECONNABORTED), or other HTTP status.
+
+---
+
 #### POST /api/audiobookshelf/sync
 Trigger a bulk sync from a specific ABS server.
 
