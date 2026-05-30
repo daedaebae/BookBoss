@@ -748,8 +748,33 @@ body {
 .close-modal-btn {
   width: 32px !important;
   height: 32px !important;
+  min-height: 32px !important;
   padding: 0 !important;
   font-size: 1.5rem !important;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+.close-modal-btn:hover {
+  opacity: 1;
+}
+
+/* Sticky modal footer — always visible at bottom of modal */
+.modal-footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 0 8px;
+  margin-top: 16px;
+  border-top: 1px solid var(--glass-border);
+  background: var(--card-bg);
+  z-index: 5;
 }
 
 .modal-close {

@@ -458,11 +458,11 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({ isOpen, onClose, b
                 </div>
 
                 <div className="modal-footer">
-                    <button type="button" className="btn-secondary" onClick={onClose}>
+                    <button type="button" className="secondary-btn" onClick={onClose}>
                         Cancel
                     </button>
                     <div style={{ display: 'flex', gap: '10px' }}>
-                        <button type="submit" className="btn-primary">
+                        <button type="submit" className="primary-btn">
                             Save Changes
                         </button>
                     </div>

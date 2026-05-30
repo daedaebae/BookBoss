@@ -15,8 +15,9 @@ export const Features: React.FC = () => {
     const [features, setFeatures] = useState<FeatureRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isFormOpen, setIsFormOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<'all' | 'my' | 'planned' | 'completed'>('all');
+    const [activeTab, setActiveTab] = useState<'all' | 'my' | 'planned' | 'completed' | 'archived'>('all');
     const [filterText, setFilterText] = useState('');
+    const [sortOrder, setSortOrder] = useState<'votes' | 'newest' | 'oldest'>('votes');
     const [isSidebarVisible, setIsSidebarVisible] = useState(true);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false); // Added state
@@ -100,19 +101,25 @@ export const Features: React.FC = () => {
         setToast({ message, type, isVisible: true });
     };
 
-    // Filter Logic
-    const filteredFeatures = features.filter(f => {
-        const matchesText = f.title.toLowerCase().includes(filterText.toLowerCase()) ||
-            f.description.toLowerCase().includes(filterText.toLowerCase());
-
-        if (!matchesText) return false;
-
-        if (activeTab === 'my') return f.created_by === user?.username;
-        if (activeTab === 'planned') return f.status === 'planned' || f.status === 'in_progress';
-        if (activeTab === 'completed') return f.status === 'completed';
-
-        return true;
-    });
+    // Filter + Sort Logic
+    const filteredFeatures = features
+        .filter(f => {
+            const matchesText = f.title.toLowerCase().includes(filterText.toLowerCase()) ||
+                f.description.toLowerCase().includes(filterText.toLowerCase());
+            if (!matchesText) return false;
+            if (activeTab === 'my') return f.created_by === user?.username;
+            if (activeTab === 'planned') return f.status === 'planned' || f.status === 'in_progress';
+            if (activeTab === 'completed') return f.status === 'completed';
+            if (activeTab === 'archived') return f.status === 'archived';
+            // Default 'all' tab excludes archived (admins can see them in the Archived tab)
+            return f.status !== 'archived';
+        })
+        .sort((a, b) => {
+            if (sortOrder === 'votes') return b.vote_count - a.vote_count;
+            if (sortOrder === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            if (sortOrder === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+            return 0;
+        });
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-color)' }}>
@@ -162,7 +169,17 @@ export const Features: React.FC = () => {
                     onDesktopSidebarToggle={() => setIsSidebarVisible(!isSidebarVisible)}
                     isSidebarVisible={isSidebarVisible}
                 >
-                    <div style={{ display: 'flex', gap: '10px' }}>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <select
+                            value={sortOrder}
+                            onChange={(e) => setSortOrder(e.target.value as any)}
+                            className="secondary-btn small"
+                            style={{ appearance: 'none', paddingRight: '28px', backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b5cf6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center', backgroundSize: '14px' }}
+                        >
+                            <option value="votes">Most Votes</option>
+                            <option value="newest">Newest</option>
+                            <option value="oldest">Oldest</option>
+                        </select>
                         {user?.is_admin && (
                             <button
                                 className="secondary-btn"
@@ -184,13 +201,14 @@ export const Features: React.FC = () => {
 
                 <div style={{ padding: '30px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
                     {/* Tabs */}
-                    <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', borderBottom: 'var(--glass-border)' }}>
+                    <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', borderBottom: 'var(--glass-border)', flexWrap: 'wrap' }}>
                         {[
-                            { id: 'all', label: 'All Requests' },
-                            { id: 'planned', label: 'Planned' },
-                            { id: 'completed', label: 'Completed' },
-                            { id: 'my', label: 'My Requests' }
-                        ].map(tab => (
+                            { id: 'all', label: 'All Requests', adminOnly: false },
+                            { id: 'planned', label: 'Planned', adminOnly: false },
+                            { id: 'completed', label: 'Completed', adminOnly: false },
+                            { id: 'my', label: 'My Requests', adminOnly: false },
+                            { id: 'archived', label: 'Archived', adminOnly: true }
+                        ].filter(tab => !tab.adminOnly || user?.is_admin).map(tab => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as any)}

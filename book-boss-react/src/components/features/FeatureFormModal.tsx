@@ -34,7 +34,7 @@ export const FeatureFormModal: React.FC<FeatureFormModalProps> = ({ isOpen, onCl
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h3>Submit Feature Request</h3>
+                    <h3>Submit Request</h3>
                     <button className="modal-close" onClick={onClose}>×</button>
                 </div>
                 <form onSubmit={handleSubmit} className="modal-body">

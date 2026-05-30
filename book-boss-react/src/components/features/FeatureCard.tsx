@@ -15,7 +15,8 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({ feature, onVote, isAdm
         planned: 'var(--accent-color)',
         in_progress: '#3b82f6',
         completed: 'var(--success-color)',
-        rejected: 'var(--danger-color)'
+        rejected: 'var(--danger-color)',
+        archived: '#6b7280'
     };
 
     const [isEditing, setIsEditing] = React.useState(false);
@@ -28,7 +29,7 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({ feature, onVote, isAdm
         }
     };
 
-    const isFoldableType = feature.status === 'completed' || feature.status === 'rejected';
+    const isFoldableType = feature.status === 'completed' || feature.status === 'rejected' || feature.status === 'archived';
     const [isFolded, setIsFolded] = React.useState(isFoldableType);
 
     React.useEffect(() => {
@@ -183,6 +184,7 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({ feature, onVote, isAdm
                                     <option value="in_progress">In Progress</option>
                                     <option value="completed">Completed</option>
                                     <option value="rejected">Rejected</option>
+                                    <option value="archived">Archived</option>
                                 </select>
                             )}
 

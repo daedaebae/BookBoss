@@ -18,6 +18,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
                 <div className="modal-header">
                     <h3>{title}</h3>
                     <button
+                        type="button"
                         className="close-modal-btn"
                         onClick={onClose}
                     >

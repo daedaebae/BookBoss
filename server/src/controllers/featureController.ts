@@ -3,16 +3,20 @@ import axios from 'axios';
 
 const getFeatureRequests = async (req, res) => {
     const userId = req.user.id;
+    const isAdmin = req.user.isAdmin;
 
     try {
+        // Non-admins never see archived requests; admins see all
+        const archiveFilter = isAdmin ? '' : "AND fr.status != 'archived'";
         const query = `
-            SELECT 
+            SELECT
                 fr.*,
                 u.username as created_by,
                 (SELECT COUNT(*) FROM feature_votes fv WHERE fv.feature_request_id = fr.id) as vote_count,
                 EXISTS(SELECT 1 FROM feature_votes fv WHERE fv.feature_request_id = fr.id AND fv.user_id = ?) as voted_by_me
             FROM feature_requests fr
             JOIN users u ON fr.user_id = u.id
+            WHERE 1=1 ${archiveFilter}
             ORDER BY vote_count DESC, fr.created_at DESC
         `;
 
@@ -216,7 +220,7 @@ const updateFeature = async (req, res) => {
         return res.status(403).json({ error: 'Only admins can update features' });
     }
 
-    const validStatuses = ['open', 'planned', 'in_progress', 'completed', 'rejected'];
+    const validStatuses = ['open', 'planned', 'in_progress', 'completed', 'rejected', 'archived'];
     if (status && !validStatuses.includes(status)) {
         return res.status(400).json({ error: 'Invalid status' });
     }

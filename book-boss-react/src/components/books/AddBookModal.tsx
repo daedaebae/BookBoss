@@ -67,7 +67,22 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
         publication_date: '',
         rating: undefined,
         page_count: undefined,
+        // Advanced fields
+        notes: '',
+        physical_format: undefined,
+        book_condition: undefined,
+        edition_type: '',
+        edge_type: undefined,
+        is_signed: false,
+        has_bonus_chapters: false,
+        binding_details: '',
+        is_loaned: false,
+        borrower_name: '',
+        loan_date: '',
+        due_date: '',
     });
+
+    const [showAdvanced, setShowAdvanced] = useState(false);
 
     const addBookManually = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -102,8 +117,13 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
             title: '', author: '', isbn: '', library: '', format: '',
             series: '', series_index: undefined, publisher: '', language: 'en', description: '',
             shelf: '', status: undefined,
-            cover_url: '', categories: '', publication_date: '', rating: undefined, page_count: undefined
+            cover_url: '', categories: '', publication_date: '', rating: undefined, page_count: undefined,
+            notes: '', physical_format: undefined, book_condition: undefined,
+            edition_type: '', edge_type: undefined, is_signed: false,
+            has_bonus_chapters: false, binding_details: '',
+            is_loaned: false, borrower_name: '', loan_date: '', due_date: '',
         });
+        setShowAdvanced(false);
         setActiveTab('search'); // Reset to 'search' tab on close
         setInitialSearchQuery('');
         onClose();
@@ -458,7 +478,179 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
                                 style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--input-bg)', color: 'var(--text-primary)' }}
                             />
                         </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
+                        {/* Advanced Section */}
+                        <div style={{ marginTop: '20px', borderTop: '1px solid var(--glass-border)', paddingTop: '12px' }}>
+                            <button
+                                type="button"
+                                onClick={() => setShowAdvanced(!showAdvanced)}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    fontSize: '0.9rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '4px 0',
+                                    width: '100%',
+                                    textAlign: 'left',
+                                }}
+                            >
+                                <span>{showAdvanced ? '▼' : '▶'}</span>
+                                Advanced Options
+                            </button>
+
+                            {showAdvanced && (
+                                <div style={{ marginTop: '16px' }}>
+                                    <div className="form-group">
+                                        <label>Your Review / Notes</label>
+                                        <textarea
+                                            value={formData.notes || ''}
+                                            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                                            rows={4}
+                                            placeholder="Share your thoughts about this book..."
+                                            style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--input-bg)', color: 'var(--text-primary)' }}
+                                        />
+                                    </div>
+
+                                    {/* Physical Book Details — only when Physical format */}
+                                    {formData.format === 'Physical' && (
+                                        <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--glass-border)' }}>
+                                            <h4 style={{ marginBottom: '12px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>Physical Book Details</h4>
+                                            <div className="form-group">
+                                                <label>Physical Format</label>
+                                                <select
+                                                    value={formData.physical_format || ''}
+                                                    onChange={(e) => setFormData({ ...formData, physical_format: e.target.value as any })}
+                                                >
+                                                    <option value="">Select format</option>
+                                                    <option value="Hardback">Hardback</option>
+                                                    <option value="Paperback">Paperback</option>
+                                                    <option value="Mass Market Paperback">Mass Market Paperback</option>
+                                                    <option value="Board Book">Board Book</option>
+                                                    <option value="Leather Bound">Leather Bound</option>
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Condition</label>
+                                                <select
+                                                    value={formData.book_condition || ''}
+                                                    onChange={(e) => setFormData({ ...formData, book_condition: e.target.value as any })}
+                                                >
+                                                    <option value="">Select condition</option>
+                                                    <option value="Excellent">Excellent</option>
+                                                    <option value="Good">Good</option>
+                                                    <option value="Fair">Fair</option>
+                                                    <option value="Poor">Poor</option>
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Edition Type</label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.edition_type || ''}
+                                                    onChange={(e) => setFormData({ ...formData, edition_type: e.target.value })}
+                                                    placeholder="e.g., First Edition, Limited Edition"
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Edge Type</label>
+                                                <select
+                                                    value={formData.edge_type || ''}
+                                                    onChange={(e) => setFormData({ ...formData, edge_type: e.target.value as any })}
+                                                >
+                                                    <option value="">Select edge type</option>
+                                                    <option value="Gilded">Gilded</option>
+                                                    <option value="Fore-edge Painted">Fore-edge Painted</option>
+                                                    <option value="Sprayed Edges">Sprayed Edges</option>
+                                                    <option value="Hidden Fore-edge">Hidden Fore-edge</option>
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.is_signed || false}
+                                                        onChange={(e) => setFormData({ ...formData, is_signed: e.target.checked })}
+                                                        style={{ width: 'auto', cursor: 'pointer' }}
+                                                    />
+                                                    Signed Copy
+                                                </label>
+                                            </div>
+                                            <div className="form-group">
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.has_bonus_chapters || false}
+                                                        onChange={(e) => setFormData({ ...formData, has_bonus_chapters: e.target.checked })}
+                                                        style={{ width: 'auto', cursor: 'pointer' }}
+                                                    />
+                                                    Bonus Chapters
+                                                </label>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Binding Details</label>
+                                                <textarea
+                                                    value={formData.binding_details || ''}
+                                                    onChange={(e) => setFormData({ ...formData, binding_details: e.target.value })}
+                                                    rows={2}
+                                                    placeholder="Additional binding or decorative details..."
+                                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--input-bg)', color: 'var(--text-primary)' }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Loan Tracking */}
+                                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--glass-border)' }}>
+                                        <h4 style={{ marginBottom: '12px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>Loan Tracking</h4>
+                                        <div className="form-group">
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.is_loaned || false}
+                                                    onChange={(e) => setFormData({ ...formData, is_loaned: e.target.checked })}
+                                                    style={{ width: 'auto', cursor: 'pointer' }}
+                                                />
+                                                Book is currently loaned out
+                                            </label>
+                                        </div>
+                                        {formData.is_loaned && (
+                                            <>
+                                                <div className="form-group">
+                                                    <label>Borrower Name</label>
+                                                    <input
+                                                        type="text"
+                                                        value={formData.borrower_name || ''}
+                                                        onChange={(e) => setFormData({ ...formData, borrower_name: e.target.value })}
+                                                        placeholder="Who borrowed this book?"
+                                                    />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label>Loan Date</label>
+                                                    <input
+                                                        type="date"
+                                                        value={formData.loan_date || ''}
+                                                        onChange={(e) => setFormData({ ...formData, loan_date: e.target.value })}
+                                                    />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label>Due Date</label>
+                                                    <input
+                                                        type="date"
+                                                        value={formData.due_date || ''}
+                                                        onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
                             <button type="button" className="secondary-btn" onClick={handleClose}>
                                 Cancel
                             </button>

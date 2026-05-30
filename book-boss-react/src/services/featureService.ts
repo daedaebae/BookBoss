@@ -4,7 +4,7 @@ export interface FeatureRequest {
     id: number;
     title: string;
     description: string;
-    status: 'open' | 'planned' | 'in_progress' | 'completed' | 'rejected';
+    status: 'open' | 'planned' | 'in_progress' | 'completed' | 'rejected' | 'archived';
     vote_count: number;
     voted_by_me: boolean;
     created_by: string;

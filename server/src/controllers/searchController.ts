@@ -66,7 +66,7 @@ const searchOnline = async (req, res) => {
     // 1. Try Google Books
     try {
         console.log(`[Search] Proxying Google Books search for: ${q}`);
-        const response = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=20`);
+        const response = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=20&printType=books&orderBy=relevance`);
         if (response.data.items) {
             return res.json(response.data);
         }
@@ -77,7 +77,7 @@ const searchOnline = async (req, res) => {
     // 2. Fallback to OpenLibrary
     try {
         console.log(`[Search] Fallback to OpenLibrary for: ${q}`);
-        const olResponse = await axios.get(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=20`);
+        const olResponse = await axios.get(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=20&type=work`);
 
         if (olResponse.data && olResponse.data.docs) {
             results.items = olResponse.data.docs.map(doc => ({
