@@ -23,6 +23,7 @@ if (!('toJSON' in BigInt.prototype)) {
 
 import logger from './src/utils/logger';
 import db from './src/config/db'; // Ensure DB connection is initialized
+import { seedAbsServer } from './src/config/seed';
 import apiRoutes from './src/routes';
 
 const app = express();
@@ -101,4 +102,5 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 app.listen(port, '0.0.0.0', () => {
     logger.info(`Server running on port ${port}`);
+    seedAbsServer();
 });
