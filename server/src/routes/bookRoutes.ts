@@ -27,8 +27,8 @@ router.delete('/libraries/:name', authenticateToken, bookController.deleteLibrar
 // Admin Operations
 router.post('/', authenticateToken, upload.single('coverFile'), bookController.addBook);
 
-router.put('/:id', authenticateToken, requireAdmin, upload.fields([{ name: 'coverFile', maxCount: 1 }]), bookController.updateBook);
-router.delete('/:id', authenticateToken, requireAdmin, bookController.deleteBook);
+router.put('/:id', authenticateToken, upload.fields([{ name: 'coverFile', maxCount: 1 }]), bookController.updateBook);
+router.delete('/:id', authenticateToken, bookController.deleteBook);
 
 // ABS Integration
 router.post('/:id/link/abs', authenticateToken, requireAdmin, absController.linkBookToAbs);

@@ -192,7 +192,7 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onB
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} title="Add New Book">
+        <Modal isOpen={isOpen} onClose={handleClose} title="Add New Book" disableOverlayClose>
             <div className="tabs" style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--glass-border)', paddingBottom: '10px', overflowX: 'auto', whiteSpace: 'nowrap', WebkitOverflowScrolling: 'touch' }}>
                 <button
                     className={`tab-btn ${activeTab === 'manual' ? 'active' : ''}`}

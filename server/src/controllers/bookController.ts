@@ -302,8 +302,17 @@ const updateBook = (req, res) => {
     query += ' WHERE id = ?';
     values.push(id);
 
+    // Non-admins may only update their own books
+    if (!req.user.isAdmin) {
+        query += ' AND owner_id = ?';
+        values.push(req.user.id);
+    }
+
     db.query(query, values, (err, result) => {
         if (err) { console.error(err); return res.status(500).json({ error: err.message || 'Internal Server Error' }); }
+        if ((result as any).affectedRows === 0) {
+            return res.status(403).json({ error: 'Book not found or permission denied' });
+        }
 
         // Refetch the fully hydrated book for the client
         const fetchQuery = `
@@ -335,9 +344,18 @@ const updateBook = (req, res) => {
 
 const deleteBook = (req, res) => {
     const { id } = req.params;
-    const query = 'DELETE FROM books WHERE id = ?';
-    db.query(query, [id], (err, result) => {
+    const isAdmin = req.user.isAdmin;
+    let query = 'DELETE FROM books WHERE id = ?';
+    const params: any[] = [id];
+    if (!isAdmin) {
+        query += ' AND owner_id = ?';
+        params.push(req.user.id);
+    }
+    db.query(query, params, (err, result) => {
         if (err) { console.error(err); return res.status(500).json({ error: err.message }); }
+        if ((result as any).affectedRows === 0) {
+            return res.status(404).json({ error: 'Book not found or permission denied' });
+        }
         res.json({ message: 'Book deleted successfully' });
     });
 };

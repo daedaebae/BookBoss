@@ -51,13 +51,16 @@ export const BookSearch: React.FC<BookSearchProps> = ({ onBookSelect, initialQue
     const [editions, setEditions] = useState<any[]>([]);
     const [isFetchingEditions, setIsFetchingEditions] = useState(false);
     const [selectedWorkId, setSelectedWorkId] = useState<string | null>(null);
+    // Cache of work-level authors so editions can fall back to them (OL editions only have {key} refs)
+    const [workAuthors, setWorkAuthors] = useState<string[]>([]);
 
     const handleAddBook = async (item: any) => {
         // If it's a Google Book result (id usually alphanumeric without slashes) or looks specific, add directly
         // If it's an OpenLibrary WORK (id starts with /works/), fetch editions.
         // Google Books IDs don't start with /works/. OL keys do.
         if (item.id.toString().startsWith('/works/')) {
-            await fetchEditions(item.id, item.volumeInfo.title);
+            const authors = Array.isArray(item.volumeInfo?.authors) ? item.volumeInfo.authors : [];
+            await fetchEditions(item.id, item.volumeInfo.title, authors);
             return;
         }
 
@@ -65,23 +68,19 @@ export const BookSearch: React.FC<BookSearchProps> = ({ onBookSelect, initialQue
         selectEdition(item);
     };
 
-    const fetchEditions = async (workKey: string, title: string) => {
+    const fetchEditions = async (workKey: string, title: string, authors: string[] = []) => {
         setSelectedWorkId(workKey);
+        setWorkAuthors(authors);
         setIsFetchingEditions(true);
         setEditions([]); // Clear previous
 
         try {
-            // We need a proxy endpoint for editions too to avoid CORS?
-            // Or we can use the same search endpoint with a designated query if we update backend?
-            // Actually, backend needs an endpoint for editions.
-            // Let's defer to backend implementation or use existing search with a trick?
-            // Better: Add /api/search/editions?work=... to backend.
             const response = await bookService.getEditions(workKey);
             setEditions(response.entries || []);
         } catch (error) {
             console.error('Failed to fetch editions:', error);
             // Fallback to adding the work itself as a generic book
-            selectEdition({ id: workKey, volumeInfo: { title, authors: ['Unknown'] } }); // Minimal fallback
+            selectEdition({ id: workKey, volumeInfo: { title, authors } });
             setError('Could not load editions. Added as generic work.');
         } finally {
             setIsFetchingEditions(false);
@@ -90,9 +89,19 @@ export const BookSearch: React.FC<BookSearchProps> = ({ onBookSelect, initialQue
 
     const selectEdition = (item: any, isEdition = false) => {
         // Map info
+        // OL edition authors are [{key: '/authors/OL123A'}] — no names inline.
+        // Fall back to the parent work's authors captured during fetchEditions.
+        const resolvedAuthors = (() => {
+            if (!isEdition) return null; // handled via volumeInfo below
+            if (item.authors && item.authors.length > 0 && item.authors[0].name) {
+                return item.authors.map((a: any) => a.name as string);
+            }
+            return workAuthors.length > 0 ? workAuthors : [];
+        })();
+
         const volumeInfo = isEdition ? {
             title: item.title,
-            authors: item.authors ? item.authors.map((a: any) => a.name || 'Unknown') : [], // OL editions author format might vary
+            authors: resolvedAuthors ?? [], // OL editions author format might vary
             description: item.description ? (typeof item.description === 'string' ? item.description : item.description.value) : '',
             publisher: item.publishers ? item.publishers[0] : '',
             publishedDate: item.publish_date,

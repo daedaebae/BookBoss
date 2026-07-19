@@ -2,6 +2,7 @@ import React from 'react';
 import { type Shelf } from '../../types/shelf';
 import { shelfService } from '../../services/shelfService';
 import { bookService } from '../../services/bookService';
+import { userService } from '../../services/userService';
 
 export interface SidebarFilter {
     type: 'all' | 'status' | 'format' | 'shelf' | 'series' | 'loaned' | 'user' | 'library';
@@ -123,57 +124,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const [isLibrariesOpen, setIsLibrariesOpen] = React.useState(true);
     const [expandedLibraries, setExpandedLibraries] = React.useState<Set<string>>(new Set());
     const [error, setError] = React.useState<string | null>(null);
-    const [randomGreeting, setRandomGreeting] = React.useState('Welcome back');
+    // Greeting is now a static personalised message — no random quotes
     const [githubVersion, setGithubVersion] = React.useState<string>(APP_VERSION);
     const [githubReleaseUrl, setGithubReleaseUrl] = React.useState<string>(
         'https://github.com/daedaebae/BookBoss/releases'
     );
 
-    React.useEffect(() => {
-        const greetings = [
-            "Welcome back",
-            "Time for another chapter",
-            "Ready to read",
-            "Lost in a book",
-            "Hello there",
-            "Your next page awaits",
-            "Welcome to your library",
-            "Stay fanged, my love.",
-            "Howl you doing?",
-            "May your day be as dark and delicious as your book boyfriend.",
-            "Sending you all the supernatural snuggles.",
-            "Fangs for being a friend!",
-            "Hope your day doesn’t suck… unless you want it to.",
-            "Blood, books, and bad decisions—just another day in paradise.",
-            "Stay undead and fabulous.",
-            "Paws-itively thinking of you!",
-            "Howl’s it going?",
-            "Pack mentality: stick together, stay fierce.",
-            "Hope your day is as wild as your shifter OTP.",
-            "Out of this world greetings!",
-            "Beam me up, but only if you’re cute.",
-            "May your alien abduction be consensual.",
-            "You’re my favorite human… or whatever species you are.",
-            "Darkness looks good on you.",
-            "Hope your day is as twisted as your favorite MM romance.",
-            "Stay wicked, my dear.",
-            "Sending you love… and maybe a cursed artifact or two.",
-            "Touch grass? Never heard of her.",
-            "I’d let [insert monster name] kidnap me too.",
-            "No one: Absolutely no one: Me, reading monster romance at 3 AM: This is self-care.",
-            "Plot? Never heard of her. Just give me the slow-burn tension.",
-            "I’d risk the fates for you.",
-            "You’re my always and forever… and ever and ever.",
-            "Hope your love life is as chaotic as a reverse harem plot.",
-            "May your enemies be hot and your alliances be hotter.",
-            "If love is a battlefield, I’m bringing a monster to the fight.",
-            "I’d choose the villain arc for you.",
-            "You’re my soft spot in a world full of claws.",
-            "Even monsters need a little love (and so do you).",
-            "You’re the human to my monster’s “I’d burn the world for you.”"
-        ];
-        setRandomGreeting(greetings[Math.floor(Math.random() * greetings.length)]);
-    }, []);
 
     React.useEffect(() => {
         fetch('https://api.github.com/repos/daedaebae/BookBoss/releases/latest')
@@ -190,6 +146,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
     // UI editing state
     const [creatingLibrary, setCreatingLibrary] = React.useState(false);
     const [renamingLibrary, setRenamingLibrary] = React.useState<string | null>(null);
+
+    // Admin: list of all users for library switching
+    const [adminUsers, setAdminUsers] = React.useState<{ id: number; username: string; is_admin?: boolean }[]>([]);
+    React.useEffect(() => {
+        if (user?.is_admin) {
+            userService.getUsers()
+                .then(users => setAdminUsers(users))
+                .catch(() => { /* silently ignore if endpoint unavailable */ });
+        }
+    }, [user?.is_admin]);
 
     const [creatingShelfUnder, setCreatingShelfUnder] = React.useState<string | null>(null); // libraryName
     const [renamingShelf, setRenamingShelf] = React.useState<Shelf | null>(null);
@@ -225,13 +191,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
         });
     };
 
+    // ── localStorage helpers for persisting empty library names ──────────────
+    const localLibsKey = user ? `bookboss_libs_${user.id}` : null;
+
+    const getLocalLibraries = (): string[] => {
+        if (!localLibsKey) return [];
+        try { return JSON.parse(localStorage.getItem(localLibsKey) || '[]'); } catch { return []; }
+    };
+
+    const saveLocalLibraries = (libs: string[]) => {
+        if (!localLibsKey) return;
+        localStorage.setItem(localLibsKey, JSON.stringify(libs));
+    };
+
+    // Merged list: book-derived + locally-persisted empty ones, deduped
+    const [localLibs, setLocalLibs] = React.useState<string[]>(getLocalLibraries);
+    const allLibraries = Array.from(new Set([...userLibraries, ...localLibs])).sort();
+
     // ── library CRUD ──────────────────────────────────────────────────────────
-    const handleCreateLibrary = async (name: string) => {
+    const handleCreateLibrary = (name: string) => {
         setCreatingLibrary(false);
-        // Libraries are just a 'library' tag on books. Creating one means the user
-        // will assign it via Edit Book. We just expand the "empty" sub-menu.
-        // If there are genuinely no books yet, nothing happens visually until a book is assigned.
-        // Here we treat it as selecting the (empty) library filter to signal intent.
+        // Persist the name so it survives a page refresh even while the library is empty
+        const updated = Array.from(new Set([...getLocalLibraries(), name]));
+        saveLocalLibraries(updated);
+        setLocalLibs(updated);
         handleFilterClick({ type: 'library', value: name });
     };
 
@@ -239,8 +222,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         setRenamingLibrary(null);
         try {
             await bookService.renameLibrary(oldName, newName);
+            // Update localStorage entry too
+            const updated = getLocalLibraries().map(l => l === oldName ? newName : l);
+            saveLocalLibraries(updated);
+            setLocalLibs(updated);
             onLibrariesChanged();
-            // If the active filter was this library, update it
             if (activeFilter.type === 'library' && activeFilter.value === oldName) {
                 onFilterChange({ type: 'library', value: newName });
             }
@@ -253,6 +239,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         if (!confirm(`Remove library "${name}"? Books will keep their existing library tag value but the library will no longer appear in the sidebar. This cannot be undone.`)) return;
         try {
             await bookService.deleteLibrary(name);
+            // Remove from localStorage too
+            const updated = getLocalLibraries().filter(l => l !== name);
+            saveLocalLibraries(updated);
+            setLocalLibs(updated);
             onLibrariesChanged();
             if (activeFilter.type === 'library' && activeFilter.value === name) {
                 onFilterChange({ type: 'all' });
@@ -296,7 +286,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }
     };
 
-    const sortedLibraries = [...userLibraries].sort((a, b) => a.localeCompare(b));
+    const sortedLibraries = [...allLibraries].sort((a, b) => a.localeCompare(b));
 
     return (
         <>
@@ -328,7 +318,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     animation: 'fadeInUp 0.8s ease-out'
                                 }}
                             >
-                                {randomGreeting}, {user.username}!
+                                Welcome, {user.username}!
                             </p>
                         )}
                     </div>
@@ -597,6 +587,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </div>
                     )}
                 </div>
+
+                {/* Admin: View Any User's Library */}
+                {user?.is_admin && adminUsers.length > 0 && (
+                    <div className="sidebar-section">
+                        <div className="sidebar-section-title">Admin: View Library</div>
+                        <div style={{ padding: '4px 8px' }}>
+                            <select
+                                value={activeFilter.type === 'user' ? (activeFilter.userId ?? '') : ''}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val === '') {
+                                        handleFilterClick({ type: 'all' });
+                                    } else {
+                                        handleFilterClick({ type: 'user', userId: parseInt(val) });
+                                    }
+                                }}
+                                style={{
+                                    width: '100%',
+                                    padding: '6px 8px',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--glass-border)',
+                                    background: 'var(--input-bg)',
+                                    color: 'var(--text-primary)',
+                                    fontSize: '0.85rem',
+                                }}
+                            >
+                                <option value="">— My Library —</option>
+                                {adminUsers
+                                    .filter(u => u.id !== user.id)
+                                    .map(u => (
+                                        <option key={u.id} value={u.id}>{u.username}</option>
+                                    ))}
+                            </select>
+                        </div>
+                    </div>
+                )}
 
                 {/* System Section - Sticky Footer */}
                 <div className="sidebar-footer" style={{ marginTop: 'auto', paddingTop: '15px', borderTop: '1px solid var(--glass-border)', flexShrink: 0 }}>
